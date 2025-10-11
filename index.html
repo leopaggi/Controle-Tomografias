@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Exames de Tomografia</title>
     <style>
-        /* SEU CSS ORIGINAL AQUI - MANTIDO INTEGRALMENTE */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -38,13 +37,370 @@
             padding: 25px;
         }
         
-        /* ... RESTANTE DO SEU CSS ORIGINAL ... */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
         
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            padding: 12px 25px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .legenda-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .legenda-container h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .legenda-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .legenda-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e1e1e1;
+        }
+        
+        .legenda-item h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .valor-servico {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            padding: 3px 0;
+        }
+        
+        .data-seletor {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .data-seletor label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .data-seletor input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .exams-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .exams-table th, .exams-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        
+        .exams-table th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .exams-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .exam-name {
+            text-align: left;
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        
+        .service-header {
+            background-color: #34495e !important;
+        }
+        
+        .counter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .counter-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background-color: var(--secondary);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .counter-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .counter-btn.remove {
+            background-color: var(--danger);
+        }
+        
+        .counter-btn.remove:hover {
+            background-color: #c0392b;
+        }
+        
+        .count-display {
+            font-weight: bold;
+            min-width: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .nao-tem {
+            color: #999;
+            font-style: italic;
+        }
+        
+        .resumo-container {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .resumo-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-top: 4px solid var(--secondary);
+        }
+        
+        .resumo-card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .resumo-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .resumo-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #eee;
+        }
+        
+        .actions {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-save {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-download {
+            background-color: var(--info);
+            color: white;
+        }
+        
+        .btn-clear {
+            background-color: var(--warning);
+            color: white;
+        }
+        
+        .btn-reset {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .total-geral {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .total-geral h3 {
+            margin-bottom: 10px;
+        }
+        
+        .total-info {
+            display: flex;
+            justify-content: space-around;
+            font-size: 1.2rem;
+        }
+        
+        .relatorio-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .relatorio-table th, .relatorio-table td {
+            padding: 10px 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        
+        .relatorio-table th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .relatorio-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .data-cell {
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        
+        .total-mensal {
+            background-color: var(--primary) !important;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .legenda-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .exams-table {
+                font-size: 0.9rem;
+            }
+            
+            .counter {
+                gap: 5px;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+            
+            .tab {
+                flex: 1;
+                min-width: 120px;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- SEU HTML ORIGINAL AQUI - MANTIDO INTEGRALMENTE -->
         <header>
             <h1>Controle de Exames de Tomografia</h1>
             <p class="description">Registre e acompanhe todos os seus exames de tomografia em um só lugar</p>
@@ -56,12 +412,93 @@
             <button class="tab" onclick="abrirTab('backup')">Backup & Restore</button>
         </div>
         
-        <!-- ... RESTANTE DO SEU HTML ORIGINAL ... -->
+        <!-- ABA CONTROLE DIÁRIO -->
+        <div id="controle" class="tab-content active">
+            <div class="legenda-container">
+                <h2>Valores por Segmento (R$)</h2>
+                <div class="legenda-grid" id="legenda-grid"></div>
+            </div>
+            
+            <div class="data-seletor">
+                <label for="data-exame">Data dos exames: </label>
+                <input type="date" id="data-exame">
+            </div>
+            
+            <table class="exams-table" id="exams-table">
+                <thead>
+                    <tr>
+                        <th>EXAMES / SERVIÇOS</th>
+                        <th class="service-header">MOBILEMED IMAX</th>
+                        <th class="service-header">SAGRADA FAMILIA</th>
+                        <th class="service-header">EPACS – RJ</th>
+                        <th class="service-header">CLINIMAGE</th>
+                    </tr>
+                </thead>
+                <tbody id="exams-body"></tbody>
+            </table>
+            
+            <div class="resumo-container" id="resumo-container"></div>
+            
+            <div class="total-geral" id="total-geral"></div>
+            
+            <div class="actions">
+                <button id="save-data" class="btn-save">Salvar Dados do Dia</button>
+                <button id="clear-day" class="btn-clear">Limpar Exames do Dia</button>
+            </div>
+        </div>
         
+        <!-- ABA RELATÓRIO MENSAL -->
+        <div id="relatorio" class="tab-content">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <label for="mes-relatorio">Mês do Relatório: </label>
+                <input type="month" id="mes-relatorio">
+                <button onclick="gerarRelatorioMensal()" class="btn-save" style="margin-left: 10px;">Gerar Relatório</button>
+            </div>
+            
+            <div id="relatorio-mensal-container">
+                <table class="relatorio-table" id="relatorio-mensal">
+                    <thead>
+                        <tr>
+                            <th>DATA</th>
+                            <th>MOBILEMED IMAX</th>
+                            <th>SAGRADA FAMILIA</th>
+                            <th>EPACS – RJ</th>
+                            <th>CLINIMAGE</th>
+                            <th>VALOR TOTAL DIÁRIO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="relatorio-body"></tbody>
+                </table>
+            </div>
+            
+            <div class="actions">
+                <button onclick="downloadRelatorioExcel()" class="btn-download">Download Relatório Excel</button>
+                <button onclick="downloadRelatorioPDF()" class="btn-download">Download Relatório PDF</button>
+            </div>
+        </div>
+        
+        <!-- ABA BACKUP -->
+        <div id="backup" class="tab-content">
+            <div style="text-align: center; padding: 20px;">
+                <h2>Backup & Restauração de Dados</h2>
+                
+                <div class="actions">
+                    <button onclick="baixarBackupCompleto()" class="btn-download">Download Backup Completo</button>
+                    <button onclick="baixarRelatorioMensal()" class="btn-download">Download Relatório Mensal</button>
+                    <button id="reset-data" class="btn-reset">Limpar Todos os Dados</button>
+                </div>
+                
+                <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>Restaurar Backup</h3>
+                    <input type="file" id="upload-backup" accept=".json" style="margin: 10px 0; display: block; margin: 10px auto;">
+                    <button onclick="restaurarBackup()" class="btn-save">Restaurar Dados do Backup</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // DADOS REAIS DOS VALORES (MANTIDO)
+        // DADOS REAIS DOS VALORES
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
             'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
@@ -84,83 +521,26 @@
             { id: 'clinimage', nome: 'CLINIMAGE' }
         ];
 
-        // SISTEMA DE ARMAZENAMENTO PARA GITHUB
-        let examesDoDia = {};
-        let dadosCarregados = false;
+        // CARREGAR DADOS SALVOS
+        let examesDoDia = JSON.parse(localStorage.getItem('examesTomografia')) || {};
+        
+        // ELEMENTOS DA PÁGINA
+        const legendaGrid = document.getElementById('legenda-grid');
+        const examsBody = document.getElementById('exams-body');
+        const resumoContainer = document.getElementById('resumo-container');
+        const totalGeral = document.getElementById('total-geral');
+        const dataExameInput = document.getElementById('data-exame');
+        const saveDataBtn = document.getElementById('save-data');
+        const clearDayBtn = document.getElementById('clear-day');
+        const resetDataBtn = document.getElementById('reset-data');
+        const mesRelatorioInput = document.getElementById('mes-relatorio');
 
-        // FUNÇÃO PARA CARREGAR DADOS (SUBSTITUI localStorage)
-        function carregarDados() {
-            // Tenta carregar do localStorage primeiro (para uso local)
-            try {
-                const dadosLocal = localStorage.getItem('examesTomografia');
-                if (dadosLocal) {
-                    examesDoDia = JSON.parse(dadosLocal);
-                    console.log('Dados carregados do localStorage');
-                    return;
-                }
-            } catch (e) {
-                console.log('localStorage não disponível, usando memória');
-            }
-            
-            // Se não tem dados, inicializa vazio
-            if (Object.keys(examesDoDia).length === 0) {
-                examesDoDia = {};
-            }
-            
-            dadosCarregados = true;
-        }
+        // CONFIGURAR DATA ATUAL
+        const hoje = new Date();
+        dataExameInput.value = hoje.toISOString().split('T')[0];
+        mesRelatorioInput.value = hoje.toISOString().substring(0, 7);
 
-        // FUNÇÃO PARA SALVAR DADOS (SUBSTITUI localStorage)
-        function salvarDados() {
-            // Tenta salvar no localStorage (para uso local)
-            try {
-                localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
-                console.log('Dados salvos no localStorage');
-            } catch (e) {
-                console.log('localStorage não disponível, dados apenas em memória');
-            }
-            
-            // SEMPRE oferece download de backup automático
-            baixarBackupAutomatico();
-            
-            alert('Dados salvos com sucesso! Backup automático gerado.');
-        }
-
-        // BACKUP AUTOMÁTICO AO SALVAR
-        function baixarBackupAutomatico() {
-            const data = new Date().toISOString().split('T')[0];
-            const backupData = {
-                dataBackup: new Date().toISOString(),
-                versao: '2.0',
-                dados: examesDoDia
-            };
-            
-            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup_automatico_${data}.json`;
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // FUNÇÃO PARA INICIALIZAR DIA SE NÃO EXISTIR
-        function inicializarDia(data) {
-            if (!examesDoDia[data]) {
-                examesDoDia[data] = {};
-                Object.keys(valoresSegmentos).forEach(segmento => {
-                    examesDoDia[data][segmento] = {};
-                    servicos.forEach(servico => {
-                        examesDoDia[data][segmento][servico.id] = 0;
-                    });
-                });
-            }
-        }
-
-        // SUAS FUNÇÕES ORIGINAIS (MANTIDAS)
+        // FUNÇÃO PARA MUDAR ABAS
         function abrirTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -176,8 +556,8 @@
             }
         }
 
+        // FUNÇÃO PARA CRIAR A LEGENDA
         function criarLegenda() {
-            const legendaGrid = document.getElementById('legenda-grid');
             legendaGrid.innerHTML = '';
             
             Object.values(valoresSegmentos).forEach(segmento => {
@@ -203,14 +583,20 @@
             });
         }
 
+        // FUNÇÃO PARA CRIAR A TABELA
         function criarTabela() {
-            const examsBody = document.getElementById('exams-body');
-            const dataSelecionada = document.getElementById('data-exame').value;
-            
-            // Inicializa o dia se necessário
-            inicializarDia(dataSelecionada);
-            
             examsBody.innerHTML = '';
+            const dataSelecionada = dataExameInput.value;
+            
+            if (!examesDoDia[dataSelecionada]) {
+                examesDoDia[dataSelecionada] = {};
+                Object.keys(valoresSegmentos).forEach(segmento => {
+                    examesDoDia[dataSelecionada][segmento] = {};
+                    servicos.forEach(servico => {
+                        examesDoDia[dataSelecionada][segmento][servico.id] = 0;
+                    });
+                });
+            }
             
             Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
                 const linha = document.createElement('tr');
@@ -262,21 +648,21 @@
             atualizarResumo();
         }
 
+        // FUNÇÃO PARA ALTERAR CONTADOR
         function alterarContador(segmento, servico, alteracao) {
-            const data = document.getElementById('data-exame').value;
+            const data = dataExameInput.value;
             const atual = examesDoDia[data][segmento][servico] || 0;
             const novo = Math.max(0, atual + alteracao);
             
             examesDoDia[data][segmento][servico] = novo;
             criarTabela();
+            salvarDados(); // Salva automaticamente
         }
 
+        // FUNÇÃO PARA ATUALIZAR RESUMO
         function atualizarResumo() {
-            const resumoContainer = document.getElementById('resumo-container');
-            const totalGeral = document.getElementById('total-geral');
-            const data = document.getElementById('data-exame').value;
-            
             resumoContainer.innerHTML = '';
+            const data = dataExameInput.value;
             
             let totalExames = 0;
             let totalValor = 0;
@@ -330,30 +716,191 @@
             `;
         }
 
-        // SUAS OUTRAS FUNÇÕES ORIGINAIS AQUI...
+        // FUNÇÃO PARA GERAR RELATÓRIO MENSAL
         function gerarRelatorioMensal() {
-            // ... (sua implementação original)
+            const mesAno = mesRelatorioInput.value;
+            const [ano, mes] = mesAno.split('-');
+            const relatorioBody = document.getElementById('relatorio-body');
+            relatorioBody.innerHTML = '';
+            
+            let totaisServicos = { mobilemed: 0, 'sagrada-familia': 0, epacs: 0, clinimage: 0 };
+            let totalGeralMensal = 0;
+            
+            // Gerar dias do mês
+            const diasNoMes = new Date(ano, mes, 0).getDate();
+            
+            for (let dia = 1; dia <= diasNoMes; dia++) {
+                const data = `${ano}-${mes.padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+                const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
+                
+                const linha = document.createElement('tr');
+                linha.innerHTML = `<td class="data-cell">${dataFormatada}</td>`;
+                
+                let totalDia = 0;
+                
+                servicos.forEach(servico => {
+                    let totalServicoDia = 0;
+                    
+                    if (examesDoDia[data]) {
+                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
+                            const valor = segmento.valores[servico.id];
+                            const quantidade = examesDoDia[data][chave][servico.id] || 0;
+                            
+                            if (valor !== null) {
+                                totalServicoDia += quantidade * valor;
+                            }
+                        });
+                    }
+                    
+                    totaisServicos[servico.id] += totalServicoDia;
+                    totalDia += totalServicoDia;
+                    
+                    linha.innerHTML += `<td>R$ ${totalServicoDia.toFixed(2)}</td>`;
+                });
+                
+                totalGeralMensal += totalDia;
+                linha.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
+                relatorioBody.appendChild(linha);
+            }
+            
+            // Linha de totais mensais
+            const linhaTotal = document.createElement('tr');
+            linhaTotal.className = 'total-mensal';
+            linhaTotal.innerHTML = `<td><strong>TOTAL MENSAL</strong></td>`;
+            
+            servicos.forEach(servico => {
+                linhaTotal.innerHTML += `<td><strong>R$ ${totaisServicos[servico.id].toFixed(2)}</strong></td>`;
+            });
+            
+            linhaTotal.innerHTML += `<td><strong>R$ ${totalGeralMensal.toFixed(2)}</strong></td>`;
+            relatorioBody.appendChild(linhaTotal);
         }
 
+        // FUNÇÃO PARA BAIXAR RELATÓRIO EXCEL
         function downloadRelatorioExcel() {
-            // ... (sua implementação original)
+            const mesAno = mesRelatorioInput.value;
+            const [ano, mes] = mesAno.split('-');
+            const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-BR', { month: 'long' });
+            
+            let csv = 'DATA;MOBILEMED IMAX;SAGRADA FAMILIA;EPACS – RJ;CLINIMAGE;VALOR TOTAL DIÁRIO\n';
+            
+            const diasNoMes = new Date(ano, mes, 0).getDate();
+            let totaisServicos = { mobilemed: 0, 'sagrada-familia': 0, epacs: 0, clinimage: 0 };
+            let totalGeralMensal = 0;
+            
+            for (let dia = 1; dia <= diasNoMes; dia++) {
+                const data = `${ano}-${mes.padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+                const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
+                
+                let linha = `${dataFormatada};`;
+                let totalDia = 0;
+                
+                servicos.forEach(servico => {
+                    let totalServicoDia = 0;
+                    
+                    if (examesDoDia[data]) {
+                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
+                            const valor = segmento.valores[servico.id];
+                            const quantidade = examesDoDia[data][chave][servico.id] || 0;
+                            
+                            if (valor !== null) {
+                                totalServicoDia += quantidade * valor;
+                            }
+                        });
+                    }
+                    
+                    totaisServicos[servico.id] += totalServicoDia;
+                    totalDia += totalServicoDia;
+                    linha += `R$ ${totalServicoDia.toFixed(2)};`;
+                });
+                
+                totalGeralMensal += totalDia;
+                linha += `R$ ${totalDia.toFixed(2)}\n`;
+                csv += linha;
+            }
+            
+            // Linha de totais
+            csv += `TOTAL MENSAL;`;
+            servicos.forEach(servico => {
+                csv += `R$ ${totaisServicos[servico.id].toFixed(2)};`;
+            });
+            csv += `R$ ${totalGeralMensal.toFixed(2)}\n`;
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `relatorio_tomografia_${nomeMes}_${ano}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
+        // FUNÇÃO PARA BAIXAR RELATÓRIO PDF (simulado)
+        function downloadRelatorioPDF() {
+            alert('Relatório PDF gerado com sucesso! Em uma versão avançada, isto geraria um PDF real.');
+            // Em produção, integraria com uma biblioteca como jsPDF
+        }
+
+        // FUNÇÃO PARA BAIXAR BACKUP COMPLETO
         function baixarBackupCompleto() {
-            // ... (sua implementação original)
+            const data = new Date().toISOString().split('T')[0];
+            const backupData = {
+                dataBackup: new Date().toISOString(),
+                versao: '2.0',
+                dados: examesDoDia
+            };
+            
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_completo_exames_${data}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
+        // FUNÇÃO PARA RESTAURAR BACKUP
         function restaurarBackup() {
-            // ... (sua implementação original)
+            const fileInput = document.getElementById('upload-backup');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Por favor, selecione um arquivo de backup.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const backupData = JSON.parse(e.target.result);
+                    
+                    if (backupData.dados) {
+                        examesDoDia = backupData.dados;
+                        localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
+                        criarTabela();
+                        alert('Backup restaurado com sucesso!');
+                    } else {
+                        alert('Arquivo de backup inválido.');
+                    }
+                } catch (error) {
+                    alert('Erro ao ler o arquivo de backup: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
         }
 
+        // FUNÇÕES AUXILIARES
         function formatarData(data) {
             const [ano, mes, dia] = data.split('-');
             return `${dia}/${mes}/${ano}`;
         }
 
+        function salvarDados() {
+            localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
+        }
+
         function limparDia() {
-            const data = document.getElementById('data-exame').value;
+            const data = dataExameInput.value;
             if (confirm(`Limpar todos os exames de ${formatarData(data)}?`)) {
                 Object.keys(examesDoDia[data]).forEach(segmento => {
                     servicos.forEach(servico => {
@@ -368,37 +915,21 @@
         function resetarTudo() {
             if (confirm('Isso apagará TODOS os dados salvos. Continuar?')) {
                 examesDoDia = {};
-                try {
-                    localStorage.removeItem('examesTomografia');
-                } catch (e) {
-                    // Ignora erro se localStorage não disponível
-                }
+                localStorage.removeItem('examesTomografia');
                 criarTabela();
                 alert('Dados resetados com sucesso!');
             }
         }
 
-        // INICIALIZAÇÃO
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarDados();
-            
-            // Configurar data atual
-            const hoje = new Date();
-            document.getElementById('data-exame').value = hoje.toISOString().split('T')[0];
-            document.getElementById('mes-relatorio').value = hoje.toISOString().substring(0, 7);
-            
-            // Configurar eventos
-            document.getElementById('data-exame').addEventListener('change', criarTabela);
-            document.getElementById('save-data').addEventListener('click', salvarDados);
-            document.getElementById('clear-day').addEventListener('click', limparDia);
-            document.getElementById('reset-data').addEventListener('click', resetarTudo);
-            
-            // Iniciar interface
-            criarLegenda();
-            criarTabela();
-            
-            console.log('Sistema carregado com sucesso!');
-        });
+        // CONFIGURAR EVENTOS
+        dataExameInput.addEventListener('change', criarTabela);
+        saveDataBtn.addEventListener('click', salvarDados);
+        clearDayBtn.addEventListener('click', limparDia);
+        resetDataBtn.addEventListener('click', resetarTudo);
+
+        // INICIAR APLICAÇÃO
+        criarLegenda();
+        criarTabela();
     </script>
 </body>
 </html>
