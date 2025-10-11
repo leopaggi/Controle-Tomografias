@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Exames de Tomografia</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    
     <style>
         :root {
             --primary: #2c3e50;
@@ -55,6 +60,33 @@
             margin-bottom: 30px;
         }
         
+        .sync-status {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .sync-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .sync-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .sync-loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
         .tabs {
             display: flex;
             margin-bottom: 20px;
@@ -85,41 +117,6 @@
             display: block;
         }
         
-        .drive-status {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        
-        .drive-status.connected {
-            background: #d1ecf1;
-            border-color: #bee5eb;
-        }
-        
-        .btn-google {
-            background-color: #4285f4;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        
-        .btn-google:hover {
-            background-color: #3367d6;
-        }
-        
-        .btn-google:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-
-        /* SEU CSS ORIGINAL COMPLETO AQUI */
         .legenda-container {
             background: #f8f9fa;
             border-radius: 8px;
@@ -439,19 +436,7 @@
         <header>
             <h1>Controle de Exames de Tomografia</h1>
             <p class="description">Registre e acompanhe todos os seus exames de tomografia em um só lugar</p>
-            
-            <!-- AVISO SIMPLIFICADO DO GOOGLE DRIVE -->
-            <div class="drive-status">
-                <h3>⚠️ Sincronização entre Dispositivos</h3>
-                <p><strong>Para usar em múltiplos dispositivos (hospital/casa):</strong></p>
-                <ol style="text-align: left; max-width: 600px; margin: 15px auto;">
-                    <li>No PC atual: <strong>"Download Backup Completo"</strong></li>
-                    <li>Salve o arquivo no Google Drive/Email</li>
-                    <li>No próximo dispositivo: <strong>"Restaurar Backup"</strong></li>
-                    <li>Repita esse processo ao trocar de dispositivo</li>
-                </ol>
-                <p><em>Integração automática com Google Drive em desenvolvimento</em></p>
-            </div>
+            <div id="sync-status" class="sync-status sync-loading">🔄 Conectando ao Firebase...</div>
         </header>
         
         <div class="tabs">
@@ -490,8 +475,8 @@
             <div class="total-geral" id="total-geral"></div>
             
             <div class="actions">
-                <button id="save-data" class="btn-save">Salvar Dados do Dia</button>
-                <button id="clear-day" class="btn-clear">Limpar Exames do Dia</button>
+                <button id="save-data" class="btn-save">💾 Salvar no Firebase</button>
+                <button id="clear-day" class="btn-clear">🗑️ Limpar Exames do Dia</button>
             </div>
         </div>
         
@@ -520,8 +505,8 @@
             </div>
             
             <div class="actions">
-                <button onclick="downloadRelatorioExcel()" class="btn-download">Download Relatório Excel</button>
-                <button onclick="downloadRelatorioPDF()" class="btn-download">Download Relatório PDF</button>
+                <button onclick="downloadRelatorioExcel()" class="btn-download">📊 Download Excel</button>
+                <button onclick="downloadRelatorioPDF()" class="btn-download">📄 Download PDF</button>
             </div>
         </div>
         
@@ -531,31 +516,35 @@
                 <h2>Backup & Restauração de Dados</h2>
                 
                 <div class="actions">
-                    <button onclick="baixarBackupCompleto()" class="btn-download">Download Backup Completo</button>
-                    <button onclick="baixarRelatorioMensal()" class="btn-download">Download Relatório Mensal</button>
-                    <button id="reset-data" class="btn-reset">Limpar Todos os Dados</button>
+                    <button onclick="baixarBackupCompleto()" class="btn-download">💾 Backup Completo</button>
+                    <button onclick="baixarRelatorioMensal()" class="btn-download">📊 Backup Relatório</button>
+                    <button id="reset-data" class="btn-reset">⚠️ Limpar Todos os Dados</button>
                 </div>
                 
                 <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
                     <h3>Restaurar Backup</h3>
                     <input type="file" id="upload-backup" accept=".json" style="margin: 10px 0; display: block; margin: 10px auto;">
-                    <button onclick="restaurarBackup()" class="btn-save">Restaurar Dados do Backup</button>
-                </div>
-
-                <div style="margin-top: 30px; padding: 20px; background: #e8f4fd; border-radius: 8px;">
-                    <h3>📱 Como Sincronizar entre Dispositivos</h3>
-                    <ol style="text-align: left; max-width: 600px; margin: 15px auto;">
-                        <li><strong>No dispositivo atual:</strong> Clique em "Download Backup Completo"</li>
-                        <li><strong>Salve o arquivo</strong> no Google Drive, email ou pendrive</li>
-                        <li><strong>No próximo dispositivo:</strong> Use "Restaurar Backup" com o arquivo</li>
-                        <li><strong>Repita</strong> sempre que trocar de dispositivo</li>
-                    </ol>
+                    <button onclick="restaurarBackup()" class="btn-save">🔄 Restaurar Backup</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        // CONFIGURAÇÕES DO FIREBASE - SUAS CONFIGURAÇÕES REAIS
+        const firebaseConfig = {
+            apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo",
+            authDomain: "controle-tomografias-leonardo.firebaseapp.com",
+            projectId: "controle-tomografias-leonardo",
+            storageBucket: "controle-tomografias-leonardo.firebasestorage.app",
+            messagingSenderId: "808856695285",
+            appId: "1:808856695285:web:9787b8beba32e3fde7f0bc"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // DADOS REAIS DOS VALORES
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
@@ -579,9 +568,10 @@
             { id: 'clinimage', nome: 'CLINIMAGE' }
         ];
 
-        // CARREGAR DADOS SALVOS
-        let examesDoDia = JSON.parse(localStorage.getItem('examesTomografia')) || {};
-        
+        // VARIÁVEIS GLOBAIS
+        let examesDoDia = {};
+        let carregamentoInicial = true;
+
         // ELEMENTOS DA PÁGINA
         const legendaGrid = document.getElementById('legenda-grid');
         const examsBody = document.getElementById('exams-body');
@@ -592,13 +582,83 @@
         const clearDayBtn = document.getElementById('clear-day');
         const resetDataBtn = document.getElementById('reset-data');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
+        const syncStatus = document.getElementById('sync-status');
 
         // CONFIGURAR DATA ATUAL
         const hoje = new Date();
         dataExameInput.value = hoje.toISOString().split('T')[0];
         mesRelatorioInput.value = hoje.toISOString().substring(0, 7);
 
-        // FUNÇÃO PARA MUDAR ABAS
+        // ========== FIREBASE FUNCTIONS ==========
+        
+        async function atualizarStatusSync(mensagem, tipo) {
+            syncStatus.textContent = mensagem;
+            syncStatus.className = `sync-status sync-${tipo}`;
+        }
+
+        async function carregarDadosFirebase() {
+            try {
+                atualizarStatusSync('🔄 Carregando dados do Firebase...', 'loading');
+                
+                const doc = await db.collection('controles').doc('examesTomografia').get();
+                
+                if (doc.exists) {
+                    examesDoDia = doc.data();
+                    atualizarStatusSync('✅ Dados sincronizados do Firebase!', 'success');
+                    console.log('Dados carregados do Firebase:', examesDoDia);
+                } else {
+                    // Se não existir no Firebase, tenta carregar do localStorage
+                    const dadosLocais = localStorage.getItem('examesTomografia');
+                    if (dadosLocais) {
+                        examesDoDia = JSON.parse(dadosLocais);
+                        atualizarStatusSync('📱 Dados carregados do backup local', 'success');
+                    } else {
+                        examesDoDia = {};
+                        atualizarStatusSync('✨ Novo sistema pronto para uso!', 'success');
+                    }
+                    // Salva os dados locais no Firebase
+                    await salvarDadosFirebase();
+                }
+                
+                carregamentoInicial = false;
+                criarTabela();
+                
+            } catch (error) {
+                console.error('Erro ao carregar do Firebase:', error);
+                // Fallback para localStorage
+                const dadosLocais = localStorage.getItem('examesTomografia');
+                if (dadosLocais) {
+                    examesDoDia = JSON.parse(dadosLocais);
+                    atualizarStatusSync('⚠️ Usando dados locais (sem conexão)', 'error');
+                } else {
+                    examesDoDia = {};
+                    atualizarStatusSync('❌ Erro de conexão - Dados locais', 'error');
+                }
+                criarTabela();
+            }
+        }
+
+        async function salvarDadosFirebase() {
+            try {
+                atualizarStatusSync('🔄 Salvando no Firebase...', 'loading');
+                await db.collection('controles').doc('examesTomografia').set(examesDoDia);
+                
+                // Também salva no localStorage como backup
+                localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
+                
+                atualizarStatusSync('✅ Dados salvos e sincronizados!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Erro ao salvar no Firebase:', error);
+                // Fallback para localStorage
+                localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
+                atualizarStatusSync('⚠️ Salvo localmente (sem conexão)', 'error');
+                return false;
+            }
+        }
+
+        // ========== EXISTING FUNCTIONS (MODIFICADAS) ==========
+
         function abrirTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -614,7 +674,6 @@
             }
         }
 
-        // FUNÇÃO PARA CRIAR A LEGENDA
         function criarLegenda() {
             legendaGrid.innerHTML = '';
             
@@ -641,7 +700,6 @@
             });
         }
 
-        // FUNÇÃO PARA CRIAR A TABELA
         function criarTabela() {
             examsBody.innerHTML = '';
             const dataSelecionada = dataExameInput.value;
@@ -706,18 +764,20 @@
             atualizarResumo();
         }
 
-        // FUNÇÃO PARA ALTERAR CONTADOR
-        function alterarContador(segmento, servico, alteracao) {
+        async function alterarContador(segmento, servico, alteracao) {
             const data = dataExameInput.value;
             const atual = examesDoDia[data][segmento][servico] || 0;
             const novo = Math.max(0, atual + alteracao);
             
             examesDoDia[data][segmento][servico] = novo;
             criarTabela();
-            salvarDados(); // Salva automaticamente
+            
+            // Salva automaticamente no Firebase
+            if (!carregamentoInicial) {
+                await salvarDadosFirebase();
+            }
         }
 
-        // FUNÇÃO PARA ATUALIZAR RESUMO
         function atualizarResumo() {
             resumoContainer.innerHTML = '';
             const data = dataExameInput.value;
@@ -774,7 +834,6 @@
             `;
         }
 
-        // FUNÇÃO PARA GERAR RELATÓRIO MENSAL
         function gerarRelatorioMensal() {
             const mesAno = mesRelatorioInput.value;
             const [ano, mes] = mesAno.split('-');
@@ -784,7 +843,6 @@
             let totaisServicos = { mobilemed: 0, 'sagrada-familia': 0, epacs: 0, clinimage: 0 };
             let totalGeralMensal = 0;
             
-            // Gerar dias do mês
             const diasNoMes = new Date(ano, mes, 0).getDate();
             
             for (let dia = 1; dia <= diasNoMes; dia++) {
@@ -821,7 +879,6 @@
                 relatorioBody.appendChild(linha);
             }
             
-            // Linha de totais mensais
             const linhaTotal = document.createElement('tr');
             linhaTotal.className = 'total-mensal';
             linhaTotal.innerHTML = `<td><strong>TOTAL MENSAL</strong></td>`;
@@ -834,7 +891,6 @@
             relatorioBody.appendChild(linhaTotal);
         }
 
-        // FUNÇÃO PARA BAIXAR RELATÓRIO EXCEL
         function downloadRelatorioExcel() {
             const mesAno = mesRelatorioInput.value;
             const [ano, mes] = mesAno.split('-');
@@ -877,7 +933,6 @@
                 csv += linha;
             }
             
-            // Linha de totais
             csv += `TOTAL MENSAL;`;
             servicos.forEach(servico => {
                 csv += `R$ ${totaisServicos[servico.id].toFixed(2)};`;
@@ -893,12 +948,10 @@
             URL.revokeObjectURL(url);
         }
 
-        // FUNÇÃO PARA BAIXAR RELATÓRIO PDF (simulado)
         function downloadRelatorioPDF() {
             alert('Relatório PDF gerado com sucesso! Em uma versão avançada, isto geraria um PDF real.');
         }
 
-        // FUNÇÃO PARA BAIXAR BACKUP COMPLETO
         function baixarBackupCompleto() {
             const data = new Date().toISOString().split('T')[0];
             const backupData = {
@@ -916,7 +969,10 @@
             URL.revokeObjectURL(url);
         }
 
-        // FUNÇÃO PARA RESTAURAR BACKUP
+        function baixarRelatorioMensal() {
+            alert('Função de backup do relatório mensal - em desenvolvimento');
+        }
+
         function restaurarBackup() {
             const fileInput = document.getElementById('upload-backup');
             const file = fileInput.files[0];
@@ -927,13 +983,13 @@
             }
             
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const backupData = JSON.parse(e.target.result);
                     
                     if (backupData.dados) {
                         examesDoDia = backupData.dados;
-                        localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
+                        await salvarDadosFirebase();
                         criarTabela();
                         alert('Backup restaurado com sucesso!');
                     } else {
@@ -952,11 +1008,7 @@
             return `${dia}/${mes}/${ano}`;
         }
 
-        function salvarDados() {
-            localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
-        }
-
-        function limparDia() {
+        async function limparDia() {
             const data = dataExameInput.value;
             if (confirm(`Limpar todos os exames de ${formatarData(data)}?`)) {
                 Object.keys(examesDoDia[data]).forEach(segmento => {
@@ -965,14 +1017,20 @@
                     });
                 });
                 criarTabela();
+                await salvarDadosFirebase();
                 alert('Exames do dia limpos!');
             }
         }
 
-        function resetarTudo() {
+        async function resetarTudo() {
             if (confirm('Isso apagará TODOS os dados salvos. Continuar?')) {
                 examesDoDia = {};
                 localStorage.removeItem('examesTomografia');
+                try {
+                    await db.collection('controles').doc('examesTomografia').delete();
+                } catch (error) {
+                    console.log('Documento não existia no Firebase');
+                }
                 criarTabela();
                 alert('Dados resetados com sucesso!');
             }
@@ -980,13 +1038,15 @@
 
         // CONFIGURAR EVENTOS
         dataExameInput.addEventListener('change', criarTabela);
-        saveDataBtn.addEventListener('click', salvarDados);
+        saveDataBtn.addEventListener('click', salvarDadosFirebase);
         clearDayBtn.addEventListener('click', limparDia);
         resetDataBtn.addEventListener('click', resetarTudo);
 
         // INICIAR APLICAÇÃO
-        criarLegenda();
-        criarTabela();
+        document.addEventListener('DOMContentLoaded', function() {
+            criarLegenda();
+            carregarDadosFirebase(); // Carrega dados do Firebase ao iniciar
+        });
     </script>
 </body>
 </html>
