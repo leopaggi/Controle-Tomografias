@@ -545,7 +545,7 @@
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // DADOS REAIS DOS VALORES
+        // DADOS REAIS DOS VALORES (COM FACE/ATM ADICIONADO)
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
             'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
@@ -558,6 +558,7 @@
             'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
             'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
             'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
+            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
             'emergencia': { nome: 'EMERGENCIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 50 }}
         };
 
