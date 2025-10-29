@@ -613,12 +613,12 @@
                     if (dadosLocais) {
                         examesDoDia = JSON.parse(dadosLocais);
                         atualizarStatusSync('📱 Dados carregados do backup local', 'success');
+                        // SALVA AUTOMATICAMENTE NO FIREBASE PARA SINCRONIZAR
+                        await salvarDadosFirebase();
                     } else {
                         examesDoDia = {};
                         atualizarStatusSync('✨ Novo sistema pronto para uso!', 'success');
                     }
-                    // Salva os dados locais no Firebase
-                    await salvarDadosFirebase();
                 }
                 
                 carregamentoInicial = false;
@@ -658,7 +658,7 @@
             }
         }
 
-        // ========== EXISTING FUNCTIONS (MODIFICADAS) ==========
+        // ========== EXISTING FUNCTIONS ==========
 
         function abrirTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => {
@@ -704,6 +704,16 @@
         function criarTabela() {
             examsBody.innerHTML = '';
             const dataSelecionada = dataExameInput.value;
+            
+            // Garante que a estrutura do FACE/ATM existe para todas as datas
+            Object.keys(examesDoDia).forEach(data => {
+                if (!examesDoDia[data]['face-atm']) {
+                    examesDoDia[data]['face-atm'] = {};
+                    servicos.forEach(servico => {
+                        examesDoDia[data]['face-atm'][servico.id] = 0;
+                    });
+                }
+            });
             
             if (!examesDoDia[dataSelecionada]) {
                 examesDoDia[dataSelecionada] = {};
