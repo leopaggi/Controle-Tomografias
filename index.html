@@ -34,7 +34,7 @@
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
@@ -133,7 +133,7 @@
         
         .legenda-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 15px;
         }
         
@@ -184,10 +184,11 @@
             border-collapse: collapse;
             margin: 20px 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
         }
         
         .exams-table th, .exams-table td {
-            padding: 12px 15px;
+            padding: 10px 12px;
             text-align: center;
             border: 1px solid #ddd;
         }
@@ -216,12 +217,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
         }
         
         .counter-btn {
-            width: 30px;
-            height: 30px;
+            width: 28px;
+            height: 28px;
             border: none;
             border-radius: 50%;
             background-color: var(--secondary);
@@ -232,6 +233,7 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
+            font-size: 0.8rem;
         }
         
         .counter-btn:hover {
@@ -248,8 +250,8 @@
         
         .count-display {
             font-weight: bold;
-            min-width: 30px;
-            font-size: 1.1rem;
+            min-width: 25px;
+            font-size: 1rem;
         }
         
         .nao-tem {
@@ -260,40 +262,42 @@
         .resumo-container {
             margin-top: 30px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
         }
         
         .resumo-card {
             background: white;
             border-radius: 8px;
-            padding: 20px;
+            padding: 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             border-top: 4px solid var(--secondary);
         }
         
         .resumo-card h3 {
             color: var(--primary);
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             text-align: center;
             border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
+            font-size: 1rem;
         }
         
         .resumo-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
+            padding: 6px 0;
             border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
         }
         
         .resumo-item:last-child {
             border-bottom: none;
             font-weight: bold;
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: var(--primary);
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 2px solid #eee;
         }
         
@@ -364,10 +368,11 @@
             border-collapse: collapse;
             margin: 20px 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
         }
         
         .relatorio-table th, .relatorio-table td {
-            padding: 10px 12px;
+            padding: 8px 10px;
             text-align: center;
             border: 1px solid #ddd;
         }
@@ -391,7 +396,7 @@
             background-color: var(--primary) !important;
             color: white;
             font-weight: bold;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
         
         @media (max-width: 768px) {
@@ -404,11 +409,26 @@
             }
             
             .exams-table {
-                font-size: 0.9rem;
+                font-size: 0.8rem;
+            }
+            
+            .exams-table th, .exams-table td {
+                padding: 6px 8px;
             }
             
             .counter {
-                gap: 5px;
+                gap: 4px;
+            }
+            
+            .counter-btn {
+                width: 24px;
+                height: 24px;
+                font-size: 0.7rem;
+            }
+            
+            .count-display {
+                min-width: 20px;
+                font-size: 0.9rem;
             }
             
             .actions {
@@ -427,6 +447,8 @@
                 flex: 1;
                 min-width: 120px;
                 text-align: center;
+                padding: 10px 15px;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -463,6 +485,7 @@
                         <th>EXAMES / SERVIÇOS</th>
                         <th class="service-header">MOBILEMED IMAX</th>
                         <th class="service-header">SAGRADA FAMILIA</th>
+                        <th class="service-header">RADCLOUD</th>
                         <th class="service-header">EPACS – RJ</th>
                         <th class="service-header">CLINIMAGE</th>
                     </tr>
@@ -495,6 +518,7 @@
                             <th>DATA</th>
                             <th>MOBILEMED IMAX</th>
                             <th>SAGRADA FAMILIA</th>
+                            <th>RADCLOUD</th>
                             <th>EPACS – RJ</th>
                             <th>CLINIMAGE</th>
                             <th>VALOR TOTAL DIÁRIO</th>
@@ -545,26 +569,27 @@
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // DADOS REAIS DOS VALORES (COM FACE/ATM ADICIONADO)
+        // DADOS REAIS DOS VALORES (COM RADCLOUD ADICIONADO)
         const valoresSegmentos = {
-            'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'abdomen-total': { nome: 'ABDOMEN TOTAL', valores: { 'mobilemed': 25, 'sagrada-familia': null, 'epacs': 17, 'clinimage': 50 }},
-            'abd-superior': { nome: 'ABD SUPERIOR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'pelve': { nome: 'PELVE', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'bacia': { nome: 'BACIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'articulacao': { nome: 'ARTICULACAO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'pescoco': { nome: 'PESCOCO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},
-            'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 25 }},            
-            'emergencia': { nome: 'EMERGENCIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'epacs': 17, 'clinimage': 50 }}
+            'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'abdomen-total': { nome: 'ABDOMEN TOTAL', valores: { 'mobilemed': 25, 'sagrada-familia': null, 'radcloud': null, 'epacs': 17, 'clinimage': 50 }},
+            'abd-superior': { nome: 'ABD SUPERIOR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'pelve': { nome: 'PELVE', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'bacia': { nome: 'BACIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'articulacao': { nome: 'ARTICULACAO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'pescoco': { nome: 'PESCOCO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},
+            'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25 }},            
+            'emergencia': { nome: 'EMERGENCIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 50 }}
         };
 
         const servicos = [
             { id: 'mobilemed', nome: 'MOBILEMED IMAX' },
             { id: 'sagrada-familia', nome: 'SAGRADA FAMILIA' },
+            { id: 'radcloud', nome: 'RADCLOUD' },
             { id: 'epacs', nome: 'EPACS – RJ' },
             { id: 'clinimage', nome: 'CLINIMAGE' }
         ];
@@ -705,14 +730,16 @@
             examsBody.innerHTML = '';
             const dataSelecionada = dataExameInput.value;
             
-            // Garante que a estrutura do FACE/ATM existe para todas as datas
+            // Garante que a estrutura existe para todas as datas
             Object.keys(examesDoDia).forEach(data => {
-                if (!examesDoDia[data]['face-atm']) {
-                    examesDoDia[data]['face-atm'] = {};
-                    servicos.forEach(servico => {
-                        examesDoDia[data]['face-atm'][servico.id] = 0;
-                    });
-                }
+                Object.keys(valoresSegmentos).forEach(segmento => {
+                    if (!examesDoDia[data][segmento]) {
+                        examesDoDia[data][segmento] = {};
+                        servicos.forEach(servico => {
+                            examesDoDia[data][segmento][servico.id] = 0;
+                        });
+                    }
+                });
             });
             
             if (!examesDoDia[dataSelecionada]) {
@@ -851,7 +878,13 @@
             const relatorioBody = document.getElementById('relatorio-body');
             relatorioBody.innerHTML = '';
             
-            let totaisServicos = { mobilemed: 0, 'sagrada-familia': 0, epacs: 0, clinimage: 0 };
+            let totaisServicos = { 
+                mobilemed: 0, 
+                'sagrada-familia': 0, 
+                radcloud: 0, 
+                epacs: 0, 
+                clinimage: 0 
+            };
             let totalGeralMensal = 0;
             
             const diasNoMes = new Date(ano, mes, 0).getDate();
@@ -907,10 +940,16 @@
             const [ano, mes] = mesAno.split('-');
             const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-BR', { month: 'long' });
             
-            let csv = 'DATA;MOBILEMED IMAX;SAGRADA FAMILIA;EPACS – RJ;CLINIMAGE;VALOR TOTAL DIÁRIO\n';
+            let csv = 'DATA;MOBILEMED IMAX;SAGRADA FAMILIA;RADCLOUD;EPACS – RJ;CLINIMAGE;VALOR TOTAL DIÁRIO\n';
             
             const diasNoMes = new Date(ano, mes, 0).getDate();
-            let totaisServicos = { mobilemed: 0, 'sagrada-familia': 0, epacs: 0, clinimage: 0 };
+            let totaisServicos = { 
+                mobilemed: 0, 
+                'sagrada-familia': 0, 
+                radcloud: 0, 
+                epacs: 0, 
+                clinimage: 0 
+            };
             let totalGeralMensal = 0;
             
             for (let dia = 1; dia <= diasNoMes; dia++) {
