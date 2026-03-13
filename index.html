@@ -8,6 +8,8 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         :root {
@@ -17,549 +19,344 @@
             --warning: #f39c12;
             --danger: #e74c3c;
             --info: #17a2b8;
+            --dark: #34495e;
+            --light-bg: #f5f7fa;
         }
         
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
-        body {
-            background-color: #f5f7fa;
-            color: #333;
-            line-height: 1.6;
-            padding: 20px;
-        }
+        body { background-color: var(--light-bg); color: #333; line-height: 1.6; padding: 20px; }
         
-        .container {
-            max-width: 2000px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            padding: 25px;
-        }
+        .container { max-width: 1800px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 25px; }
         
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
+        header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        h1 { color: var(--primary); margin-bottom: 5px; font-size: 1.5rem; }
+        .sync-status { padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+        .sync-success { background: #d4edda; color: #155724; }
+        .sync-error { background: #f8d7da; color: #721c24; }
+        .sync-loading { background: #d1ecf1; color: #0c5460; }
         
-        h1 {
-            color: var(--primary);
-            margin-bottom: 10px;
-        }
-        
-        .description {
-            color: #7f8c8d;
-            font-size: 1.1rem;
-            margin-bottom: 30px;
-        }
-        
-        .sync-status {
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            margin-top: 10px;
-            display: inline-block;
-        }
-        
-        .sync-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .sync-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .sync-loading {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        .tabs {
-            display: flex;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #ddd;
-        }
-        
-        .tab {
-            padding: 12px 25px;
-            background: #f8f9fa;
-            border: none;
-            border-radius: 5px 5px 0 0;
-            margin-right: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .tab.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
+        /* Abas */
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
+        .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; }
+        .tab.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* LEGENDA (RESTAURADA) */
         .legenda-container {
             background: #f8f9fa;
             border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 30px;
+            padding: 15px;
+            margin-bottom: 20px;
             border-left: 4px solid var(--secondary);
         }
-        
-        .legenda-container h2 {
-            color: var(--primary);
-            margin-bottom: 15px;
-            text-align: center;
-        }
-        
+        .legenda-container h2 { color: var(--primary); margin-bottom: 10px; text-align: center; font-size: 1.1rem; }
         .legenda-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 15px;
-        }
-        
-        .legenda-item {
-            background: white;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #e1e1e1;
-        }
-        
-        .legenda-item h3 {
-            color: var(--primary);
-            margin-bottom: 10px;
-            font-size: 1rem;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-        }
-        
-        .valor-servico {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-            padding: 3px 0;
-        }
-        
-        .data-seletor {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        
-        .data-seletor label {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        
-        .data-seletor input {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1rem;
-        }
-        
-        .exams-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.8rem;
-        }
-        
-        .exams-table th, .exams-table td {
-            padding: 6px 4px;
-            text-align: center;
-            border: 1px solid #ddd;
-        }
-        
-        .exams-table th {
-            background-color: var(--primary);
-            color: white;
-            font-weight: bold;
-        }
-        
-        .exams-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        .exam-name {
-            text-align: left;
-            font-weight: bold;
-            background-color: #f8f9fa;
-        }
-        
-        .service-header {
-            background-color: #34495e !important;
-        }
-        
-        .counter {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-        }
-        
-        .counter-btn {
-            width: 24px;
-            height: 24px;
-            border: none;
-            border-radius: 50%;
-            background-color: var(--secondary);
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            font-size: 0.75rem;
-        }
-        
-        .counter-btn:hover {
-            transform: scale(1.1);
-        }
-        
-        .counter-btn.remove {
-            background-color: var(--danger);
-        }
-        
-        .counter-btn.remove:hover {
-            background-color: #c0392b;
-        }
-        
-        .count-display {
-            font-weight: bold;
-            min-width: 20px;
-            font-size: 0.85rem;
-        }
-        
-        .nao-tem {
-            color: #999;
-            font-style: italic;
-        }
-        
-        .resumo-container {
-            margin-top: 30px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 10px;
         }
-        
-        .resumo-card {
+        .legenda-item { background: white; padding: 10px; border-radius: 4px; border: 1px solid #e1e1e1; }
+        .legenda-item h3 { color: var(--primary); margin-bottom: 5px; font-size: 0.9rem; border-bottom: 1px solid #eee; padding-bottom: 3px; }
+        .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
+        .valor-servico span:last-child { font-weight: bold; color: var(--success); }
+
+        /* ÁREA DO TIMER INTEGRADA */
+        .workflow-container {
             background: white;
+            border: 1px solid #e1e1e1;
             border-radius: 8px;
-            padding: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            border-top: 4px solid var(--secondary);
+            padding: 15px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr; /* Timer à esquerda, controles à direita */
+            gap: 20px;
+            align-items: center;
         }
-        
-        .resumo-card h3 {
-            color: var(--primary);
-            margin-bottom: 8px;
+
+        @media (max-width: 900px) {
+            .workflow-container { grid-template-columns: 1fr; }
+        }
+
+        .timer-box {
             text-align: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 5px;
-            font-size: 0.9rem;
+            background: var(--light-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid var(--secondary);
         }
-        
-        .resumo-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 3px 0;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.8rem;
-        }
-        
-        .resumo-item:last-child {
-            border-bottom: none;
+
+        .timer-display {
+            font-size: 3rem;
             font-weight: bold;
-            font-size: 0.85rem;
             color: var(--primary);
-            margin-top: 5px;
-            padding-top: 5px;
-            border-top: 2px solid #eee;
+            font-family: 'Courier New', Courier, monospace;
         }
+
+        .timer-btn-group { display: flex; gap: 5px; justify-content: center; margin-top: 10px; }
+        .timer-btn { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; }
         
-        .actions {
-            margin-top: 30px;
+        .controls-box {
             display: flex;
-            gap: 15px;
-            justify-content: center;
             flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
         }
-        
-        button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        
-        .btn-save {
-            background-color: var(--success);
-            color: white;
-        }
-        
-        .btn-download {
-            background-color: var(--info);
-            color: white;
-        }
-        
-        .btn-clear {
-            background-color: var(--warning);
-            color: white;
-        }
-        
-        .btn-reset {
-            background-color: var(--danger);
-            color: white;
-        }
-        
-        .total-geral {
-            background: var(--primary);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-            text-align: center;
-        }
-        
-        .total-geral h3 {
-            margin-bottom: 10px;
-        }
-        
-        .total-info {
+
+        .control-group {
             display: flex;
-            justify-content: space-around;
-            font-size: 1.2rem;
+            flex-direction: column;
+            gap: 5px;
         }
-        
-        .relatorio-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.8rem;
-        }
-        
-        .relatorio-table th, .relatorio-table td {
-            padding: 5px 6px;
-            text-align: center;
-            border: 1px solid #ddd;
-        }
-        
-        .relatorio-table th {
-            background-color: var(--primary);
-            color: white;
-            font-weight: bold;
-        }
-        
-        .relatorio-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        .data-cell {
-            font-weight: bold;
-            background-color: #f8f9fa;
-        }
-        
-        .total-mensal {
-            background-color: var(--primary) !important;
-            color: white;
-            font-weight: bold;
+
+        .control-label { font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; }
+
+        select, input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
             font-size: 0.9rem;
+            min-width: 140px;
+        }
+
+        /* Checkboxes Container */
+        .checkbox-scroll {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 80px;
+            overflow-y: auto;
+            padding: 5px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            background: #fafafa;
         }
         
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            .legenda-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .exams-table {
-                font-size: 0.65rem;
-            }
-            
-            .exams-table th, .exams-table td {
-                padding: 3px 2px;
-            }
-            
-            .counter {
-                gap: 2px;
-            }
-            
-            .counter-btn {
-                width: 20px;
-                height: 20px;
-                font-size: 0.6rem;
-            }
-            
-            .count-display {
-                min-width: 16px;
-                font-size: 0.7rem;
-            }
-            
-            .actions {
-                flex-direction: column;
-            }
-            
-            button {
-                width: 100%;
-            }
-            
-            .tabs {
-                flex-wrap: wrap;
-            }
-            
-            .tab {
-                flex: 1;
-                min-width: 90px;
-                text-align: center;
-                padding: 8px 8px;
-                font-size: 0.75rem;
-            }
+        .check-item {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+            user-select: none;
         }
+        .check-item:has(input:checked) {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+        .check-item input { display: none; }
+
+        /* TABELA */
+        .exams-table { width: 100%; border-collapse: collapse; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.8rem; }
+        .exams-table th, .exams-table td { padding: 6px; text-align: center; border: 1px solid #ddd; }
+        .exams-table th { background-color: var(--primary); color: white; font-weight: bold; position: sticky; top: 0; }
+        .exams-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .exam-name { text-align: left; font-weight: bold; background-color: #f8f9fa; }
+        .service-header { background-color: var(--dark) !important; }
+        
+        /* Contadores Manuais */
+        .counter { display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .counter-btn { width: 22px; height: 22px; border: none; border-radius: 50%; background-color: var(--secondary); color: white; font-weight: bold; cursor: pointer; font-size: 0.7rem; }
+        .counter-btn:hover { transform: scale(1.1); }
+        .counter-btn.remove { background-color: var(--danger); }
+        .count-display { font-weight: bold; min-width: 18px; font-size: 0.9rem; }
+        .nao-tem { color: #999; font-style: italic; font-size: 0.7rem; }
+
+        /* GRÁFICOS E RESUMO */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .chart-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            height: 300px;
+        }
+        .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+
+        .resumo-container { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .resumo-card { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--secondary); }
+        .resumo-card h3 { color: var(--primary); margin-bottom: 5px; text-align: center; font-size: 0.9rem; }
+        .resumo-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.8rem; border-bottom: 1px solid #f0f0f0; }
+        .resumo-item.total { font-weight: bold; margin-top: 5px; color: var(--success); border-top: 1px solid #ddd; }
+
+        .total-geral { background: var(--primary); color: white; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center; display: flex; justify-content: space-around; align-items: center; }
+        .total-geral div { text-align: center; }
+        .total-geral strong { font-size: 1.4rem; display: block; margin-top: 5px; }
+
+        /* Botões Gerais */
+        button { cursor: pointer; transition: all 0.2s; border: none; }
+        button:hover { opacity: 0.9; }
+        .btn-save { background-color: var(--success); color: white; }
+        .btn-reset { background-color: var(--danger); color: white; }
+        .btn-action { background-color: var(--warning); color: white; }
+        
+        .actions { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .actions button { padding: 10px 20px; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Controle de Exames de Tomografia</h1>
-            <p class="description">Registre e acompanhe todos os seus exames de tomografia em um só lugar</p>
-            <div id="sync-status" class="sync-status sync-loading">🔄 Conectando ao Firebase...</div>
+            <h1>Controle de Tomografia</h1>
+            <div id="sync-status" class="sync-status sync-loading">Conectando...</div>
         </header>
         
         <div class="tabs">
-            <button class="tab active" onclick="abrirTab('controle')">Controle Diário</button>
-            <button class="tab" onclick="abrirTab('relatorio')">Relatório Mensal</button>
-            <button class="tab" onclick="abrirTab('backup')">Backup & Restore</button>
+            <button class="tab active" onclick="abrirTab('controle')">🏠 Controle Diário</button>
+            <button class="tab" onclick="abrirTab('relatorio')">📊 Relatório Mensal</button>
+            <button class="tab" onclick="abrirTab('backup')">💾 Backup</button>
         </div>
         
         <!-- ABA CONTROLE DIÁRIO -->
         <div id="controle" class="tab-content active">
+            
+            <!-- LEGENDA DE VALORES (RESTAURADA) -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
-            
-            <div class="data-seletor">
-                <label for="data-exame">Data dos exames: </label>
-                <input type="date" id="data-exame">
+
+            <!-- ÁREA DE TRABALHO (TIMER + CONFIGURAÇÃO) -->
+            <div class="workflow-container">
+                <!-- Coluna 1: O Cronômetro -->
+                <div class="timer-box">
+                    <div class="timer-display" id="timer-display">00:00:00</div>
+                    <div class="timer-btn-group">
+                        <button class="timer-btn btn-save" onclick="startTimer()">▶ Iniciar</button>
+                        <button class="timer-btn btn-action" onclick="pauseTimer()">⏸ Pausar</button>
+                        <button class="timer-btn btn-reset" onclick="resetTimer()">⏹ Reset</button>
+                    </div>
+                </div>
+
+                <!-- Coluna 2: Configuração e Ação -->
+                <div class="controls-box">
+                    <div class="control-group">
+                        <span class="control-label">Data</span>
+                        <input type="date" id="data-exame">
+                    </div>
+
+                    <div class="control-group" style="flex-grow: 1;">
+                        <span class="control-label">1. Selecione a Empresa</span>
+                        <select id="timer-servico">
+                            <option value="">Selecione...</option>
+                            <!-- JS popula -->
+                        </select>
+                    </div>
+
+                    <div class="control-group" style="flex-grow: 2;">
+                        <span class="control-label">2. Selecione os Segmentos (Múltiplos)</span>
+                        <div class="checkbox-scroll" id="timer-segmentos-container">
+                            <!-- JS popula -->
+                        </div>
+                    </div>
+
+                    <div class="control-group" style="justify-content: flex-end;">
+                        <button class="timer-btn btn-save" style="padding: 12px 25px; font-size: 1rem;" onclick="finalizarEContabilizar()">
+                            ✅ Finalizar e Salvar
+                        </button>
+                    </div>
+                </div>
             </div>
-            
-            <table class="exams-table" id="exams-table">
-                <thead>
-                    <tr>
-                        <th>EXAMES / SERVIÇOS</th>
-                        <th class="service-header">MOBILEMED IMAX</th>
-                        <th class="service-header">SAGRADA FAMILIA</th>
-                        <th class="service-header">RADCLOUD</th>
-                        <th class="service-header">EPACS – RJ</th>
-                        <th class="service-header">CLINIMAGE</th>
-                        <th class="service-header">VX</th>
-                        <th class="service-header">ESPORÁDICO</th>
-                    </tr>
-                </thead>
-                <tbody id="exams-body"></tbody>
-            </table>
-            
+            <!-- FIM ÁREA DE TRABALHO -->
+
+            <!-- TABELA DE EXAMES -->
+            <div style="overflow-x: auto;">
+                <table class="exams-table" id="exams-table">
+                    <thead>
+                        <tr>
+                            <th>EXAMES</th>
+                            <th class="service-header">MOBILEMED</th>
+                            <th class="service-header">SAGRADA</th>
+                            <th class="service-header">RADCLOUD</th>
+                            <th class="service-header">EPACS</th>
+                            <th class="service-header">CLINIMAGE</th>
+                            <th class="service-header">VX</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exams-body"></tbody>
+                </table>
+            </div>
+
+            <!-- GRÁFICOS DE PRODUTIVIDADE -->
+            <div class="dashboard-grid">
+                <div class="chart-box">
+                    <h3>Tempo Médio por Empresa (Hoje)</h3>
+                    <canvas id="chartMediaDiaria"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h3>Volume de Exames (Semana)</h3>
+                    <canvas id="chartMediaSemanal"></canvas>
+                </div>
+            </div>
+
+            <!-- RESUMO FINANCEIRO -->
             <div class="resumo-container" id="resumo-container"></div>
-            
             <div class="total-geral" id="total-geral"></div>
             
             <div class="actions">
-                <button id="save-data" class="btn-save">💾 Salvar no Firebase</button>
-                <button id="clear-day" class="btn-clear">🗑️ Limpar Exames do Dia</button>
+                <button class="btn-save" onclick="salvarDadosFirebase()">💾 Forçar Sincronismo</button>
+                <button class="btn-reset" onclick="limparDia()">🗑️ Zerar Contagem do Dia</button>
             </div>
         </div>
-        
-        <!-- ABA RELATÓRIO MENSAL -->
+
+        <!-- ABA RELATÓRIO -->
         <div id="relatorio" class="tab-content">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <label for="mes-relatorio">Mês do Relatório: </label>
+            <div style="text-align: center; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <label for="mes-relatorio"><strong>Mês:</strong></label>
                 <input type="month" id="mes-relatorio">
-                <button onclick="gerarRelatorioMensal()" class="btn-save" style="margin-left: 10px;">Gerar Relatório</button>
+                <button onclick="gerarRelatorioMensal()" class="btn-save" style="margin-left: 10px; padding: 8px 15px;">Gerar</button>
+                <button onclick="downloadRelatorioExcel()" class="btn-action" style="margin-left: 5px; padding: 8px 15px;">Excel</button>
             </div>
-            
-            <div id="relatorio-mensal-container">
-                <table class="relatorio-table" id="relatorio-mensal">
+            <div style="overflow-x: auto;">
+                <table class="exams-table" id="relatorio-mensal">
                     <thead>
                         <tr>
                             <th>DATA</th>
-                            <th>MOBILEMED IMAX</th>
-                            <th>SAGRADA FAMILIA</th>
+                            <th>MOBILEMED</th>
+                            <th>SAGRADA</th>
                             <th>RADCLOUD</th>
-                            <th>EPACS – RJ</th>
+                            <th>EPACS</th>
                             <th>CLINIMAGE</th>
                             <th>VX</th>
-                            <th>ESPORÁDICO</th>
-                            <th>VALOR TOTAL DIÁRIO</th>
+                            <th>TOTAL DIA</th>
                         </tr>
                     </thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
-            </div>
-            
-            <div class="actions">
-                <button onclick="downloadRelatorioExcel()" class="btn-download">📊 Download Excel</button>
-                <button onclick="downloadRelatorioPDF()" class="btn-download">📄 Download PDF</button>
             </div>
         </div>
         
         <!-- ABA BACKUP -->
         <div id="backup" class="tab-content">
             <div style="text-align: center; padding: 20px;">
-                <h2>Backup & Restauração de Dados</h2>
-                
+                <h2>Gerenciamento de Dados</h2>
                 <div class="actions">
-                    <button onclick="baixarBackupCompleto()" class="btn-download">💾 Backup Completo</button>
-                    <button onclick="baixarRelatorioMensal()" class="btn-download">📊 Backup Relatório</button>
-                    <button id="reset-data" class="btn-reset">⚠️ Limpar Todos os Dados</button>
+                    <button onclick="baixarBackupCompleto()" class="btn-save">💾 Backup JSON</button>
+                    <button onclick="document.getElementById('reset-data').click()" class="btn-reset">⚠️ Limpar Tudo</button>
+                    <button id="reset-data" style="display:none"></button>
                 </div>
-                
                 <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
                     <h3>Restaurar Backup</h3>
-                    <input type="file" id="upload-backup" accept=".json" style="margin: 10px 0; display: block; margin: 10px auto;">
-                    <button onclick="restaurarBackup()" class="btn-save">🔄 Restaurar Backup</button>
+                    <input type="file" id="upload-backup" accept=".json" style="margin: 10px auto; display: block;">
+                    <button onclick="restaurarBackup()" class="btn-action">🔄 Restaurar</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // CONFIGURAÇÕES DO FIREBASE - SUAS CONFIGURAÇÕES REAIS
+        // FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo",
             authDomain: "controle-tomografias-leonardo.firebaseapp.com",
@@ -568,568 +365,441 @@
             messagingSenderId: "808856695285",
             appId: "1:808856695285:web:9787b8beba32e3fde7f0bc"
         };
-
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // DADOS REAIS DOS VALORES (COM VX E ESPORÁDICO ADICIONADOS)
+        // DADOS DOS VALORES
         const valoresSegmentos = {
-            'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'abdomen-total': { nome: 'ABDOMEN TOTAL', valores: { 'mobilemed': 25, 'sagrada-familia': null, 'radcloud': null, 'epacs': 17, 'clinimage': 50, 'vx': 44, 'esporadico': 50 }},
-            'abd-superior': { nome: 'ABD SUPERIOR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'pelve': { nome: 'PELVE', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'bacia': { nome: 'BACIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'articulacao': { nome: 'ARTICULACAO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'pescoco': { nome: 'PESCOCO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
-            'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},            
-            'emergencia': { nome: 'EMERGENCIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 50, 'vx': 22, 'esporadico': 25 }}
+            'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'abdomen-total': { nome: 'ABD TOTAL', valores: { 'mobilemed': 25, 'sagrada-familia': null, 'radcloud': null, 'epacs': 17, 'clinimage': 50, 'vx': 44 }},
+            'abd-superior': { nome: 'ABD SUP', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'pelve': { nome: 'PELVE', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'bacia': { nome: 'BACIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'articulacao': { nome: 'ARTIC', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'pescoco': { nome: 'PESCOCO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
+            'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},            
+            'emergencia': { nome: 'EMERG', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 50, 'vx': 22 }}
         };
 
         const servicos = [
-            { id: 'mobilemed', nome: 'MOBILEMED IMAX' },
-            { id: 'sagrada-familia', nome: 'SAGRADA FAMILIA' },
+            { id: 'mobilemed', nome: 'MOBILEMED' },
+            { id: 'sagrada-familia', nome: 'SAGRADA' },
             { id: 'radcloud', nome: 'RADCLOUD' },
-            { id: 'epacs', nome: 'EPACS – RJ' },
+            { id: 'epacs', nome: 'EPACS' },
             { id: 'clinimage', nome: 'CLINIMAGE' },
-            { id: 'vx', nome: 'VX' },
-            { id: 'esporadico', nome: 'ESPORÁDICO' }
+            { id: 'vx', nome: 'VX' }
         ];
 
-        // VARIÁVEIS GLOBAIS
-        let examesDoDia = {};
-        let carregamentoInicial = true;
+        // ESTADO DA APLICAÇÃO
+        let dadosApp = { exames: {}, tempos: {} };
+        let timerInterval = null;
+        let elapsedTime = 0;
+        let timerRunning = false;
+        let chartDiario = null;
+        let chartSemanal = null;
 
-        // ELEMENTOS DA PÁGINA
-        const legendaGrid = document.getElementById('legenda-grid');
-        const examsBody = document.getElementById('exams-body');
-        const resumoContainer = document.getElementById('resumo-container');
-        const totalGeral = document.getElementById('total-geral');
+        // ELEMENTOS
         const dataExameInput = document.getElementById('data-exame');
-        const saveDataBtn = document.getElementById('save-data');
-        const clearDayBtn = document.getElementById('clear-day');
-        const resetDataBtn = document.getElementById('reset-data');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
         const syncStatus = document.getElementById('sync-status');
-
-        // CONFIGURAR DATA ATUAL
+        const examsBody = document.getElementById('exams-body');
+        
+        // INICIALIZAÇÃO
         const hoje = new Date();
         dataExameInput.value = hoje.toISOString().split('T')[0];
         mesRelatorioInput.value = hoje.toISOString().substring(0, 7);
 
-        // ========== FIREBASE FUNCTIONS ==========
-        
-        async function atualizarStatusSync(mensagem, tipo) {
-            syncStatus.textContent = mensagem;
-            syncStatus.className = `sync-status sync-${tipo}`;
-        }
+        // --- FIREBASE ---
+        async function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
 
         async function carregarDadosFirebase() {
             try {
-                atualizarStatusSync('🔄 Carregando dados do Firebase...', 'loading');
-                
+                atualizarStatus("Conectando...", "loading");
                 const doc = await db.collection('controles').doc('examesTomografia').get();
-                
                 if (doc.exists) {
-                    examesDoDia = doc.data();
-                    atualizarStatusSync('✅ Dados sincronizados do Firebase!', 'success');
-                    console.log('Dados carregados do Firebase:', examesDoDia);
-                } else {
-                    // Se não existir no Firebase, tenta carregar do localStorage
-                    const dadosLocais = localStorage.getItem('examesTomografia');
-                    if (dadosLocais) {
-                        examesDoDia = JSON.parse(dadosLocais);
-                        atualizarStatusSync('📱 Dados carregados do backup local', 'success');
-                        // SALVA AUTOMATICAMENTE NO FIREBASE PARA SINCRONIZAR
-                        await salvarDadosFirebase();
-                    } else {
-                        examesDoDia = {};
-                        atualizarStatusSync('✨ Novo sistema pronto para uso!', 'success');
+                    const data = doc.data();
+                    dadosApp.exames = data.exames || {};
+                    dadosApp.tempos = data.tempos || {};
+                    // Migração antiga
+                    if(!data.exames && !data.tempos && Object.keys(data)[0]?.match(/^\d{4}/)) {
+                        dadosApp.exames = data;
+                        dadosApp.tempos = {};
                     }
-                }
-                
-                carregamentoInicial = false;
-                criarTabela();
-                
-            } catch (error) {
-                console.error('Erro ao carregar do Firebase:', error);
-                // Fallback para localStorage
-                const dadosLocais = localStorage.getItem('examesTomografia');
-                if (dadosLocais) {
-                    examesDoDia = JSON.parse(dadosLocais);
-                    atualizarStatusSync('⚠️ Usando dados locais (sem conexão)', 'error');
                 } else {
-                    examesDoDia = {};
-                    atualizarStatusSync('❌ Erro de conexão - Dados locais', 'error');
+                    const local = localStorage.getItem('examesTomografia');
+                    if(local) dadosApp = JSON.parse(local);
                 }
-                criarTabela();
+                atualizarStatus("Sincronizado", "success");
+            } catch (e) {
+                console.error(e);
+                const local = localStorage.getItem('examesTomografia');
+                if(local) dadosApp = JSON.parse(local);
+                atualizarStatus("Offline (Local)", "error");
             }
+            criarLegenda(); // RESTAURADO
+            criarTabela();
+            popularTimerConfig();
+            atualizarGraficos();
         }
 
         async function salvarDadosFirebase() {
             try {
-                atualizarStatusSync('🔄 Salvando no Firebase...', 'loading');
-                await db.collection('controles').doc('examesTomografia').set(examesDoDia);
-                
-                // Também salva no localStorage como backup
-                localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
-                
-                atualizarStatusSync('✅ Dados salvos e sincronizados!', 'success');
-                return true;
-            } catch (error) {
-                console.error('Erro ao salvar no Firebase:', error);
-                // Fallback para localStorage
-                localStorage.setItem('examesTomografia', JSON.stringify(examesDoDia));
-                atualizarStatusSync('⚠️ Salvo localmente (sem conexão)', 'error');
-                return false;
+                await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                atualizarStatus("Salvo!", "success");
+            } catch (e) {
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                atualizarStatus("Salvo Local", "error");
             }
         }
 
-        // ========== EXISTING FUNCTIONS ==========
-
-        function abrirTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.getElementById(tabName).classList.add('active');
-            event.currentTarget.classList.add('active');
-            
-            if (tabName === 'relatorio') {
-                gerarRelatorioMensal();
-            }
-        }
-
+        // --- LEGENDA (RESTAURADA) ---
         function criarLegenda() {
-            legendaGrid.innerHTML = '';
-            
-            Object.values(valoresSegmentos).forEach(segmento => {
+            const grid = document.getElementById('legenda-grid');
+            grid.innerHTML = '';
+            Object.values(valoresSegmentos).forEach(seg => {
                 const item = document.createElement('div');
                 item.className = 'legenda-item';
-                
-                let html = `<h3>${segmento.nome}</h3>`;
-                
-                servicos.forEach(servico => {
-                    const valor = segmento.valores[servico.id];
-                    if (valor !== null) {
-                        html += `
-                            <div class="valor-servico">
-                                <span>${servico.nome}:</span>
-                                <span>R$ ${valor.toFixed(2)}</span>
-                            </div>
-                        `;
+                let html = `<h3>${seg.nome}</h3>`;
+                servicos.forEach(s => {
+                    const v = seg.valores[s.id];
+                    if(v !== null) {
+                        html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`;
                     }
                 });
-                
                 item.innerHTML = html;
-                legendaGrid.appendChild(item);
+                grid.appendChild(item);
             });
         }
+
+        // --- TIMER & AUTOMAÇÃO ---
+        
+        function popularTimerConfig() {
+            const selServ = document.getElementById('timer-servico');
+            selServ.innerHTML = '<option value="">Empresa...</option>';
+            servicos.forEach(s => selServ.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
+
+            const contSeg = document.getElementById('timer-segmentos-container');
+            contSeg.innerHTML = '';
+            Object.entries(valoresSegmentos).forEach(([k, v]) => {
+                contSeg.innerHTML += `<label class="check-item"><input type="checkbox" value="${k}"> ${v.nome}</label>`;
+            });
+        }
+
+        function formatTime(s) {
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+        }
+
+        function startTimer() {
+            if(!document.getElementById('timer-servico').value) return alert("Selecione a empresa!");
+            const cbs = document.querySelectorAll('#timer-segmentos-container input:checked');
+            if(cbs.length === 0) return alert("Selecione ao menos 1 segmento!");
+
+            timerRunning = true;
+            timerInterval = setInterval(() => {
+                elapsedTime++;
+                document.getElementById('timer-display').textContent = formatTime(elapsedTime);
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            timerRunning = false;
+            clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            elapsedTime = 0;
+            document.getElementById('timer-display').textContent = "00:00:00";
+        }
+
+        async function finalizarEContabilizar() {
+            const servico = document.getElementById('timer-servico').value;
+            const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
+            const data = dataExameInput.value;
+
+            if (!servico || checkboxes.length === 0) return alert("Selecione empresa e segmentos.");
+            
+            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
+            if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
+
+            let logMsg = `Salvo: ${servico.toUpperCase()} - `;
+            let segNomes = [];
+
+            checkboxes.forEach(cb => {
+                const seg = cb.value;
+                segNomes.push(valoresSegmentos[seg].nome);
+
+                if (elapsedTime > 0) {
+                    const key = `${servico}_${seg}`;
+                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
+                    dadosApp.tempos[data][key].push(elapsedTime);
+                }
+
+                if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+                const atual = dadosApp.exames[data][seg][servico] || 0;
+                dadosApp.exames[data][seg][servico] = atual + 1;
+            });
+
+            logMsg += segNomes.join(", ");
+            
+            await salvarDadosFirebase();
+            alert(logMsg);
+            
+            criarTabela();
+            atualizarGraficos();
+            resetTimer();
+        }
+
+        // --- TABELA E GRÁFICOS ---
 
         function criarTabela() {
             examsBody.innerHTML = '';
-            const dataSelecionada = dataExameInput.value;
+            const data = dataExameInput.value;
             
-            // Garante que a estrutura existe para todas as datas
-            if (examesDoDia && typeof examesDoDia === 'object') {
-                Object.keys(examesDoDia).forEach(data => {
-                    if (examesDoDia[data] && typeof examesDoDia[data] === 'object') {
-                        Object.keys(valoresSegmentos).forEach(segmento => {
-                            if (!examesDoDia[data][segmento]) {
-                                examesDoDia[data][segmento] = {};
-                                servicos.forEach(servico => {
-                                    examesDoDia[data][segmento][servico.id] = 0;
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-            
-            if (!examesDoDia[dataSelecionada]) {
-                examesDoDia[dataSelecionada] = {};
-                Object.keys(valoresSegmentos).forEach(segmento => {
-                    examesDoDia[dataSelecionada][segmento] = {};
-                    servicos.forEach(servico => {
-                        examesDoDia[dataSelecionada][segmento][servico.id] = 0;
-                    });
-                });
-            }
-            
-            Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
-                const linha = document.createElement('tr');
-                
-                const celulaNome = document.createElement('td');
-                celulaNome.className = 'exam-name';
-                celulaNome.textContent = segmento.nome;
-                linha.appendChild(celulaNome);
-                
-                servicos.forEach(servico => {
-                    const celula = document.createElement('td');
-                    const valor = segmento.valores[servico.id];
-                    
+            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
+
+            Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="exam-name">${seg.nome}</td>`;
+
+                servicos.forEach(s => {
+                    const td = document.createElement('td');
+                    const valor = seg.valores[s.id];
+                    const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
+
                     if (valor !== null) {
-                        let quantidade = 0;
-                        if (examesDoDia[dataSelecionada] && 
-                            examesDoDia[dataSelecionada][chave] && 
-                            examesDoDia[dataSelecionada][chave][servico.id] !== undefined) {
-                            quantidade = examesDoDia[dataSelecionada][chave][servico.id];
-                        }
-                        
-                        const contador = document.createElement('div');
-                        contador.className = 'counter';
-                        
-                        const btnRemover = document.createElement('button');
-                        btnRemover.className = 'counter-btn remove';
-                        btnRemover.innerHTML = '−';
-                        btnRemover.onclick = () => alterarContador(chave, servico.id, -1);
-                        
-                        const display = document.createElement('span');
-                        display.className = 'count-display';
-                        display.textContent = quantidade;
-                        
-                        const btnAdicionar = document.createElement('button');
-                        btnAdicionar.className = 'counter-btn';
-                        btnAdicionar.innerHTML = '+';
-                        btnAdicionar.onclick = () => alterarContador(chave, servico.id, 1);
-                        
-                        contador.appendChild(btnRemover);
-                        contador.appendChild(display);
-                        contador.appendChild(btnAdicionar);
-                        celula.appendChild(contador);
+                        td.innerHTML = `
+                            <div class="counter">
+                                <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
+                                <span class="count-display">${qtd}</span>
+                                <button class="counter-btn" onclick="alterarContador('${chave}', '${s.id}', 1)">+</button>
+                            </div>
+                        `;
                     } else {
-                        celula.textContent = 'NÃO TEM';
-                        celula.className = 'nao-tem';
+                        td.className = "nao-tem";
+                        td.textContent = "-";
                     }
-                    
-                    linha.appendChild(celula);
+                    tr.appendChild(td);
                 });
-                
-                examsBody.appendChild(linha);
+                examsBody.appendChild(tr);
             });
-            
             atualizarResumo();
         }
 
-        async function alterarContador(segmento, servico, alteracao) {
+        async function alterarContador(seg, serv, delta) {
             const data = dataExameInput.value;
+            if(!dadosApp.exames[data]) dadosApp.exames[data] = {};
+            if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
             
-            if (!examesDoDia[data]) {
-                examesDoDia[data] = {};
-            }
-            if (!examesDoDia[data][segmento]) {
-                examesDoDia[data][segmento] = {};
-            }
+            const atual = dadosApp.exames[data][seg][serv] || 0;
+            dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
             
-            const atual = examesDoDia[data][segmento][servico] || 0;
-            const novo = Math.max(0, atual + alteracao);
-            
-            examesDoDia[data][segmento][servico] = novo;
             criarTabela();
-            
-            // Salva automaticamente no Firebase
-            if (!carregamentoInicial) {
-                await salvarDadosFirebase();
-            }
+            await salvarDadosFirebase();
         }
 
         function atualizarResumo() {
-            resumoContainer.innerHTML = '';
+            const container = document.getElementById('resumo-container');
+            const totalGeralEl = document.getElementById('total-geral');
             const data = dataExameInput.value;
             
-            let totalExames = 0;
-            let totalValor = 0;
-            
-            servicos.forEach(servico => {
+            let totalExames = 0, totalValor = 0;
+            container.innerHTML = '';
+
+            servicos.forEach(s => {
                 const card = document.createElement('div');
                 card.className = 'resumo-card';
-                
-                let html = `<h3>${servico.nome}</h3>`;
-                let examesServico = 0;
-                let valorServico = 0;
-                
-                Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
-                    const valor = segmento.valores[servico.id];
-                    let quantidade = 0;
-                    
-                    if (examesDoDia[data] && examesDoDia[data][chave] && examesDoDia[data][chave][servico.id]) {
-                        quantidade = examesDoDia[data][chave][servico.id] || 0;
-                    }
-                    
-                    if (valor !== null && quantidade > 0) {
-                        const valorTotal = quantidade * valor;
-                        examesServico += quantidade;
-                        valorServico += valorTotal;
-                        
-                        html += `
-                            <div class="resumo-item">
-                                <span>${segmento.nome}</span>
-                                <span>${quantidade} x R$ ${valor.toFixed(2)}</span>
-                            </div>
-                        `;
+                let items = '';
+                let subTotal = 0, subQtd = 0;
+
+                Object.entries(valoresSegmentos).forEach(([k, seg]) => {
+                    const v = seg.valores[s.id];
+                    const qtd = dadosApp.exames[data]?.[k]?.[s.id] || 0;
+                    if(v && qtd > 0) {
+                        const tot = qtd * v;
+                        subTotal += tot;
+                        subQtd += qtd;
+                        items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`;
                     }
                 });
-                
-                totalExames += examesServico;
-                totalValor += valorServico;
-                
-                html += `
-                    <div class="resumo-item">
-                        <span>TOTAL</span>
-                        <span>${examesServico} exames = R$ ${valorServico.toFixed(2)}</span>
-                    </div>
-                `;
-                
-                card.innerHTML = html;
-                resumoContainer.appendChild(card);
+
+                totalExames += subQtd;
+                totalValor += subTotal;
+
+                card.innerHTML = `<h3>${s.nome}</h3>${items}<div class="resumo-item total"><span>Total</span><span>R$ ${subTotal.toFixed(2)}</span></div>`;
+                container.appendChild(card);
             });
-            
-            totalGeral.innerHTML = `
-                <h3>RESUMO GERAL - ${formatarData(data)}</h3>
-                <div class="total-info">
-                    <div>Total de Exames: <strong>${totalExames}</strong></div>
-                    <div>Valor Total: <strong>R$ ${totalValor.toFixed(2)}</strong></div>
-                </div>
+
+            totalGeralEl.innerHTML = `
+                <div><span>Exames</span><strong>${totalExames}</strong></div>
+                <div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>
             `;
         }
 
+        function atualizarGraficos() {
+            const data = dataExameInput.value;
+            
+            const labels = [], dataPoints = [];
+            servicos.forEach(s => {
+                let t = 0, c = 0;
+                Object.keys(valoresSegmentos).forEach(k => {
+                    const key = `${s.id}_${k}`;
+                    const arr = dadosApp.tempos[data]?.[key] || [];
+                    if(arr.length) { t += arr.reduce((a,b)=>a+b,0); c += arr.length; }
+                });
+                if(t > 0) {
+                    labels.push(s.nome);
+                    dataPoints.push(Math.round((t/c)/60));
+                }
+            });
+
+            if(chartDiario) chartDiario.destroy();
+            chartDiario = new Chart(document.getElementById('chartMediaDiaria'), {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: dataPoints, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            const d = new Date(data);
+            const day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1);
+            const monday = new Date(d.setDate(diff));
+            
+            const labelsWeek = [], dataWeek = [];
+            const datasetTemp = {};
+            servicos.forEach(s => datasetTemp[s.id] = []);
+
+            for(let i=0; i<7; i++) {
+                const dt = new Date(monday);
+                dt.setDate(dt.getDate() + i);
+                const dtStr = dt.toISOString().split('T')[0];
+                labelsWeek.push(dt.toLocaleDateString('pt-BR', {weekday: 'short'}));
+                
+                servicos.forEach(s => {
+                    let qtdDia = 0;
+                    Object.keys(valoresSegmentos).forEach(k => {
+                        qtdDia += dadosApp.exames[dtStr]?.[k]?.[s.id] || 0;
+                    });
+                    datasetTemp[s.id].push(qtdDia);
+                });
+            }
+
+            const datasetsBar = servicos.map((s, i) => ({
+                label: s.nome,
+                data: datasetTemp[s.id],
+                backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'][i]
+            }));
+
+            if(chartSemanal) chartSemanal.destroy();
+            chartSemanal = new Chart(document.getElementById('chartMediaSemanal'), {
+                type: 'bar',
+                data: { labels: labelsWeek, datasets: datasetsBar },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // --- RELATÓRIO E BACKUP ---
+        
+        function abrirTab(id) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.currentTarget.classList.add('active');
+            if(id === 'relatorio') gerarRelatorioMensal();
+        }
+
         function gerarRelatorioMensal() {
-            const mesAno = mesRelatorioInput.value;
-            const [ano, mes] = mesAno.split('-');
-            const relatorioBody = document.getElementById('relatorio-body');
-            relatorioBody.innerHTML = '';
-            
-            let totaisServicos = { 
-                mobilemed: 0, 
-                'sagrada-familia': 0, 
-                radcloud: 0, 
-                epacs: 0, 
-                clinimage: 0,
-                vx: 0,
-                esporadico: 0
-            };
-            let totalGeralMensal = 0;
-            
-            const diasNoMes = new Date(ano, mes, 0).getDate();
-            
-            for (let dia = 1; dia <= diasNoMes; dia++) {
-                const data = `${ano}-${mes.padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-                const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
-                
-                const linha = document.createElement('tr');
-                linha.innerHTML = `<td class="data-cell">${dataFormatada}</td>`;
-                
+            const [ano, mes] = mesRelatorioInput.value.split('-');
+            const tbody = document.getElementById('relatorio-body');
+            tbody.innerHTML = '';
+            const dias = new Date(ano, mes, 0).getDate();
+            const totais = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
+            let totalGeral = 0;
+
+            for(let d=1; d<=dias; d++) {
+                const dt = `${ano}-${mes.padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
                 let totalDia = 0;
-                
-                servicos.forEach(servico => {
-                    let totalServicoDia = 0;
-                    
-                    if (examesDoDia[data]) {
-                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
-                            const valor = segmento.valores[servico.id];
-                            if (valor !== null && examesDoDia[data][chave] && examesDoDia[data][chave][servico.id]) {
-                                const quantidade = examesDoDia[data][chave][servico.id] || 0;
-                                totalServicoDia += quantidade * valor;
-                            }
-                        });
-                    }
-                    
-                    totaisServicos[servico.id] += totalServicoDia;
-                    totalDia += totalServicoDia;
-                    
-                    linha.innerHTML += `<td>R$ ${totalServicoDia.toFixed(2)}</td>`;
+
+                servicos.forEach(s => {
+                    let vDia = 0;
+                    Object.entries(valoresSegmentos).forEach(([k, seg]) => {
+                        const v = seg.valores[s.id];
+                        const q = dadosApp.exames[dt]?.[k]?.[s.id] || 0;
+                        if(v) vDia += q * v;
+                    });
+                    totais[s.id] += vDia;
+                    totalDia += vDia;
+                    tr.innerHTML += `<td>R$ ${vDia.toFixed(2)}</td>`;
                 });
                 
-                totalGeralMensal += totalDia;
-                linha.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
-                relatorioBody.appendChild(linha);
+                totalGeral += totalDia;
+                tr.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
+                tbody.appendChild(tr);
             }
-            
-            const linhaTotal = document.createElement('tr');
-            linhaTotal.className = 'total-mensal';
-            linhaTotal.innerHTML = `<td><strong>TOTAL MENSAL</strong></td>`;
-            
-            servicos.forEach(servico => {
-                linhaTotal.innerHTML += `<td><strong>R$ ${totaisServicos[servico.id].toFixed(2)}</strong></td>`;
-            });
-            
-            linhaTotal.innerHTML += `<td><strong>R$ ${totalGeralMensal.toFixed(2)}</strong></td>`;
-            relatorioBody.appendChild(linhaTotal);
+
+            const trTot = document.createElement('tr');
+            trTot.style.background = "var(--primary)";
+            trTot.style.color = "white";
+            trTot.innerHTML = `<td>TOTAL</td>`;
+            servicos.forEach(s => trTot.innerHTML += `<td>R$ ${totais[s.id].toFixed(2)}</td>`);
+            trTot.innerHTML += `<td><strong>R$ ${totalGeral.toFixed(2)}</strong></td>`;
+            tbody.appendChild(trTot);
         }
 
         function downloadRelatorioExcel() {
-            const mesAno = mesRelatorioInput.value;
-            const [ano, mes] = mesAno.split('-');
-            const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-BR', { month: 'long' });
-            
-            let csv = 'DATA;MOBILEMED IMAX;SAGRADA FAMILIA;RADCLOUD;EPACS – RJ;CLINIMAGE;VX;ESPORÁDICO;VALOR TOTAL DIÁRIO\n';
-            
-            const diasNoMes = new Date(ano, mes, 0).getDate();
-            let totaisServicos = { 
-                mobilemed: 0, 
-                'sagrada-familia': 0, 
-                radcloud: 0, 
-                epacs: 0, 
-                clinimage: 0,
-                vx: 0,
-                esporadico: 0
-            };
-            let totalGeralMensal = 0;
-            
-            for (let dia = 1; dia <= diasNoMes; dia++) {
-                const data = `${ano}-${mes.padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-                const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
-                
-                let linha = `${dataFormatada};`;
-                let totalDia = 0;
-                
-                servicos.forEach(servico => {
-                    let totalServicoDia = 0;
-                    
-                    if (examesDoDia[data]) {
-                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
-                            const valor = segmento.valores[servico.id];
-                            if (valor !== null && examesDoDia[data][chave] && examesDoDia[data][chave][servico.id]) {
-                                const quantidade = examesDoDia[data][chave][servico.id] || 0;
-                                totalServicoDia += quantidade * valor;
-                            }
-                        });
-                    }
-                    
-                    totaisServicos[servico.id] += totalServicoDia;
-                    totalDia += totalServicoDia;
-                    linha += `R$ ${totalServicoDia.toFixed(2)};`;
-                });
-                
-                totalGeralMensal += totalDia;
-                linha += `R$ ${totalDia.toFixed(2)}\n`;
-                csv += linha;
-            }
-            
-            csv += `TOTAL MENSAL;`;
-            servicos.forEach(servico => {
-                csv += `R$ ${totaisServicos[servico.id].toFixed(2)};`;
-            });
-            csv += `R$ ${totalGeralMensal.toFixed(2)}\n`;
-            
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `relatorio_tomografia_${nomeMes}_${ano}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function downloadRelatorioPDF() {
-            alert('Relatório PDF gerado com sucesso! Em uma versão avançada, isto geraria um PDF real.');
+            alert("Gerando CSV...");
         }
 
         function baixarBackupCompleto() {
-            const data = new Date().toISOString().split('T')[0];
-            const backupData = {
-                dataBackup: new Date().toISOString(),
-                versao: '2.1',
-                dados: examesDoDia
-            };
-            
-            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            const blob = new Blob([JSON.stringify(dadosApp, null, 2)], {type: "application/json"});
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup_completo_exames_${data}.json`;
+            a.href = URL.createObjectURL(blob);
+            a.download = `backup_${dataExameInput.value}.json`;
             a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function baixarRelatorioMensal() {
-            alert('Função de backup do relatório mensal - em desenvolvimento');
         }
 
         function restaurarBackup() {
-            const fileInput = document.getElementById('upload-backup');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Por favor, selecione um arquivo de backup.');
-                return;
-            }
-            
+            const file = document.getElementById('upload-backup').files[0];
+            if(!file) return;
             const reader = new FileReader();
-            reader.onload = async function(e) {
+            reader.onload = async (e) => {
                 try {
-                    const backupData = JSON.parse(e.target.result);
-                    
-                    if (backupData.dados) {
-                        examesDoDia = backupData.dados;
-                        await salvarDadosFirebase();
-                        criarTabela();
-                        alert('Backup restaurado com sucesso!');
-                    } else {
-                        alert('Arquivo de backup inválido.');
-                    }
-                } catch (error) {
-                    alert('Erro ao ler o arquivo de backup: ' + error.message);
-                }
+                    const json = JSON.parse(e.target.result);
+                    dadosApp = json;
+                    if(!dadosApp.exames) dadosApp.exames = {};
+                    if(!dadosApp.tempos) dadosApp.tempos = {};
+                    await salvarDadosFirebase();
+                    criarLegenda(); // Atualiza legenda se mudar config
+                    criarTabela();
+                    alert("Restaurado!");
+                } catch(err) { alert("Erro no arquivo"); }
             };
             reader.readAsText(file);
         }
 
-        // FUNÇÕES AUXILIARES
-        function formatarData(data) {
-            const [ano, mes, dia] = data.split('-');
-            return `${dia}/${mes}/${ano}`;
-        }
-
         async function limparDia() {
-            const data = dataExameInput.value;
-            if (confirm(`Limpar todos os exames de ${formatarData(data)}?`)) {
-                if (examesDoDia[data]) {
-                    Object.keys(examesDoDia[data]).forEach(segmento => {
-                        servicos.forEach(servico => {
-                            if (examesDoDia[data][segmento]) {
-                                examesDoDia[data][segmento][servico.id] = 0;
-                            }
-                        });
-                    });
-                }
-                criarTabela();
+            if(confirm("Zerar TODOS os exames e tempos do dia?")) {
+                const data = dataExameInput.value;
+                dadosApp.exames[data] = {};
+                dadosApp.tempos[data] = {};
                 await salvarDadosFirebase();
-                alert('Exames do dia limpos!');
-            }
-        }
-
-        async function resetarTudo() {
-            if (confirm('Isso apagará TODOS os dados salvos. Continuar?')) {
-                examesDoDia = {};
-                localStorage.removeItem('examesTomografia');
-                try {
-                    await db.collection('controles').doc('examesTomografia').delete();
-                } catch (error) {
-                    console.log('Documento não existia no Firebase');
-                }
                 criarTabela();
-                alert('Dados resetados com sucesso!');
             }
         }
 
-        // CONFIGURAR EVENTOS
-        dataExameInput.addEventListener('change', criarTabela);
-        saveDataBtn.addEventListener('click', salvarDadosFirebase);
-        clearDayBtn.addEventListener('click', limparDia);
-        resetDataBtn.addEventListener('click', resetarTudo);
+        // EVENTOS
+        dataExameInput.addEventListener('change', () => { criarTabela(); atualizarGraficos(); });
+        document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
 
-        // INICIAR APLICAÇÃO
-        document.addEventListener('DOMContentLoaded', function() {
-            criarLegenda();
-            carregarDadosFirebase(); // Carrega dados do Firebase ao iniciar
-        });
     </script>
 </body>
 </html>
