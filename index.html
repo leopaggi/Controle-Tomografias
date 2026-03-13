@@ -34,7 +34,7 @@
         }
         
         .container {
-            max-width: 1800px;
+            max-width: 2000px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
@@ -184,11 +184,11 @@
             border-collapse: collapse;
             margin: 20px 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         
         .exams-table th, .exams-table td {
-            padding: 8px 8px;
+            padding: 6px 4px;
             text-align: center;
             border: 1px solid #ddd;
         }
@@ -217,12 +217,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 4px;
         }
         
         .counter-btn {
-            width: 26px;
-            height: 26px;
+            width: 24px;
+            height: 24px;
             border: none;
             border-radius: 50%;
             background-color: var(--secondary);
@@ -233,7 +233,7 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
         
         .counter-btn:hover {
@@ -250,8 +250,8 @@
         
         .count-display {
             font-weight: bold;
-            min-width: 22px;
-            font-size: 0.95rem;
+            min-width: 20px;
+            font-size: 0.85rem;
         }
         
         .nao-tem {
@@ -262,42 +262,42 @@
         .resumo-container {
             margin-top: 30px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
         }
         
         .resumo-card {
             background: white;
             border-radius: 8px;
-            padding: 12px;
+            padding: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             border-top: 4px solid var(--secondary);
         }
         
         .resumo-card h3 {
             color: var(--primary);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             text-align: center;
             border-bottom: 2px solid #eee;
-            padding-bottom: 6px;
-            font-size: 0.95rem;
+            padding-bottom: 5px;
+            font-size: 0.9rem;
         }
         
         .resumo-item {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 3px 0;
             border-bottom: 1px solid #f0f0f0;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         
         .resumo-item:last-child {
             border-bottom: none;
             font-weight: bold;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             color: var(--primary);
-            margin-top: 6px;
-            padding-top: 6px;
+            margin-top: 5px;
+            padding-top: 5px;
             border-top: 2px solid #eee;
         }
         
@@ -368,11 +368,11 @@
             border-collapse: collapse;
             margin: 20px 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         
         .relatorio-table th, .relatorio-table td {
-            padding: 6px 8px;
+            padding: 5px 6px;
             text-align: center;
             border: 1px solid #ddd;
         }
@@ -396,7 +396,7 @@
             background-color: var(--primary) !important;
             color: white;
             font-weight: bold;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
         
         @media (max-width: 768px) {
@@ -409,26 +409,26 @@
             }
             
             .exams-table {
-                font-size: 0.7rem;
-            }
-            
-            .exams-table th, .exams-table td {
-                padding: 4px 4px;
-            }
-            
-            .counter {
-                gap: 3px;
-            }
-            
-            .counter-btn {
-                width: 22px;
-                height: 22px;
                 font-size: 0.65rem;
             }
             
+            .exams-table th, .exams-table td {
+                padding: 3px 2px;
+            }
+            
+            .counter {
+                gap: 2px;
+            }
+            
+            .counter-btn {
+                width: 20px;
+                height: 20px;
+                font-size: 0.6rem;
+            }
+            
             .count-display {
-                min-width: 18px;
-                font-size: 0.8rem;
+                min-width: 16px;
+                font-size: 0.7rem;
             }
             
             .actions {
@@ -445,10 +445,10 @@
             
             .tab {
                 flex: 1;
-                min-width: 100px;
+                min-width: 90px;
                 text-align: center;
-                padding: 8px 10px;
-                font-size: 0.8rem;
+                padding: 8px 8px;
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -489,6 +489,7 @@
                         <th class="service-header">EPACS – RJ</th>
                         <th class="service-header">CLINIMAGE</th>
                         <th class="service-header">VX</th>
+                        <th class="service-header">ESPORÁDICO</th>
                     </tr>
                 </thead>
                 <tbody id="exams-body"></tbody>
@@ -523,6 +524,7 @@
                             <th>EPACS – RJ</th>
                             <th>CLINIMAGE</th>
                             <th>VX</th>
+                            <th>ESPORÁDICO</th>
                             <th>VALOR TOTAL DIÁRIO</th>
                         </tr>
                     </thead>
@@ -571,21 +573,21 @@
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // DADOS REAIS DOS VALORES (COM VX ADICIONADO)
+        // DADOS REAIS DOS VALORES (COM VX E ESPORÁDICO ADICIONADOS)
         const valoresSegmentos = {
-            'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'abdomen-total': { nome: 'ABDOMEN TOTAL', valores: { 'mobilemed': 25, 'sagrada-familia': null, 'radcloud': null, 'epacs': 17, 'clinimage': 50, 'vx': 44 }},
-            'abd-superior': { nome: 'ABD SUPERIOR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'pelve': { nome: 'PELVE', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'bacia': { nome: 'BACIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'articulacao': { nome: 'ARTICULACAO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'pescoco': { nome: 'PESCOCO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
-            'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},            
-            'emergencia': { nome: 'EMERGENCIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 50, 'vx': 22 }}
+            'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'torax': { nome: 'TORAX', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'abdomen-total': { nome: 'ABDOMEN TOTAL', valores: { 'mobilemed': 25, 'sagrada-familia': null, 'radcloud': null, 'epacs': 17, 'clinimage': 50, 'vx': 44, 'esporadico': 50 }},
+            'abd-superior': { nome: 'ABD SUPERIOR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'pelve': { nome: 'PELVE', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'bacia': { nome: 'BACIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'articulacao': { nome: 'ARTICULACAO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'pescoco': { nome: 'PESCOCO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'cervical': { nome: 'CERVICAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'dorsal': { nome: 'DORSAL', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},
+            'lombar': { nome: 'LOMBAR', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22, 'esporadico': 25 }},            
+            'emergencia': { nome: 'EMERGENCIA', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 50, 'vx': 22, 'esporadico': 25 }}
         };
 
         const servicos = [
@@ -594,7 +596,8 @@
             { id: 'radcloud', nome: 'RADCLOUD' },
             { id: 'epacs', nome: 'EPACS – RJ' },
             { id: 'clinimage', nome: 'CLINIMAGE' },
-            { id: 'vx', nome: 'VX' }
+            { id: 'vx', nome: 'VX' },
+            { id: 'esporadico', nome: 'ESPORÁDICO' }
         ];
 
         // VARIÁVEIS GLOBAIS
@@ -734,16 +737,20 @@
             const dataSelecionada = dataExameInput.value;
             
             // Garante que a estrutura existe para todas as datas
-            Object.keys(examesDoDia).forEach(data => {
-                Object.keys(valoresSegmentos).forEach(segmento => {
-                    if (!examesDoDia[data][segmento]) {
-                        examesDoDia[data][segmento] = {};
-                        servicos.forEach(servico => {
-                            examesDoDia[data][segmento][servico.id] = 0;
+            if (examesDoDia && typeof examesDoDia === 'object') {
+                Object.keys(examesDoDia).forEach(data => {
+                    if (examesDoDia[data] && typeof examesDoDia[data] === 'object') {
+                        Object.keys(valoresSegmentos).forEach(segmento => {
+                            if (!examesDoDia[data][segmento]) {
+                                examesDoDia[data][segmento] = {};
+                                servicos.forEach(servico => {
+                                    examesDoDia[data][segmento][servico.id] = 0;
+                                });
+                            }
                         });
                     }
                 });
-            });
+            }
             
             if (!examesDoDia[dataSelecionada]) {
                 examesDoDia[dataSelecionada] = {};
@@ -768,7 +775,12 @@
                     const valor = segmento.valores[servico.id];
                     
                     if (valor !== null) {
-                        const quantidade = examesDoDia[dataSelecionada][chave][servico.id] || 0;
+                        let quantidade = 0;
+                        if (examesDoDia[dataSelecionada] && 
+                            examesDoDia[dataSelecionada][chave] && 
+                            examesDoDia[dataSelecionada][chave][servico.id] !== undefined) {
+                            quantidade = examesDoDia[dataSelecionada][chave][servico.id];
+                        }
                         
                         const contador = document.createElement('div');
                         contador.className = 'counter';
@@ -807,6 +819,14 @@
 
         async function alterarContador(segmento, servico, alteracao) {
             const data = dataExameInput.value;
+            
+            if (!examesDoDia[data]) {
+                examesDoDia[data] = {};
+            }
+            if (!examesDoDia[data][segmento]) {
+                examesDoDia[data][segmento] = {};
+            }
+            
             const atual = examesDoDia[data][segmento][servico] || 0;
             const novo = Math.max(0, atual + alteracao);
             
@@ -836,7 +856,11 @@
                 
                 Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
                     const valor = segmento.valores[servico.id];
-                    const quantidade = examesDoDia[data][chave][servico.id] || 0;
+                    let quantidade = 0;
+                    
+                    if (examesDoDia[data] && examesDoDia[data][chave] && examesDoDia[data][chave][servico.id]) {
+                        quantidade = examesDoDia[data][chave][servico.id] || 0;
+                    }
                     
                     if (valor !== null && quantidade > 0) {
                         const valorTotal = quantidade * valor;
@@ -887,7 +911,8 @@
                 radcloud: 0, 
                 epacs: 0, 
                 clinimage: 0,
-                vx: 0 
+                vx: 0,
+                esporadico: 0
             };
             let totalGeralMensal = 0;
             
@@ -908,9 +933,8 @@
                     if (examesDoDia[data]) {
                         Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
                             const valor = segmento.valores[servico.id];
-                            const quantidade = examesDoDia[data][chave][servico.id] || 0;
-                            
-                            if (valor !== null) {
+                            if (valor !== null && examesDoDia[data][chave] && examesDoDia[data][chave][servico.id]) {
+                                const quantidade = examesDoDia[data][chave][servico.id] || 0;
                                 totalServicoDia += quantidade * valor;
                             }
                         });
@@ -944,7 +968,7 @@
             const [ano, mes] = mesAno.split('-');
             const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-BR', { month: 'long' });
             
-            let csv = 'DATA;MOBILEMED IMAX;SAGRADA FAMILIA;RADCLOUD;EPACS – RJ;CLINIMAGE;VX;VALOR TOTAL DIÁRIO\n';
+            let csv = 'DATA;MOBILEMED IMAX;SAGRADA FAMILIA;RADCLOUD;EPACS – RJ;CLINIMAGE;VX;ESPORÁDICO;VALOR TOTAL DIÁRIO\n';
             
             const diasNoMes = new Date(ano, mes, 0).getDate();
             let totaisServicos = { 
@@ -953,7 +977,8 @@
                 radcloud: 0, 
                 epacs: 0, 
                 clinimage: 0,
-                vx: 0 
+                vx: 0,
+                esporadico: 0
             };
             let totalGeralMensal = 0;
             
@@ -970,9 +995,8 @@
                     if (examesDoDia[data]) {
                         Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
                             const valor = segmento.valores[servico.id];
-                            const quantidade = examesDoDia[data][chave][servico.id] || 0;
-                            
-                            if (valor !== null) {
+                            if (valor !== null && examesDoDia[data][chave] && examesDoDia[data][chave][servico.id]) {
+                                const quantidade = examesDoDia[data][chave][servico.id] || 0;
                                 totalServicoDia += quantidade * valor;
                             }
                         });
@@ -1011,7 +1035,7 @@
             const data = new Date().toISOString().split('T')[0];
             const backupData = {
                 dataBackup: new Date().toISOString(),
-                versao: '2.0',
+                versao: '2.1',
                 dados: examesDoDia
             };
             
@@ -1066,11 +1090,15 @@
         async function limparDia() {
             const data = dataExameInput.value;
             if (confirm(`Limpar todos os exames de ${formatarData(data)}?`)) {
-                Object.keys(examesDoDia[data]).forEach(segmento => {
-                    servicos.forEach(servico => {
-                        examesDoDia[data][segmento][servico.id] = 0;
+                if (examesDoDia[data]) {
+                    Object.keys(examesDoDia[data]).forEach(segmento => {
+                        servicos.forEach(servico => {
+                            if (examesDoDia[data][segmento]) {
+                                examesDoDia[data][segmento][servico.id] = 0;
+                            }
+                        });
                     });
-                });
+                }
                 criarTabela();
                 await salvarDadosFirebase();
                 alert('Exames do dia limpos!');
