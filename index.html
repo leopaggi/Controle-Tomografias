@@ -35,6 +35,7 @@
         .sync-success { background: #d4edda; color: #155724; }
         .sync-error { background: #f8d7da; color: #721c24; }
         .sync-loading { background: #d1ecf1; color: #0c5460; }
+        .sync-warning { background: #fff3cd; color: #856404; }
         
         /* Abas */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
@@ -43,20 +44,10 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* LEGENDA (RESTAURADA) */
-        .legenda-container {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-left: 4px solid var(--secondary);
-        }
+        /* LEGENDA */
+        .legenda-container { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 20px; border-left: 4px solid var(--secondary); }
         .legenda-container h2 { color: var(--primary); margin-bottom: 10px; text-align: center; font-size: 1.1rem; }
-        .legenda-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-        }
+        .legenda-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
         .legenda-item { background: white; padding: 10px; border-radius: 4px; border: 1px solid #e1e1e1; }
         .legenda-item h3 { color: var(--primary); margin-bottom: 5px; font-size: 0.9rem; border-bottom: 1px solid #eee; padding-bottom: 3px; }
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
@@ -70,64 +61,32 @@
             padding: 15px;
             margin-bottom: 20px;
             display: grid;
-            grid-template-columns: 280px 1fr; /* Timer à esquerda, controles à direita */
+            grid-template-columns: 280px 1fr;
             gap: 20px;
             align-items: center;
         }
 
-        @media (max-width: 900px) {
-            .workflow-container { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
 
-        .timer-box {
-            text-align: center;
-            background: var(--light-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 5px solid var(--secondary);
-        }
-
-        .timer-display {
-            font-size: 3rem;
-            font-weight: bold;
-            color: var(--primary);
-            font-family: 'Courier New', Courier, monospace;
-        }
-
+        .timer-box { text-align: center; background: var(--light-bg); padding: 15px; border-radius: 8px; border-left: 5px solid var(--secondary); }
+        .timer-display { font-size: 3rem; font-weight: bold; color: var(--primary); font-family: 'Courier New', Courier, monospace; }
         .timer-btn-group { display: flex; gap: 5px; justify-content: center; margin-top: 10px; }
         .timer-btn { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; }
         
-        .controls-box {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
+        .controls-box { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
         .control-label { font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; }
 
-        select, input[type="date"] {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            min-width: 140px;
-        }
+        select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.9rem; min-width: 140px; }
 
         /* Checkboxes Container */
         .checkbox-scroll {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            max-height: 80px;
+            max-height: 100px;
             overflow-y: auto;
-            padding: 5px;
+            padding: 8px;
             border: 1px solid #eee;
             border-radius: 5px;
             background: #fafafa;
@@ -136,19 +95,20 @@
         .check-item {
             background: white;
             border: 1px solid #ddd;
-            padding: 4px 8px;
+            padding: 5px 10px;
             border-radius: 4px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s;
             user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .check-item:has(input:checked) {
-            background: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
-        }
-        .check-item input { display: none; }
+
+        .check-item input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .check-item:has(input:checked) { background: var(--secondary); color: white; border-color: var(--secondary); font-weight: bold; }
+        .selection-counter { font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: bold; }
 
         /* TABELA */
         .exams-table { width: 100%; border-collapse: collapse; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.8rem; }
@@ -167,23 +127,13 @@
         .nao-tem { color: #999; font-style: italic; font-size: 0.7rem; }
 
         /* GRÁFICOS E RESUMO */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
-        .chart-box {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #eee;
-            height: 300px;
-        }
+        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 300px; }
         .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
 
+        /* RESUMO CARDS */
         .resumo-container { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
         .resumo-card { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--secondary); }
         .resumo-card h3 { color: var(--primary); margin-bottom: 5px; text-align: center; font-size: 0.9rem; }
@@ -221,15 +171,12 @@
         <!-- ABA CONTROLE DIÁRIO -->
         <div id="controle" class="tab-content active">
             
-            <!-- LEGENDA DE VALORES (RESTAURADA) -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
-            <!-- ÁREA DE TRABALHO (TIMER + CONFIGURAÇÃO) -->
             <div class="workflow-container">
-                <!-- Coluna 1: O Cronômetro -->
                 <div class="timer-box">
                     <div class="timer-display" id="timer-display">00:00:00</div>
                     <div class="timer-btn-group">
@@ -239,7 +186,6 @@
                     </div>
                 </div>
 
-                <!-- Coluna 2: Configuração e Ação -->
                 <div class="controls-box">
                     <div class="control-group">
                         <span class="control-label">Data</span>
@@ -248,59 +194,35 @@
 
                     <div class="control-group" style="flex-grow: 1;">
                         <span class="control-label">1. Selecione a Empresa</span>
-                        <select id="timer-servico">
-                            <option value="">Selecione...</option>
-                            <!-- JS popula -->
-                        </select>
+                        <select id="timer-servico"><option value="">Selecione...</option></select>
                     </div>
 
                     <div class="control-group" style="flex-grow: 2;">
-                        <span class="control-label">2. Selecione os Segmentos (Múltiplos)</span>
-                        <div class="checkbox-scroll" id="timer-segmentos-container">
-                            <!-- JS popula -->
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="control-label">2. Segmentos</span>
+                            <span id="counter-display" class="selection-counter"></span>
                         </div>
+                        <div class="checkbox-scroll" id="timer-segmentos-container"></div>
                     </div>
 
                     <div class="control-group" style="justify-content: flex-end;">
-                        <button class="timer-btn btn-save" style="padding: 12px 25px; font-size: 1rem;" onclick="finalizarEContabilizar()">
-                            ✅ Finalizar e Salvar
-                        </button>
+                        <button class="timer-btn btn-save" style="padding: 12px 25px; font-size: 1rem;" onclick="finalizarEContabilizar()">✅ Finalizar e Salvar</button>
                     </div>
                 </div>
             </div>
-            <!-- FIM ÁREA DE TRABALHO -->
 
-            <!-- TABELA DE EXAMES -->
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
-                    <thead>
-                        <tr>
-                            <th>EXAMES</th>
-                            <th class="service-header">MOBILEMED</th>
-                            <th class="service-header">SAGRADA</th>
-                            <th class="service-header">RADCLOUD</th>
-                            <th class="service-header">EPACS</th>
-                            <th class="service-header">CLINIMAGE</th>
-                            <th class="service-header">VX</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>EXAMES</th><th class="service-header">MOBILEMED</th><th class="service-header">SAGRADA</th><th class="service-header">RADCLOUD</th><th class="service-header">EPACS</th><th class="service-header">CLINIMAGE</th><th class="service-header">VX</th></tr></thead>
                     <tbody id="exams-body"></tbody>
                 </table>
             </div>
 
-            <!-- GRÁFICOS DE PRODUTIVIDADE -->
             <div class="dashboard-grid">
-                <div class="chart-box">
-                    <h3>Tempo Médio por Empresa (Hoje)</h3>
-                    <canvas id="chartMediaDiaria"></canvas>
-                </div>
-                <div class="chart-box">
-                    <h3>Volume de Exames (Semana)</h3>
-                    <canvas id="chartMediaSemanal"></canvas>
-                </div>
+                <div class="chart-box"><h3>Tempo Médio por Empresa (Hoje)</h3><canvas id="chartMediaDiaria"></canvas></div>
+                <div class="chart-box"><h3>Volume de Exames (Semana)</h3><canvas id="chartMediaSemanal"></canvas></div>
             </div>
 
-            <!-- RESUMO FINANCEIRO -->
             <div class="resumo-container" id="resumo-container"></div>
             <div class="total-geral" id="total-geral"></div>
             
@@ -310,28 +232,21 @@
             </div>
         </div>
 
-        <!-- ABA RELATÓRIO -->
+        <!-- ABA RELATÓRIO MENSAL -->
         <div id="relatorio" class="tab-content">
             <div style="text-align: center; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
                 <label for="mes-relatorio"><strong>Mês:</strong></label>
                 <input type="month" id="mes-relatorio">
-                <button onclick="gerarRelatorioMensal()" class="btn-save" style="margin-left: 10px; padding: 8px 15px;">Gerar</button>
+                <button onclick="gerarRelatorioMensal()" class="btn-save" style="margin-left: 10px; padding: 8px 15px;">Gerar Relatório</button>
                 <button onclick="downloadRelatorioExcel()" class="btn-action" style="margin-left: 5px; padding: 8px 15px;">Excel</button>
             </div>
+
+            <div class="resumo-container" id="resumo-mensal-container"></div>
+            <div class="total-geral" id="total-mensal-geral" style="margin-bottom: 20px;"></div>
+
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead>
-                        <tr>
-                            <th>DATA</th>
-                            <th>MOBILEMED</th>
-                            <th>SAGRADA</th>
-                            <th>RADCLOUD</th>
-                            <th>EPACS</th>
-                            <th>CLINIMAGE</th>
-                            <th>VX</th>
-                            <th>TOTAL DIA</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>DATA</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>EPACS</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL DIA</th></tr></thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
             </div>
@@ -368,7 +283,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // DADOS DOS VALORES
+        // DADOS
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
             'face-atm': { nome: 'FACE/ATM', valores: { 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'epacs': 17, 'clinimage': 25, 'vx': 22 }},
@@ -394,7 +309,7 @@
             { id: 'vx', nome: 'VX' }
         ];
 
-        // ESTADO DA APLICAÇÃO
+        // ESTADO
         let dadosApp = { exames: {}, tempos: {} };
         let timerInterval = null;
         let elapsedTime = 0;
@@ -413,34 +328,67 @@
         dataExameInput.value = hoje.toISOString().split('T')[0];
         mesRelatorioInput.value = hoje.toISOString().substring(0, 7);
 
-        // --- FIREBASE ---
+        // --- FIREBASE (COM MIGRAÇÃO SEGURA) ---
         async function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
 
         async function carregarDadosFirebase() {
             try {
                 atualizarStatus("Conectando...", "loading");
                 const doc = await db.collection('controles').doc('examesTomografia').get();
+                
                 if (doc.exists) {
                     const data = doc.data();
-                    dadosApp.exames = data.exames || {};
-                    dadosApp.tempos = data.tempos || {};
-                    // Migração antiga
-                    if(!data.exames && !data.tempos && Object.keys(data)[0]?.match(/^\d{4}/)) {
-                        dadosApp.exames = data;
-                        dadosApp.tempos = {};
+                    let loadedExames = {};
+                    let loadedTempos = {};
+
+                    // LÓGICA DE MIGRAÇÃO SEGURA
+                    
+                    // 1. Verifica se já é o formato novo (tem objeto 'exames')
+                    if (data.exames && typeof data.exames === 'object') {
+                        loadedExames = data.exames;
+                        loadedTempos = data.tempos || {};
+                        console.log("Formato novo detectado.");
+                    } 
+                    // 2. Verifica se é o formato antigo (chaves de data na raiz)
+                    else {
+                        const keys = Object.keys(data);
+                        // Regex para detectar datas YYYY-MM-DD
+                        if (keys.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(keys[0])) {
+                            console.log("Formato antigo detectado. Migrando dados...");
+                            loadedExames = data; // O objeto inteiro é de exames
+                            loadedTempos = {};
+                            atualizarStatus("Dados Antigos Recuperados!", "warning");
+                        } else {
+                            console.log("Formato desconhecido ou vazio.");
+                        }
                     }
+
+                    dadosApp.exames = loadedExames;
+                    dadosApp.tempos = loadedTempos;
+                    
                 } else {
+                    // Se não existe no Firebase, checa LocalStorage
                     const local = localStorage.getItem('examesTomografia');
-                    if(local) dadosApp = JSON.parse(local);
+                    if(local) {
+                        dadosApp = JSON.parse(local);
+                        // Garante estrutura
+                        if(!dadosApp.exames) dadosApp.exames = {};
+                        if(!dadosApp.tempos) dadosApp.tempos = {};
+                    }
                 }
-                atualizarStatus("Sincronizado", "success");
+                
+                if(syncStatus.textContent === "Conectando...") atualizarStatus("Sincronizado", "success");
+                
             } catch (e) {
                 console.error(e);
                 const local = localStorage.getItem('examesTomografia');
                 if(local) dadosApp = JSON.parse(local);
+                if(!dadosApp.exames) dadosApp.exames = {};
+                if(!dadosApp.tempos) dadosApp.tempos = {};
                 atualizarStatus("Offline (Local)", "error");
             }
-            criarLegenda(); // RESTAURADO
+            
+            criarLegenda();
             criarTabela();
             popularTimerConfig();
             atualizarGraficos();
@@ -448,6 +396,7 @@
 
         async function salvarDadosFirebase() {
             try {
+                // Sempre salva no novo formato
                 await db.collection('controles').doc('examesTomografia').set(dadosApp);
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 atualizarStatus("Salvo!", "success");
@@ -457,7 +406,7 @@
             }
         }
 
-        // --- LEGENDA (RESTAURADA) ---
+        // --- LEGENDA ---
         function criarLegenda() {
             const grid = document.getElementById('legenda-grid');
             grid.innerHTML = '';
@@ -476,8 +425,7 @@
             });
         }
 
-        // --- TIMER & AUTOMAÇÃO ---
-        
+        // --- TIMER ---
         function popularTimerConfig() {
             const selServ = document.getElementById('timer-servico');
             selServ.innerHTML = '<option value="">Empresa...</option>';
@@ -486,8 +434,22 @@
             const contSeg = document.getElementById('timer-segmentos-container');
             contSeg.innerHTML = '';
             Object.entries(valoresSegmentos).forEach(([k, v]) => {
-                contSeg.innerHTML += `<label class="check-item"><input type="checkbox" value="${k}"> ${v.nome}</label>`;
+                const label = document.createElement('label');
+                label.className = 'check-item';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = k;
+                checkbox.addEventListener('change', atualizarContadorSelecao);
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(` ${v.nome}`));
+                contSeg.appendChild(label);
             });
+        }
+
+        function atualizarContadorSelecao() {
+            const cbs = document.querySelectorAll('#timer-segmentos-container input:checked');
+            const display = document.getElementById('counter-display');
+            display.textContent = cbs.length > 0 ? `${cbs.length} selecionado(s)` : '';
         }
 
         function formatTime(s) {
@@ -498,9 +460,9 @@
         }
 
         function startTimer() {
-            if(!document.getElementById('timer-servico').value) return alert("Selecione a empresa!");
+            if(!document.getElementById('timer-servico').value) return alert("Selecione a EMPRESA antes de iniciar.");
             const cbs = document.querySelectorAll('#timer-segmentos-container input:checked');
-            if(cbs.length === 0) return alert("Selecione ao menos 1 segmento!");
+            if(cbs.length === 0) return alert("Selecione ao menos 1 SEGMENTO antes de iniciar.");
 
             timerRunning = true;
             timerInterval = setInterval(() => {
@@ -509,30 +471,21 @@
             }, 1000);
         }
 
-        function pauseTimer() {
-            timerRunning = false;
-            clearInterval(timerInterval);
-        }
-
-        function resetTimer() {
-            pauseTimer();
-            elapsedTime = 0;
-            document.getElementById('timer-display').textContent = "00:00:00";
-        }
+        function pauseTimer() { timerRunning = false; clearInterval(timerInterval); }
+        function resetTimer() { pauseTimer(); elapsedTime = 0; document.getElementById('timer-display').textContent = "00:00:00"; }
 
         async function finalizarEContabilizar() {
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
             const data = dataExameInput.value;
 
-            if (!servico || checkboxes.length === 0) return alert("Selecione empresa e segmentos.");
+            if (!servico) return alert("Nenhuma EMPRESA selecionada.");
+            if (checkboxes.length === 0) return alert("Nenhum SEGMENTO selecionado.");
             
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
 
-            let logMsg = `Salvo: ${servico.toUpperCase()} - `;
             let segNomes = [];
-
             checkboxes.forEach(cb => {
                 const seg = cb.value;
                 segNomes.push(valoresSegmentos[seg].nome);
@@ -548,22 +501,18 @@
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
 
-            logMsg += segNomes.join(", ");
+            alert(`✅ Salvo!\nEmpresa: ${servico.toUpperCase()}\nSegmentos: ${segNomes.join(", ")}\nTempo: ${formatTime(elapsedTime)}`);
             
             await salvarDadosFirebase();
-            alert(logMsg);
-            
             criarTabela();
             atualizarGraficos();
             resetTimer();
         }
 
-        // --- TABELA E GRÁFICOS ---
-
+        // --- TABELA DIÁRIA ---
         function criarTabela() {
             examsBody.innerHTML = '';
             const data = dataExameInput.value;
-            
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
 
             Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
@@ -576,17 +525,12 @@
                     const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
 
                     if (valor !== null) {
-                        td.innerHTML = `
-                            <div class="counter">
-                                <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
-                                <span class="count-display">${qtd}</span>
-                                <button class="counter-btn" onclick="alterarContador('${chave}', '${s.id}', 1)">+</button>
-                            </div>
-                        `;
-                    } else {
-                        td.className = "nao-tem";
-                        td.textContent = "-";
-                    }
+                        td.innerHTML = `<div class="counter">
+                            <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
+                            <span class="count-display">${qtd}</span>
+                            <button class="counter-btn" onclick="alterarContador('${chave}', '${s.id}', 1)">+</button>
+                        </div>`;
+                    } else { td.className = "nao-tem"; td.textContent = "-"; }
                     tr.appendChild(td);
                 });
                 examsBody.appendChild(tr);
@@ -624,8 +568,7 @@
                     const v = seg.valores[s.id];
                     const qtd = dadosApp.exames[data]?.[k]?.[s.id] || 0;
                     if(v && qtd > 0) {
-                        const tot = qtd * v;
-                        subTotal += tot;
+                        subTotal += qtd * v;
                         subQtd += qtd;
                         items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`;
                     }
@@ -633,21 +576,17 @@
 
                 totalExames += subQtd;
                 totalValor += subTotal;
-
                 card.innerHTML = `<h3>${s.nome}</h3>${items}<div class="resumo-item total"><span>Total</span><span>R$ ${subTotal.toFixed(2)}</span></div>`;
                 container.appendChild(card);
             });
 
-            totalGeralEl.innerHTML = `
-                <div><span>Exames</span><strong>${totalExames}</strong></div>
-                <div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>
-            `;
+            totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
         }
 
         function atualizarGraficos() {
             const data = dataExameInput.value;
-            
             const labels = [], dataPoints = [];
+            
             servicos.forEach(s => {
                 let t = 0, c = 0;
                 Object.keys(valoresSegmentos).forEach(k => {
@@ -655,10 +594,7 @@
                     const arr = dadosApp.tempos[data]?.[key] || [];
                     if(arr.length) { t += arr.reduce((a,b)=>a+b,0); c += arr.length; }
                 });
-                if(t > 0) {
-                    labels.push(s.nome);
-                    dataPoints.push(Math.round((t/c)/60));
-                }
+                if(t > 0) { labels.push(s.nome); dataPoints.push(Math.round((t/c)/60)); }
             });
 
             if(chartDiario) chartDiario.destroy();
@@ -672,8 +608,7 @@
             const day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1);
             const monday = new Date(d.setDate(diff));
             
-            const labelsWeek = [], dataWeek = [];
-            const datasetTemp = {};
+            const labelsWeek = [], datasetTemp = {};
             servicos.forEach(s => datasetTemp[s.id] = []);
 
             for(let i=0; i<7; i++) {
@@ -684,28 +619,24 @@
                 
                 servicos.forEach(s => {
                     let qtdDia = 0;
-                    Object.keys(valoresSegmentos).forEach(k => {
-                        qtdDia += dadosApp.exames[dtStr]?.[k]?.[s.id] || 0;
-                    });
+                    Object.keys(valoresSegmentos).forEach(k => { qtdDia += dadosApp.exames[dtStr]?.[k]?.[s.id] || 0; });
                     datasetTemp[s.id].push(qtdDia);
                 });
             }
 
             const datasetsBar = servicos.map((s, i) => ({
-                label: s.nome,
-                data: datasetTemp[s.id],
+                label: s.nome, data: datasetTemp[s.id],
                 backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'][i]
             }));
 
             if(chartSemanal) chartSemanal.destroy();
             chartSemanal = new Chart(document.getElementById('chartMediaSemanal'), {
-                type: 'bar',
-                data: { labels: labelsWeek, datasets: datasetsBar },
+                type: 'bar', data: { labels: labelsWeek, datasets: datasetsBar },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
             });
         }
 
-        // --- RELATÓRIO E BACKUP ---
+        // --- RELATÓRIO MENSAL ---
         
         function abrirTab(id) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
@@ -720,8 +651,10 @@
             const tbody = document.getElementById('relatorio-body');
             tbody.innerHTML = '';
             const dias = new Date(ano, mes, 0).getDate();
-            const totais = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
-            let totalGeral = 0;
+            
+            const totaisValor = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
+            const totaisQtd = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
+            let totalGeralMes = 0;
 
             for(let d=1; d<=dias; d++) {
                 const dt = `${ano}-${mes.padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -734,31 +667,88 @@
                     Object.entries(valoresSegmentos).forEach(([k, seg]) => {
                         const v = seg.valores[s.id];
                         const q = dadosApp.exames[dt]?.[k]?.[s.id] || 0;
-                        if(v) vDia += q * v;
+                        if(v) {
+                            vDia += q * v;
+                            totaisQtd[s.id] += q;
+                        }
                     });
-                    totais[s.id] += vDia;
+                    totaisValor[s.id] += vDia;
                     totalDia += vDia;
                     tr.innerHTML += `<td>R$ ${vDia.toFixed(2)}</td>`;
                 });
                 
-                totalGeral += totalDia;
+                totalGeralMes += totalDia;
                 tr.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
                 tbody.appendChild(tr);
             }
+
+            // Cards Resumo Mensal
+            const resumoContainer = document.getElementById('resumo-mensal-container');
+            resumoContainer.innerHTML = '';
+            servicos.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'resumo-card';
+                card.innerHTML = `
+                    <h3>${s.nome}</h3>
+                    <div class="resumo-item"><span>Exames:</span><span>${totaisQtd[s.id]}</span></div>
+                    <div class="resumo-item total"><span>Valor Total:</span><span>R$ ${totaisValor[s.id].toFixed(2)}</span></div>
+                `;
+                resumoContainer.appendChild(card);
+            });
+
+            const totalGeralEl = document.getElementById('total-mensal-geral');
+            totalGeralEl.innerHTML = `
+                <div><span>Total de Exames no Mês</span><strong>${Object.values(totaisQtd).reduce((a,b)=>a+b,0)}</strong></div>
+                <div><span>Valor Total no Mês</span><strong>R$ ${totalGeralMes.toFixed(2)}</strong></div>
+            `;
 
             const trTot = document.createElement('tr');
             trTot.style.background = "var(--primary)";
             trTot.style.color = "white";
             trTot.innerHTML = `<td>TOTAL</td>`;
-            servicos.forEach(s => trTot.innerHTML += `<td>R$ ${totais[s.id].toFixed(2)}</td>`);
-            trTot.innerHTML += `<td><strong>R$ ${totalGeral.toFixed(2)}</strong></td>`;
+            servicos.forEach(s => trTot.innerHTML += `<td>R$ ${totaisValor[s.id].toFixed(2)}</td>`);
+            trTot.innerHTML += `<td><strong>R$ ${totalGeralMes.toFixed(2)}</strong></td>`;
             tbody.appendChild(trTot);
         }
 
         function downloadRelatorioExcel() {
-            alert("Gerando CSV...");
+             const mesAno = mesRelatorioInput.value;
+            const [ano, mes] = mesAno.split('-');
+            let csv = 'DATA;MOBILEMED;SAGRADA;RADCLOUD;EPACS;CLINIMAGE;VX;VALOR TOTAL DIÁRIO\n';
+            const diasNoMes = new Date(ano, mes, 0).getDate();
+            
+            for (let dia = 1; dia <= diasNoMes; dia++) {
+                const data = `${ano}-${mes.padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+                const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
+                let linha = `${dataFormatada};`;
+                let totalDia = 0;
+                
+                servicos.forEach(servico => {
+                    let totalServicoDia = 0;
+                    if (dadosApp.exames[data]) {
+                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => {
+                            const valor = segmento.valores[servico.id];
+                            const quantidade = dadosApp.exames[data][chave]?.[servico.id] || 0;
+                            if (valor !== null) totalServicoDia += quantidade * valor;
+                        });
+                    }
+                    totalDia += totalServicoDia;
+                    linha += `R$ ${totalServicoDia.toFixed(2)};`;
+                });
+                linha += `R$ ${totalDia.toFixed(2)}\n`;
+                csv += linha;
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `relatorio_${mes}_${ano}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
+        // --- BACKUP ---
         function baixarBackupCompleto() {
             const blob = new Blob([JSON.stringify(dadosApp, null, 2)], {type: "application/json"});
             const a = document.createElement('a');
@@ -774,11 +764,15 @@
             reader.onload = async (e) => {
                 try {
                     const json = JSON.parse(e.target.result);
-                    dadosApp = json;
-                    if(!dadosApp.exames) dadosApp.exames = {};
-                    if(!dadosApp.tempos) dadosApp.tempos = {};
+                    // Suporta formato antigo (direto no root) ou novo (dentro de exames)
+                    if(json.exames) {
+                        dadosApp = json;
+                    } else {
+                        dadosApp.exames = json; // Assume que é o arquivo antigo
+                        dadosApp.tempos = {};
+                    }
                     await salvarDadosFirebase();
-                    criarLegenda(); // Atualiza legenda se mudar config
+                    criarLegenda();
                     criarTabela();
                     alert("Restaurado!");
                 } catch(err) { alert("Erro no arquivo"); }
