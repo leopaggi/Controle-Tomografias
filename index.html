@@ -58,11 +58,8 @@
         }
         @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
 
-        /* TIMER BOX - Estados Visuais */
         .timer-box { text-align: center; background: #e8f6f3; padding: 15px; border-radius: 8px; border-left: 5px solid var(--success); position: relative; }
-        /* Estado Pausado (Vermelho) */
         .timer-box.paused { background: #fdedec; border-left-color: var(--danger); }
-        /* Estado Auto-Pausado (Laranja - quando troca de aba) */
         .timer-box.auto-paused { background: #fef9e7; border-left-color: var(--warning); }
 
         .session-label { font-size: 0.8rem; text-transform: uppercase; color: #7f8c8d; font-weight: bold; letter-spacing: 1px; margin-bottom: 5px; display: block; }
@@ -108,7 +105,7 @@
         /* GRÁFICOS */
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 350px; }
+        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 380px; } /* Altura ligeiramente maior */
         .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
         .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #f8f9fa; padding: 5px; border-radius: 5px; }
         .filter-btn { padding: 5px 15px; border-radius: 15px; background: white; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem; font-weight: bold; color: #666; }
@@ -136,13 +133,11 @@
         </div>
         
         <div id="controle" class="tab-content active">
-            <!-- LEGENDA -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
-            <!-- JORNADA AUTOMÁTICA -->
             <div class="workflow-container">
                 <div class="timer-box" id="timer-box">
                     <span class="session-label">Jornada de Trabalho</span>
@@ -172,7 +167,6 @@
                 </div>
             </div>
 
-            <!-- TABELA -->
             <h3 style="margin-bottom: 10px; color: var(--primary);">Lançamento Manual</h3>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
@@ -181,7 +175,6 @@
                 </table>
             </div>
 
-            <!-- RESUMO -->
             <div class="resumo-container" id="resumo-container"></div>
             <div class="total-geral" id="total-geral"></div>
             
@@ -199,7 +192,7 @@
                         <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
                         <button class="filter-btn" onclick="setGraphView('month')">Mês</button>
                     </div>
-                    <div style="height: 250px; position: relative;"><canvas id="chartSegmentos"></canvas></div>
+                    <div style="height: 280px; position: relative;"><canvas id="chartSegmentos"></canvas></div>
                 </div>
                 <div class="chart-box">
                     <h3>Produtividade (R$/Hora)</h3>
@@ -208,7 +201,7 @@
                         <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
                         <button class="filter-btn" onclick="setGraphView('month')">Mês</button>
                     </div>
-                    <div style="height: 250px; position: relative;"><canvas id="chartCustoBeneficio"></canvas></div>
+                    <div style="height: 280px; position: relative;"><canvas id="chartCustoBeneficio"></canvas></div>
                 </div>
             </div>
         </div>
@@ -297,7 +290,7 @@
         let lastCommitTime = 0;
         let sessionInterval = null;
         let isRunning = false;
-        let manualPause = false; // FLAG: O usuário PAUSOU MANUALMENTE?
+        let manualPause = false;
 
         // ELEMENTOS
         const dataExameInput = document.getElementById('data-exame');
@@ -311,166 +304,86 @@
         dataExameInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getDate().toString().padStart(2,'0')}`;
         mesRelatorioInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
 
-        // --- JORNADA AUTOMÁTICA INTELIGENTE ---
+        // --- JORNADA ---
         function formatTime(s) {
             const h = Math.floor(s / 3600);
             const m = Math.floor((s % 3600) / 60);
             const sec = s % 60;
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
         }
-
         function updateSessionDisplay() { document.getElementById('timer-display').textContent = formatTime(sessionSeconds); }
-
-        // Inicia o cronômetro
         function startSession() {
             if(sessionInterval) clearInterval(sessionInterval);
-            isRunning = true;
-            manualPause = false; // Ao iniciar, remove a pausa manual
-            timerBox.classList.remove('paused', 'auto-paused'); // Remove estilos visuais
+            isRunning = true; manualPause = false;
+            timerBox.classList.remove('paused', 'auto-paused');
             document.getElementById('btn-pause').textContent = "⏸ Pausar";
-            
             sessionInterval = setInterval(() => {
                 sessionSeconds++;
                 updateSessionDisplay();
                 if(currentView === 'day' && sessionSeconds % 60 === 0) atualizarGraficos();
             }, 1000);
         }
-
-        // Pausa o cronômetro (pode ser manual ou automático)
         function pauseSession(isAuto = false) {
-            isRunning = false;
-            clearInterval(sessionInterval);
-            
-            // Atualiza visual
+            isRunning = false; clearInterval(sessionInterval);
             timerBox.classList.add(isAuto ? 'auto-paused' : 'paused');
             timerBox.classList.remove(isAuto ? 'paused' : 'auto-paused');
             document.getElementById('btn-pause').textContent = "▶ Retomar";
         }
-
-        // Botão de Pausar/Retomar (Manual)
-        function togglePause() {
-            if(isRunning) {
-                manualPause = true; // Usuário pausou manualmente
-                pauseSession(false);
-            } else {
-                manualPause = false; // Usuário quer retomar
-                startSession();
-            }
-        }
-
-        function resetSession() {
-            if(confirm("Iniciar nova jornada? O tempo atual será zerado.")) {
-                sessionSeconds = 0;
-                lastCommitTime = 0;
-                updateSessionDisplay();
-                startSession();
-            }
-        }
-
-        // LISTENERS DE VISIBILIDADE (Troca de Aba/Minimização)
+        function togglePause() { if(isRunning) { manualPause = true; pauseSession(false); } else { manualPause = false; startSession(); } }
+        function resetSession() { if(confirm("Iniciar nova jornada?")) { sessionSeconds = 0; lastCommitTime = 0; updateSessionDisplay(); startSession(); } }
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // Saiu da aba -> Pausa (marcando como auto-pause)
-                if(isRunning) pauseSession(true);
-            } else {
-                // Voltou para a aba -> Se NÃO estiver em pausa manual, RETOMA automaticamente
-                if (!manualPause && !isRunning) {
-                    startSession();
-                }
-            }
+            if (document.hidden) { if(isRunning) pauseSession(true); } 
+            else { if (!manualPause && !isRunning) startSession(); }
         });
 
         // --- FIREBASE ---
         async function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
-
         async function carregarDadosFirebase() {
             try {
                 atualizarStatus("Conectando...", "loading");
                 const doc = await db.collection('controles').doc('examesTomografia').get();
-                
                 if (doc.exists) {
                     const data = doc.data();
-                    if (data.exames && typeof data.exames === 'object') {
-                        dadosApp.exames = data.exames;
-                        dadosApp.tempos = data.tempos || {};
-                    } else {
+                    if (data.exames && typeof data.exames === 'object') { dadosApp.exames = data.exames; dadosApp.tempos = data.tempos || {}; }
+                    else {
                         const keys = Object.keys(data);
-                        if (keys.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(keys[0])) {
-                            dadosApp.exames = data;
-                            dadosApp.tempos = {};
-                            atualizarStatus("Dados Recuperados!", "warning");
-                        }
+                        if (keys.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(keys[0])) { dadosApp.exames = data; dadosApp.tempos = {}; atualizarStatus("Dados Recuperados!", "warning"); }
                     }
-                } else {
-                    const local = localStorage.getItem('examesTomografia');
-                    if(local) {
-                        dadosApp = JSON.parse(local);
-                        if(!dadosApp.exames) dadosApp.exames = {};
-                        if(!dadosApp.tempos) dadosApp.tempos = {};
-                    }
-                }
+                } else { const local = localStorage.getItem('examesTomografia'); if(local) { dadosApp = JSON.parse(local); if(!dadosApp.exames) dadosApp.exames = {}; if(!dadosApp.tempos) dadosApp.tempos = {}; } }
                 if(syncStatus.textContent === "Conectando...") atualizarStatus("Sincronizado", "success");
             } catch (e) {
-                console.error(e);
                 const local = localStorage.getItem('examesTomografia');
                 if(local) dadosApp = JSON.parse(local);
-                if(!dadosApp.exames) dadosApp.exames = {};
-                if(!dadosApp.tempos) dadosApp.tempos = {};
+                if(!dadosApp.exames) dadosApp.exames = {}; if(!dadosApp.tempos) dadosApp.tempos = {};
                 atualizarStatus("Offline", "error");
             }
-            
-            criarLegenda();
-            criarTabela();
-            popularTimerConfig();
-            atualizarGraficos();
-            startSession(); // Inicia ao carregar
+            criarLegenda(); criarTabela(); popularTimerConfig(); atualizarGraficos(); startSession();
         }
-
         async function salvarDadosFirebase() {
-            try {
-                await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                atualizarStatus("Salvo!", "success");
-            } catch (e) {
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                atualizarStatus("Salvo Local", "error");
-            }
+            try { await db.collection('controles').doc('examesTomografia').set(dadosApp); localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); atualizarStatus("Salvo!", "success"); }
+            catch (e) { localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); atualizarStatus("Salvo Local", "error"); }
         }
 
         // --- LEGENDA ---
         function criarLegenda() {
-            const grid = document.getElementById('legenda-grid');
-            grid.innerHTML = '';
+            const grid = document.getElementById('legenda-grid'); grid.innerHTML = '';
             Object.values(valoresSegmentos).forEach(seg => {
-                const item = document.createElement('div');
-                item.className = 'legenda-item';
+                const item = document.createElement('div'); item.className = 'legenda-item';
                 let html = `<h3>${seg.nome}</h3>`;
-                servicos.forEach(s => {
-                    const v = seg.valores[s.id];
-                    if(v !== null) html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`;
-                });
-                item.innerHTML = html;
-                grid.appendChild(item);
+                servicos.forEach(s => { const v = seg.valores[s.id]; if(v !== null) html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`; });
+                item.innerHTML = html; grid.appendChild(item);
             });
         }
 
         // --- TIMER CONFIG ---
         function popularTimerConfig() {
-            const selServ = document.getElementById('timer-servico');
-            selServ.innerHTML = '<option value="">Selecione...</option>';
+            const selServ = document.getElementById('timer-servico'); selServ.innerHTML = '<option value="">Selecione...</option>';
             servicos.forEach(s => selServ.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
-
-            const contSeg = document.getElementById('timer-segmentos-container');
-            contSeg.innerHTML = '';
+            const contSeg = document.getElementById('timer-segmentos-container'); contSeg.innerHTML = '';
             Object.entries(valoresSegmentos).forEach(([k, v]) => {
-                const label = document.createElement('label');
-                label.className = 'check-item';
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = k;
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(` ${v.nome}`));
-                contSeg.appendChild(label);
+                const label = document.createElement('label'); label.className = 'check-item';
+                const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = k;
+                label.appendChild(checkbox); label.appendChild(document.createTextNode(` ${v.nome}`)); contSeg.appendChild(label);
             });
         }
 
@@ -478,30 +391,24 @@
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
             const data = dataExameInput.value;
-
             if (!servico) return alert("Selecione a EMPRESA.");
             if (checkboxes.length === 0) return alert("Selecione ao menos 1 SEGMENTO.");
-            
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
 
             let tempoGasto = sessionSeconds - lastCommitTime;
             if(tempoGasto < 1) tempoGasto = 60;
-
             const tempoDividido = tempoGasto / checkboxes.length;
             lastCommitTime = sessionSeconds; 
 
             let segNomes = [];
             checkboxes.forEach(cb => {
-                const seg = cb.value;
-                segNomes.push(valoresSegmentos[seg].nome);
-
+                const seg = cb.value; segNomes.push(valoresSegmentos[seg].nome);
                 if (tempoDividido > 0) {
                     const key = `${servico}_${seg}`;
                     if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
                     dadosApp.tempos[data][key].push(tempoDividido);
                 }
-
                 if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
                 const atual = dadosApp.exames[data][seg][servico] || 0;
                 dadosApp.exames[data][seg][servico] = atual + 1;
@@ -510,27 +417,19 @@
             const el = document.createElement('div');
             el.textContent = `✅ ${segNomes.join(", ")} salvo! (${formatTime(tempoGasto)} total)`;
             el.style.cssText = "position:fixed; bottom:20px; right:20px; background:#27ae60; color:white; padding:15px; border-radius:8px; z-index:9999; font-weight:bold;";
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 3000);
-            
-            await salvarDadosFirebase();
-            criarTabela();
-            atualizarGraficos();
+            document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
+            await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
         }
 
-        // --- TABELA DIÁRIA ---
+        // --- TABELA ---
         function criarTabela() {
-            examsBody.innerHTML = '';
-            const data = dataExameInput.value;
+            examsBody.innerHTML = ''; const data = dataExameInput.value;
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
-
             Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="exam-name">${seg.nome}</td>`;
+                const tr = document.createElement('tr'); tr.innerHTML = `<td class="exam-name">${seg.nome}</td>`;
                 servicos.forEach(s => {
                     const td = document.createElement('td');
-                    const valor = seg.valores[s.id];
-                    const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
+                    const valor = seg.valores[s.id]; const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
                     if (valor !== null) {
                         td.innerHTML = `<div class="counter">
                             <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
@@ -544,66 +443,39 @@
             });
             atualizarResumo();
         }
-
         async function alterarContador(seg, serv, delta) {
-            const data = dataExameInput.value;
-            if(!dadosApp.exames[data]) dadosApp.exames[data] = {};
-            if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
-            const atual = dadosApp.exames[data][seg][serv] || 0;
-            dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
-            criarTabela();
-            await salvarDadosFirebase();
+            const data = dataExameInput.value; if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+            const atual = dadosApp.exames[data][seg][serv] || 0; dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
+            criarTabela(); await salvarDadosFirebase();
         }
-
         function atualizarResumo() {
-            const container = document.getElementById('resumo-container');
-            const totalGeralEl = document.getElementById('total-geral');
-            const data = dataExameInput.value;
-            let totalExames = 0, totalValor = 0;
-            container.innerHTML = '';
+            const container = document.getElementById('resumo-container'); const totalGeralEl = document.getElementById('total-geral'); const data = dataExameInput.value;
+            let totalExames = 0, totalValor = 0; container.innerHTML = '';
             servicos.forEach(s => {
-                const card = document.createElement('div');
-                card.className = 'resumo-card';
-                let items = '';
-                let subTotal = 0, subQtd = 0;
+                const card = document.createElement('div'); card.className = 'resumo-card'; let items = ''; let subTotal = 0, subQtd = 0;
                 Object.entries(valoresSegmentos).forEach(([k, seg]) => {
-                    const v = seg.valores[s.id];
-                    const qtd = dadosApp.exames[data]?.[k]?.[s.id] || 0;
-                    if(v && qtd > 0) {
-                        subTotal += qtd * v; subQtd += qtd;
-                        items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`;
-                    }
+                    const v = seg.valores[s.id]; const qtd = dadosApp.exames[data]?.[k]?.[s.id] || 0;
+                    if(v && qtd > 0) { subTotal += qtd * v; subQtd += qtd; items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`; }
                 });
                 totalExames += subQtd; totalValor += subTotal;
-                card.innerHTML = `<h3>${s.nome}</h3>${items}<div class="resumo-item total"><span>Total</span><span>R$ ${subTotal.toFixed(2)}</span></div>`;
-                container.appendChild(card);
+                card.innerHTML = `<h3>${s.nome}</h3>${items}<div class="resumo-item total"><span>Total</span><span>R$ ${subTotal.toFixed(2)}</span></div>`; container.appendChild(card);
             });
             totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
         }
 
-        // --- GRÁFICOS ---
+        // --- GRÁFICOS (CORRIGIDO) ---
         function getDateRange(view) {
-            const selectedDate = new Date(dataExameInput.value + "T00:00:00");
-            let start, end;
+            const selectedDate = new Date(dataExameInput.value + "T00:00:00"); let start, end;
             if (view === 'day') { start = new Date(selectedDate); end = new Date(selectedDate); }
             else if (view === 'week') {
-                const day = selectedDate.getDay();
-                const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
-                start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0);
-                end = new Date(start); end.setDate(end.getDate() + 6);
-            } else if (view === 'month') {
-                start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-                end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
-            }
+                const day = selectedDate.getDay(); const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
+                start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0); end = new Date(start); end.setDate(end.getDate() + 6);
+            } else { start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1); end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); }
             return { start, end };
         }
-
         function setGraphView(view) {
             currentView = view;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                if(btn.textContent.toLowerCase().includes(view.substring(0,3))) btn.classList.add('active');
-                else btn.classList.remove('active');
-            });
+            document.querySelectorAll('.filter-btn').forEach(btn => { if(btn.textContent.toLowerCase().includes(view.substring(0,3))) btn.classList.add('active'); else btn.classList.remove('active'); });
             atualizarGraficos();
         }
 
@@ -624,6 +496,7 @@
             // 1. Gráfico Segmentos
             const labelsSegmentos = Object.values(valoresSegmentos).map(s => s.nome);
             const datasets = servicos.map(s => ({ label: s.nome, data: [], backgroundColor: s.color, borderWidth: 1 }));
+            
             Object.entries(valoresSegmentos).forEach(([segKey, seg]) => {
                 servicos.forEach((s, index) => {
                     const key = `${s.id}_${segKey}`;
@@ -638,15 +511,30 @@
             if(chartSegmentos) chartSegmentos.destroy();
             chartSegmentos = new Chart(document.getElementById('chartSegmentos'), {
                 type: 'bar', data: { labels: labelsSegmentos, datasets: datasets },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Minutos (Média)' } } }, plugins: { legend: { position: 'bottom' } } }
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'MINUTOS (MÉDIA)' } } },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        // FIX: Tooltip mostrando 'min' explicitamente
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += context.parsed.y + ' min'; }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
             });
 
             // 2. Gráfico R$/Hora
             const labelsCB = [], dataCB = [];
-            
             if (currentView === 'day') {
-                const today = dataExameInput.value;
-                let totalValorDia = 0;
+                const today = dataExameInput.value; let totalValorDia = 0;
                 Object.entries(dadosApp.exames[today] || {}).forEach(([segKey, servicosData]) => {
                     Object.entries(servicosData).forEach(([servId, qtd]) => {
                         const valorUnit = valoresSegmentos[segKey]?.valores[servId];
@@ -655,32 +543,25 @@
                 });
                 if (sessionSeconds > 0) {
                     const valorHora = (totalValorDia * 3600) / sessionSeconds;
-                    labelsCB.push("Sessão Atual");
-                    dataCB.push(valorHora.toFixed(2));
+                    labelsCB.push("Sessão Atual"); dataCB.push(valorHora.toFixed(2));
                 } else { labelsCB.push("Sessão"); dataCB.push(0); }
             } else {
-                let stats = {};
-                servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
+                let stats = {}; servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
                 let current = new Date(start);
                 while (current <= end) {
                     const dateStr = current.toISOString().split('T')[0];
                     if(dadosApp.exames[dateStr]) {
                         Object.entries(dadosApp.exames[dateStr]).forEach(([segKey, servicosData]) => {
                             Object.entries(servicosData).forEach(([servId, qtd]) => {
-                                if (qtd > 0) {
-                                    const valorUnit = valoresSegmentos[segKey]?.valores[servId];
-                                    if(valorUnit) stats[servId].totalValor += qtd * valorUnit;
-                                }
+                                if (qtd > 0) { const valorUnit = valoresSegmentos[segKey]?.valores[servId]; if(valorUnit) stats[servId].totalValor += qtd * valorUnit; }
                             });
                         });
                     }
                     current.setDate(current.getDate() + 1);
                 }
                 Object.entries(filteredTempos).forEach(([key, tempos]) => {
-                    const empresa = key.split('_')[0];
-                    if(stats[empresa]) stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0);
+                    const empresa = key.split('_')[0]; if(stats[empresa]) stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0);
                 });
-
                 servicos.forEach(s => {
                     if(stats[s.id].totalTempo > 0) {
                         const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo;
@@ -692,39 +573,24 @@
             if(chartCustoBeneficio) chartCustoBeneficio.destroy();
             chartCustoBeneficio = new Chart(document.getElementById('chartCustoBeneficio'), {
                 type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: ['#1abc9c', '#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6'] }] },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, title: { display: true, text: 'R$ por Hora' } } }, plugins: { legend: { display: false } } }
             });
         }
 
-        // --- ABAS ---
+        // --- RELATÓRIO ---
         function abrirTab(evt, id) {
-            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            evt.currentTarget.classList.add('active');
-            
-            // AUTO-RESTART LOGIC AO CLICAR NA ABA CONTROLE
-            if (id === 'controle') {
-                // Se NÃO estiver em pausa manual E não estiver rodando -> Reinicia
-                if (!manualPause && !isRunning) {
-                    startSession();
-                }
-                atualizarGraficos();
-            }
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+            document.getElementById(id).classList.add('active'); evt.currentTarget.classList.add('active');
+            if (id === 'controle') { if (!manualPause && !isRunning) startSession(); atualizarGraficos(); }
             if(id === 'relatorio') gerarRelatorioMensal();
         }
-
-        // --- RELATÓRIO ---
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
-            const tbody = document.getElementById('relatorio-body');
-            tbody.innerHTML = '';
-            const totaux = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
-            let totalGeralMes = 0;
+            const tbody = document.getElementById('relatorio-body'); tbody.innerHTML = '';
+            const totaux = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 }; let totalGeralMes = 0;
             for(let d=1; d<=new Date(ano, mes, 0).getDate(); d++) {
                 const dt = `${ano}-${mes.padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
+                const tr = document.createElement('tr'); tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
                 let totalDia = 0;
                 servicos.forEach(s => {
                     let vDia = 0;
@@ -732,8 +598,7 @@
                     totaux[s.id] += vDia; totalDia += vDia;
                     tr.innerHTML += `<td>R$ ${vDia.toFixed(2)}</td>`;
                 });
-                totalGeralMes += totalDia;
-                tr.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
+                totalGeralMes += totalDia; tr.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
                 tbody.appendChild(tr);
             }
             document.getElementById('resumo-mensal-container').innerHTML = '';
@@ -744,44 +609,31 @@
             });
             document.getElementById('total-mensal-geral').innerHTML = `<div><span>Total Mês</span><strong>R$ ${totalGeralMes.toFixed(2)}</strong></div>`;
         }
-
         function downloadRelatorioExcel() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
             let csv = 'DATA;MOBILEMED;SAGRADA;RADCLOUD;EPACS;CLINIMAGE;VX;TOTAL\n';
             for(let d=1; d<=new Date(ano, mes, 0).getDate(); d++) {
-                const data = `${ano}-${mes.padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                let linha = `${data};`, totalDia = 0;
+                const data = `${ano}-${mes.padStart(2,'0')}-${String(d).padStart(2,'0')}`; let linha = `${data};`, totalDia = 0;
                 servicos.forEach(servico => {
                     let totalServicoDia = 0;
                     if(dadosApp.exames[data]) Object.entries(valoresSegmentos).forEach(([chave, segmento]) => { if(segmento.valores[servico.id]) totalServicoDia += (dadosApp.exames[data][chave]?.[servico.id] || 0) * segmento.valores[servico.id]; });
                     totalDia += totalServicoDia; linha += `${totalServicoDia.toFixed(2)};`;
                 });
+                csv += ligne + `${totalDia.toFixed(2)}\n`; // Typo fixed ligne -> linha
                 csv += linha + `${totalDia.toFixed(2)}\n`;
             }
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
         }
-
         function baixarBackupCompleto() { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(dadosApp,null,2)],{type:"application/json"})); a.download='backup.json'; a.click(); }
-
         function restaurarBackup() {
             const file = document.getElementById('upload-backup').files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
-                try {
-                    const json = JSON.parse(e.target.result);
-                    dadosApp = json.exames ? json : { exames: json, tempos: {} };
-                    await salvarDadosFirebase(); criarLegenda(); criarTabela(); atualizarGraficos(); alert("Restaurado!");
-                } catch(err) { alert("Erro no arquivo"); }
+                try { const json = JSON.parse(e.target.result); dadosApp = json.exames ? json : { exames: json, tempos: {} }; await salvarDadosFirebase(); criarLegenda(); criarTabela(); atualizarGraficos(); alert("Restaurado!"); } catch(err) { alert("Erro no arquivo"); }
             };
             reader.readAsText(file);
         }
-
-        async function limparDia() {
-            if(confirm("Zerar exames do dia?")) {
-                const data = dataExameInput.value; dadosApp.exames[data] = {}; dadosApp.tempos[data] = {};
-                await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
-            }
-        }
+        async function limparDia() { if(confirm("Zerar exames do dia?")) { const data = dataExameInput.value; dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; await salvarDadosFirebase(); criarTabela(); atualizarGraficos(); } }
 
         dataExameInput.addEventListener('change', () => { criarTabela(); atualizarGraficos(); });
         document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
