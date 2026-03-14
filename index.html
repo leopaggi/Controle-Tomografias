@@ -105,7 +105,8 @@
         /* GRÁFICOS */
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 380px; } /* Altura ligeiramente maior */
+        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 380px; position: relative; }
+        .chart-box.full-width { grid-column: 1 / -1; height: 450px; }
         .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
         .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #f8f9fa; padding: 5px; border-radius: 5px; }
         .filter-btn { padding: 5px 15px; border-radius: 15px; background: white; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem; font-weight: bold; color: #666; }
@@ -117,6 +118,13 @@
         
         .actions { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
         .actions button { padding: 10px 20px; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; }
+
+        /* PROJEÇÃO INFO */
+        .projecao-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        .projecao-card { background: #f8f9fa; padding: 10px; border-radius: 5px; text-align: center; border-top: 3px solid #ccc; }
+        .projecao-card strong { display: block; font-size: 1.1rem; color: var(--primary); }
+        .projecao-card span { font-size: 0.75rem; color: #666; }
+        .projecao-card.alert { background: #fff3cd; border-color: var(--warning); color: #856404; }
     </style>
 </head>
 <body>
@@ -129,6 +137,7 @@
         <div class="tabs">
             <button class="tab active" onclick="abrirTab(event, 'controle')">🏠 Controle Diário</button>
             <button class="tab" onclick="abrirTab(event, 'relatorio')">📊 Relatório Mensal</button>
+            <button class="tab" onclick="abrirTab(event, 'projecao')">🚀 Projeção 24h</button>
             <button class="tab" onclick="abrirTab(event, 'backup')">💾 Backup</button>
         </div>
         
@@ -183,7 +192,7 @@
                 <button class="btn-reset" onclick="limparDia()">🗑️ Zerar Dia</button>
             </div>
 
-            <!-- GRÁFICOS -->
+            <!-- GRÁFICOS ORIGINAIS -->
             <div class="dashboard-grid">
                 <div class="chart-box">
                     <h3>Tempo Médio por Segmento</h3>
@@ -195,7 +204,7 @@
                     <div style="height: 280px; position: relative;"><canvas id="chartSegmentos"></canvas></div>
                 </div>
                 <div class="chart-box">
-                    <h3>Produtividade (R$/Hora)</h3>
+                    <h3>Produtividade Real (R$/Hora)</h3>
                     <div class="filter-bar">
                         <button class="filter-btn active" onclick="setGraphView('day')">Hoje</button>
                         <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
@@ -220,6 +229,29 @@
                     <thead><tr><th>DATA</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>EPACS</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th></tr></thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- NOVA ABA PROJEÇÃO -->
+        <div id="projecao" class="tab-content">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2>Simulador de Cenário 24h</h2>
+                <p style="color: #666; font-size: 0.9rem;">Média baseada no total cronometrado no mês atual. Mínimo de 10 minutos registrados para aparecer.</p>
+            </div>
+            
+            <div class="projecao-info" id="projecao-resumo-cards"></div>
+
+            <div class="chart-box full-width" style="height: 500px;">
+                <h3>Projeção de Ganhos Acumulados (24h)</h3>
+                <canvas id="chartProjecao24h"></canvas>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 5px solid var(--warning);">
+                <strong>⚠️ Atenção aos Valores:</strong>
+                <p style="font-size: 0.85rem; margin-top: 5px;">
+                    Plataformas com pouco tempo registrado (ex: apenas 2 exames rápidos) podem mostrar valores de R$/hora irreais. 
+                    O sistema agora exige um mínimo de trabalho para exibir a projeção.
+                </p>
             </div>
         </div>
         
@@ -283,6 +315,7 @@
         let dadosApp = { exames: {}, tempos: {} };
         let chartSegmentos = null;
         let chartCustoBeneficio = null;
+        let chartProjecao = null;
         let currentView = 'day';
 
         // ESTADO DA JORNADA
@@ -463,7 +496,7 @@
             totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
         }
 
-        // --- GRÁFICOS (CORRIGIDO) ---
+        // --- GRÁFICOS ---
         function getDateRange(view) {
             const selectedDate = new Date(dataExameInput.value + "T00:00:00"); let start, end;
             if (view === 'day') { start = new Date(selectedDate); end = new Date(selectedDate); }
@@ -479,9 +512,46 @@
             atualizarGraficos();
         }
 
+        // CORREÇÃO PRINCIPAL: CALCULAR STATS APENAS COM DADOS CRONOMETRADOS
+        function getStatsByService(start, end) {
+            let stats = {};
+            servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0, nome: s.nome, color: s.color });
+
+            let current = new Date(start);
+            while (current <= end) {
+                const dateStr = current.toISOString().split('T')[0];
+                
+                // Iteramos apenas sobre os TEMPOS registrados
+                if(dadosApp.tempos[dateStr]) {
+                    Object.entries(dadosApp.tempos[dateStr]).forEach(([key, tempos]) => {
+                        const empresa = key.split('_')[0];
+                        const segmentoKey = key.split('_')[1];
+                        
+                        if(stats[empresa] && valoresSegmentos[segmentoKey]) {
+                            const valorUnit = valoresSegmentos[segmentoKey].valores[empresa];
+                            
+                            if (valorUnit) {
+                                // Quantidade de exames = número de entradas de tempo
+                                const qtdExamesTimed = tempos.length; 
+                                const tempoTotalTimed = tempos.reduce((a,b)=>a+b,0);
+                                
+                                stats[empresa].totalValor += qtdExamesTimed * valorUnit;
+                                stats[empresa].totalTempo += tempoTotalTimed;
+                            }
+                        }
+                    });
+                }
+
+                current.setDate(current.getDate() + 1);
+            }
+            return stats;
+        }
+
         function atualizarGraficos() {
             const { start, end } = getDateRange(currentView);
+            const stats = getStatsByService(start, end);
             
+            // 1. Gráfico Segmentos
             let filteredTempos = {}; 
             Object.keys(dadosApp.tempos).forEach(dateStr => {
                 const d = new Date(dateStr + "T00:00:00");
@@ -493,7 +563,6 @@
                 }
             });
 
-            // 1. Gráfico Segmentos
             const labelsSegmentos = Object.values(valoresSegmentos).map(s => s.nome);
             const datasets = servicos.map(s => ({ label: s.nome, data: [], backgroundColor: s.color, borderWidth: 1 }));
             
@@ -514,66 +583,138 @@
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: { y: { beginAtZero: true, title: { display: true, text: 'MINUTOS (MÉDIA)' } } },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        // FIX: Tooltip mostrando 'min' explicitamente
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) { label += ': '; }
-                                    if (context.parsed.y !== null) { label += context.parsed.y + ' min'; }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.parsed.y + ' min'; } } } }
                 }
             });
 
-            // 2. Gráfico R$/Hora
-            const labelsCB = [], dataCB = [];
-            if (currentView === 'day') {
-                const today = dataExameInput.value; let totalValorDia = 0;
-                Object.entries(dadosApp.exames[today] || {}).forEach(([segKey, servicosData]) => {
-                    Object.entries(servicosData).forEach(([servId, qtd]) => {
-                        const valorUnit = valoresSegmentos[segKey]?.valores[servId];
-                        if(valorUnit && qtd > 0) totalValorDia += qtd * valorUnit;
-                    });
-                });
-                if (sessionSeconds > 0) {
-                    const valorHora = (totalValorDia * 3600) / sessionSeconds;
-                    labelsCB.push("Sessão Atual"); dataCB.push(valorHora.toFixed(2));
-                } else { labelsCB.push("Sessão"); dataCB.push(0); }
-            } else {
-                let stats = {}; servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
-                let current = new Date(start);
-                while (current <= end) {
-                    const dateStr = current.toISOString().split('T')[0];
-                    if(dadosApp.exames[dateStr]) {
-                        Object.entries(dadosApp.exames[dateStr]).forEach(([segKey, servicosData]) => {
-                            Object.entries(servicosData).forEach(([servId, qtd]) => {
-                                if (qtd > 0) { const valorUnit = valoresSegmentos[segKey]?.valores[servId]; if(valorUnit) stats[servId].totalValor += qtd * valorUnit; }
-                            });
-                        });
-                    }
-                    current.setDate(current.getDate() + 1);
+            // 2. Gráfico R$/Hora (Apenas cronometrados)
+            const labelsCB = [], dataCB = [], colorsCB = [];
+            servicos.forEach(s => {
+                // Mínimo de 60 segundos de tempo registrado para fazer sentido
+                if(stats[s.id].totalTempo > 60) {
+                    const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo;
+                    labelsCB.push(s.nome);
+                    dataCB.push(valorHora.toFixed(2));
+                    colorsCB.push(s.color);
                 }
-                Object.entries(filteredTempos).forEach(([key, tempos]) => {
-                    const empresa = key.split('_')[0]; if(stats[empresa]) stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0);
-                });
-                servicos.forEach(s => {
-                    if(stats[s.id].totalTempo > 0) {
-                        const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo;
-                        labelsCB.push(s.nome); dataCB.push(valorHora.toFixed(2));
-                    }
-                });
-            }
+            });
 
             if(chartCustoBeneficio) chartCustoBeneficio.destroy();
             chartCustoBeneficio = new Chart(document.getElementById('chartCustoBeneficio'), {
-                type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: ['#1abc9c', '#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6'] }] },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, title: { display: true, text: 'R$ por Hora' } } }, plugins: { legend: { display: false } } }
+                type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: colorsCB }] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, title: { display: true, text: 'R$ por Hora (Apenas Cronometrado)' } } }, plugins: { legend: { display: false } } }
+            });
+
+            if (document.getElementById('projecao').classList.contains('active')) {
+                atualizarGraficoProjecao();
+            }
+        }
+
+        // --- GRÁFICO PROJEÇÃO 24h (COM FILTRO DE 10 MINUTOS) ---
+        function atualizarGraficoProjecao() {
+            const selectedDate = new Date(dataExameInput.value + "T00:00:00");
+            const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+            
+            const stats = getStatsByService(start, end);
+
+            const containerCards = document.getElementById('projecao-resumo-cards');
+            containerCards.innerHTML = '';
+
+            const labelsHoras = Array.from({length: 25}, (_, i) => i);
+            const datasetsProj = [];
+            
+            let hasData = false;
+
+            servicos.forEach(s => {
+                const stat = stats[s.id];
+                // SEGURANÇA: Mínimo de 10 minutos (600s) para evitar distorção de pequenas amostras
+                if (stat.totalTempo > 600 && stat.totalValor > 0) {
+                    hasData = true;
+                    const avgPorSegundo = stat.totalValor / stat.totalTempo;
+                    const dataPoints = labelsHoras.map(h => (avgPorSegundo * 3600 * h).toFixed(2));
+                    
+                    const projecao24h = avgPorSegundo * 3600 * 24;
+                    const rsPorHora = avgPorSegundo * 3600;
+                    const tempoMinutos = Math.round(stat.totalTempo / 60);
+
+                    containerCards.innerHTML += `
+                        <div class="projecao-card" style="border-color: ${s.color}">
+                            <span>${s.nome}</span>
+                            <strong>R$ ${rsPorHora.toFixed(2)}/h</strong>
+                            <span style="font-size:0.7rem; color:#555">Base: ${tempoMinutos} min</span>
+                        </div>
+                    `;
+
+                    datasetsProj.push({
+                        label: `${s.nome} (R$ ${rsPorHora.toFixed(2)}/h)`,
+                        data: dataPoints,
+                        borderColor: s.color,
+                        backgroundColor: s.color + '20',
+                        fill: false,
+                        tension: 0.1,
+                        borderWidth: 3
+                    });
+                } else if (stat.totalTempo > 0) {
+                    // Caso tenha tempo, mas menos de 10 min
+                     containerCards.innerHTML += `
+                        <div class="projecao-card alert">
+                            <span>${s.nome}</span>
+                            <strong style="font-size: 0.9rem">Amostra Pequena</strong>
+                            <span>Faltam ${600 - Math.round(stat.totalTempo)}s</span>
+                        </div>
+                    `;
+                } else {
+                    // Caso não tenha tempo nenhum
+                    containerCards.innerHTML += `
+                        <div class="projecao-card alert">
+                            <span>${s.nome}</span>
+                            <strong style="font-size: 0.9rem">Sem dados</strong>
+                            <span>Use o cronômetro</span>
+                        </div>
+                    `;
+                }
+            });
+
+            if(!hasData) {
+                containerCards.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: #856404;">
+                    <h3>Dados insuficientes para projeção</h3>
+                    <p>É necessário pelo menos 10 minutos de trabalho cronometrado em cada plataforma para gerar uma estimativa confiável.</p>
+                </div>`;
+            }
+
+            if(chartProjecao) chartProjecao.destroy();
+            
+            const ctx = document.getElementById('chartProjecao24h').getContext('2d');
+            chartProjecao = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labelsHoras, datasets: datasetsProj },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            title: { display: true, text: 'R$ Acumulado' },
+                            ticks: { callback: value => 'R$ ' + value.toLocaleString('pt-BR') }
+                        },
+                        x: { 
+                            title: { display: true, text: 'Horas Trabalhadas (Simulação)' },
+                            stepSize: 2
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': R$ ' + parseFloat(context.parsed.y).toFixed(2);
+                                }
+                            }
+                        },
+                        legend: { position: 'bottom' }
+                    }
+                }
             });
         }
 
@@ -583,6 +724,7 @@
             document.getElementById(id).classList.add('active'); evt.currentTarget.classList.add('active');
             if (id === 'controle') { if (!manualPause && !isRunning) startSession(); atualizarGraficos(); }
             if(id === 'relatorio') gerarRelatorioMensal();
+            if(id === 'projecao') atualizarGraficoProjecao();
         }
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
@@ -619,7 +761,6 @@
                     if(dadosApp.exames[data]) Object.entries(valoresSegmentos).forEach(([chave, segmento]) => { if(segmento.valores[servico.id]) totalServicoDia += (dadosApp.exames[data][chave]?.[servico.id] || 0) * segmento.valores[servico.id]; });
                     totalDia += totalServicoDia; linha += `${totalServicoDia.toFixed(2)};`;
                 });
-                csv += ligne + `${totalDia.toFixed(2)}\n`; // Typo fixed ligne -> linha
                 csv += linha + `${totalDia.toFixed(2)}\n`;
             }
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
