@@ -53,7 +53,7 @@
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
 
-        /* ÁREA DO TIMER INTEGRADA */
+        /* ÁREA DO TIMER */
         .workflow-container {
             background: white;
             border: 1px solid #e1e1e1;
@@ -79,7 +79,7 @@
 
         select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.9rem; min-width: 140px; }
 
-        /* Checkboxes Container */
+        /* Checkboxes */
         .checkbox-scroll {
             display: flex;
             flex-wrap: wrap;
@@ -105,7 +105,6 @@
             align-items: center;
             gap: 5px;
         }
-
         .check-item input { position: absolute; opacity: 0; width: 0; height: 0; }
         .check-item:has(input:checked) { background: var(--secondary); color: white; border-color: var(--secondary); font-weight: bold; }
         .selection-counter { font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: bold; }
@@ -116,9 +115,8 @@
         .exams-table th { background-color: var(--primary); color: white; font-weight: bold; position: sticky; top: 0; }
         .exams-table tr:nth-child(even) { background-color: #f9f9f9; }
         .exam-name { text-align: left; font-weight: bold; background-color: #f8f9fa; }
-        .service-header { background-color: var(--dark) !important; }
         
-        /* Contadores Manuais */
+        /* Contadores */
         .counter { display: flex; align-items: center; justify-content: center; gap: 4px; }
         .counter-btn { width: 22px; height: 22px; border: none; border-radius: 50%; background-color: var(--secondary); color: white; font-weight: bold; cursor: pointer; font-size: 0.7rem; }
         .counter-btn:hover { transform: scale(1.1); }
@@ -126,14 +124,7 @@
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.9rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.7rem; }
 
-        /* GRÁFICOS E RESUMO */
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
-        @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-
-        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 300px; }
-        .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-
-        /* RESUMO CARDS */
+        /* RESUMO CARDS (Produtividade Diária) */
         .resumo-container { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
         .resumo-card { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--secondary); }
         .resumo-card h3 { color: var(--primary); margin-bottom: 5px; text-align: center; font-size: 0.9rem; }
@@ -143,6 +134,38 @@
         .total-geral { background: var(--primary); color: white; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center; display: flex; justify-content: space-around; align-items: center; }
         .total-geral div { text-align: center; }
         .total-geral strong { font-size: 1.4rem; display: block; margin-top: 5px; }
+
+        /* GRÁFICOS E FILTROS */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; }
+        @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 350px; }
+        .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+
+        /* Filtros dos Gráficos */
+        .filter-bar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .filter-btn {
+            padding: 5px 15px;
+            border-radius: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #666;
+        }
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
 
         /* Botões Gerais */
         button { cursor: pointer; transition: all 0.2s; border: none; }
@@ -171,11 +194,13 @@
         <!-- ABA CONTROLE DIÁRIO -->
         <div id="controle" class="tab-content active">
             
+            <!-- 1. LEGENDA DE VALORES -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
+            <!-- 2. ÁREA DE TRABALHO / TIMER -->
             <div class="workflow-container">
                 <div class="timer-box">
                     <div class="timer-display" id="timer-display">00:00:00</div>
@@ -211,18 +236,16 @@
                 </div>
             </div>
 
+            <!-- 3. TABELA DE EXAMES (Botões Manuais) -->
+            <h3 style="margin-bottom: 10px; color: var(--primary);">Lançamento Manual / Conferência</h3>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
-                    <thead><tr><th>EXAMES</th><th class="service-header">MOBILEMED</th><th class="service-header">SAGRADA</th><th class="service-header">RADCLOUD</th><th class="service-header">EPACS</th><th class="service-header">CLINIMAGE</th><th class="service-header">VX</th></tr></thead>
+                    <thead><tr><th>EXAMES</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>EPACS</th><th>CLINIMAGE</th><th>VX</th></tr></thead>
                     <tbody id="exams-body"></tbody>
                 </table>
             </div>
 
-            <div class="dashboard-grid">
-                <div class="chart-box"><h3>Tempo Médio por Empresa (Hoje)</h3><canvas id="chartMediaDiaria"></canvas></div>
-                <div class="chart-box"><h3>Volume de Exames (Semana)</h3><canvas id="chartMediaSemanal"></canvas></div>
-            </div>
-
+            <!-- 4. RESUMO FINANCEIRO DIÁRIO (Cards Coloridos) -->
             <div class="resumo-container" id="resumo-container"></div>
             <div class="total-geral" id="total-geral"></div>
             
@@ -230,6 +253,33 @@
                 <button class="btn-save" onclick="salvarDadosFirebase()">💾 Forçar Sincronismo</button>
                 <button class="btn-reset" onclick="limparDia()">🗑️ Zerar Contagem do Dia</button>
             </div>
+
+            <!-- 5. GRÁFICOS (No final, para análise) -->
+            <div class="dashboard-grid">
+                <div class="chart-box">
+                    <h3>Tempo Médio por Segmento</h3>
+                    <div class="filter-bar">
+                        <button class="filter-btn active" onclick="setGraphView('day')">Hoje</button>
+                        <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
+                        <button class="filter-btn" onclick="setGraphView('month')">Mês</button>
+                    </div>
+                    <div style="height: 250px; position: relative;">
+                        <canvas id="chartSegmentos"></canvas>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3>Desempenho Financeiro (R$/Hora)</h3>
+                    <div class="filter-bar">
+                        <button class="filter-btn active" onclick="setGraphView('day')">Hoje</button>
+                        <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
+                        <button class="filter-btn" onclick="setGraphView('month')">Mês</button>
+                    </div>
+                    <div style="height: 250px; position: relative;">
+                        <canvas id="chartCustoBeneficio"></canvas>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- ABA RELATÓRIO MENSAL -->
@@ -301,12 +351,12 @@
         };
 
         const servicos = [
-            { id: 'mobilemed', nome: 'MOBILEMED' },
-            { id: 'sagrada-familia', nome: 'SAGRADA' },
-            { id: 'radcloud', nome: 'RADCLOUD' },
-            { id: 'epacs', nome: 'EPACS' },
-            { id: 'clinimage', nome: 'CLINIMAGE' },
-            { id: 'vx', nome: 'VX' }
+            { id: 'mobilemed', nome: 'MOBILEMED', color: '#3498db' },
+            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c' },
+            { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
+            { id: 'epacs', nome: 'EPACS', color: '#f1c40f' },
+            { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
+            { id: 'vx', nome: 'VX', color: '#1abc9c' }
         ];
 
         // ESTADO
@@ -314,8 +364,9 @@
         let timerInterval = null;
         let elapsedTime = 0;
         let timerRunning = false;
-        let chartDiario = null;
-        let chartSemanal = null;
+        let chartSegmentos = null;
+        let chartCustoBeneficio = null;
+        let currentView = 'day';
 
         // ELEMENTOS
         const dataExameInput = document.getElementById('data-exame');
@@ -328,7 +379,7 @@
         dataExameInput.value = hoje.toISOString().split('T')[0];
         mesRelatorioInput.value = hoje.toISOString().substring(0, 7);
 
-        // --- FIREBASE (COM MIGRAÇÃO SEGURA) ---
+        // --- FIREBASE ---
         async function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
 
         async function carregarDadosFirebase() {
@@ -341,37 +392,24 @@
                     let loadedExames = {};
                     let loadedTempos = {};
 
-                    // LÓGICA DE MIGRAÇÃO SEGURA
-                    
-                    // 1. Verifica se já é o formato novo (tem objeto 'exames')
                     if (data.exames && typeof data.exames === 'object') {
                         loadedExames = data.exames;
                         loadedTempos = data.tempos || {};
-                        console.log("Formato novo detectado.");
-                    } 
-                    // 2. Verifica se é o formato antigo (chaves de data na raiz)
-                    else {
+                    } else {
                         const keys = Object.keys(data);
-                        // Regex para detectar datas YYYY-MM-DD
                         if (keys.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(keys[0])) {
-                            console.log("Formato antigo detectado. Migrando dados...");
-                            loadedExames = data; // O objeto inteiro é de exames
+                            loadedExames = data;
                             loadedTempos = {};
-                            atualizarStatus("Dados Antigos Recuperados!", "warning");
-                        } else {
-                            console.log("Formato desconhecido ou vazio.");
+                            atualizarStatus("Dados Recuperados!", "warning");
                         }
                     }
-
                     dadosApp.exames = loadedExames;
                     dadosApp.tempos = loadedTempos;
                     
                 } else {
-                    // Se não existe no Firebase, checa LocalStorage
                     const local = localStorage.getItem('examesTomografia');
                     if(local) {
                         dadosApp = JSON.parse(local);
-                        // Garante estrutura
                         if(!dadosApp.exames) dadosApp.exames = {};
                         if(!dadosApp.tempos) dadosApp.tempos = {};
                     }
@@ -396,7 +434,6 @@
 
         async function salvarDadosFirebase() {
             try {
-                // Sempre salva no novo formato
                 await db.collection('controles').doc('examesTomografia').set(dadosApp);
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 atualizarStatus("Salvo!", "success");
@@ -448,8 +485,7 @@
 
         function atualizarContadorSelecao() {
             const cbs = document.querySelectorAll('#timer-segmentos-container input:checked');
-            const display = document.getElementById('counter-display');
-            display.textContent = cbs.length > 0 ? `${cbs.length} selecionado(s)` : '';
+            document.getElementById('counter-display').textContent = cbs.length > 0 ? `${cbs.length} selecionado(s)` : '';
         }
 
         function formatTime(s) {
@@ -460,9 +496,9 @@
         }
 
         function startTimer() {
-            if(!document.getElementById('timer-servico').value) return alert("Selecione a EMPRESA antes de iniciar.");
+            if(!document.getElementById('timer-servico').value) return alert("Selecione a EMPRESA.");
             const cbs = document.querySelectorAll('#timer-segmentos-container input:checked');
-            if(cbs.length === 0) return alert("Selecione ao menos 1 SEGMENTO antes de iniciar.");
+            if(cbs.length === 0) return alert("Selecione ao menos 1 SEGMENTO.");
 
             timerRunning = true;
             timerInterval = setInterval(() => {
@@ -485,15 +521,17 @@
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
 
+            const tempoDividido = elapsedTime / checkboxes.length;
+
             let segNomes = [];
             checkboxes.forEach(cb => {
                 const seg = cb.value;
                 segNomes.push(valoresSegmentos[seg].nome);
 
-                if (elapsedTime > 0) {
+                if (tempoDividido > 0) {
                     const key = `${servico}_${seg}`;
                     if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
-                    dadosApp.tempos[data][key].push(elapsedTime);
+                    dadosApp.tempos[data][key].push(tempoDividido);
                 }
 
                 if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
@@ -501,7 +539,7 @@
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
 
-            alert(`✅ Salvo!\nEmpresa: ${servico.toUpperCase()}\nSegmentos: ${segNomes.join(", ")}\nTempo: ${formatTime(elapsedTime)}`);
+            alert(`✅ Salvo!\nEmpresa: ${servico.toUpperCase()}\nSegmentos: ${segNomes.join(", ")}\nTempo Total: ${formatTime(elapsedTime)} (${formatTime(tempoDividido)} cada)`);
             
             await salvarDadosFirebase();
             criarTabela();
@@ -583,56 +621,152 @@
             totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
         }
 
-        function atualizarGraficos() {
-            const data = dataExameInput.value;
-            const labels = [], dataPoints = [];
-            
-            servicos.forEach(s => {
-                let t = 0, c = 0;
-                Object.keys(valoresSegmentos).forEach(k => {
-                    const key = `${s.id}_${k}`;
-                    const arr = dadosApp.tempos[data]?.[key] || [];
-                    if(arr.length) { t += arr.reduce((a,b)=>a+b,0); c += arr.length; }
-                });
-                if(t > 0) { labels.push(s.nome); dataPoints.push(Math.round((t/c)/60)); }
-            });
+        // --- GRÁFICOS DINÂMICOS ---
+        
+        function getDateRange(view) {
+            const selectedDate = new Date(dataExameInput.value);
+            let start, end;
 
-            if(chartDiario) chartDiario.destroy();
-            chartDiario = new Chart(document.getElementById('chartMediaDiaria'), {
-                type: 'doughnut',
-                data: { labels, datasets: [{ data: dataPoints, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'] }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
-
-            const d = new Date(data);
-            const day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1);
-            const monday = new Date(d.setDate(diff));
-            
-            const labelsWeek = [], datasetTemp = {};
-            servicos.forEach(s => datasetTemp[s.id] = []);
-
-            for(let i=0; i<7; i++) {
-                const dt = new Date(monday);
-                dt.setDate(dt.getDate() + i);
-                const dtStr = dt.toISOString().split('T')[0];
-                labelsWeek.push(dt.toLocaleDateString('pt-BR', {weekday: 'short'}));
-                
-                servicos.forEach(s => {
-                    let qtdDia = 0;
-                    Object.keys(valoresSegmentos).forEach(k => { qtdDia += dadosApp.exames[dtStr]?.[k]?.[s.id] || 0; });
-                    datasetTemp[s.id].push(qtdDia);
-                });
+            if (view === 'day') {
+                start = new Date(selectedDate);
+                end = new Date(selectedDate);
+            } else if (view === 'week') {
+                const day = selectedDate.getDay();
+                const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
+                start = new Date(selectedDate.setDate(diff));
+                start.setHours(0,0,0,0);
+                end = new Date(start);
+                end.setDate(end.getDate() + 6);
+            } else if (view === 'month') {
+                start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
             }
+            return { start, end };
+        }
 
-            const datasetsBar = servicos.map((s, i) => ({
-                label: s.nome, data: datasetTemp[s.id],
-                backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'][i]
+        function setGraphView(view) {
+            currentView = view;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if(btn.textContent.toLowerCase().includes(view.substring(0,3))) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            atualizarGraficos();
+        }
+
+        function atualizarGraficos() {
+            const { start, end } = getDateRange(currentView);
+            
+            let filteredTempos = {}; 
+            
+            Object.keys(dadosApp.tempos).forEach(dateStr => {
+                const d = new Date(dateStr);
+                if (d >= start && d <= end) {
+                    Object.entries(dadosApp.tempos[dateStr]).forEach(([key, temps]) => {
+                        if (!filteredTempos[key]) filteredTempos[key] = [];
+                        filteredTempos[key].push(...temps);
+                    });
+                }
+            });
+
+            // Gráfico 1: Tempo por Segmento
+            const labelsSegmentos = Object.values(valoresSegmentos).map(s => s.nome);
+            const datasets = servicos.map(s => ({
+                label: s.nome,
+                data: [],
+                backgroundColor: s.color,
+                borderWidth: 1
             }));
 
-            if(chartSemanal) chartSemanal.destroy();
-            chartSemanal = new Chart(document.getElementById('chartMediaSemanal'), {
-                type: 'bar', data: { labels: labelsWeek, datasets: datasetsBar },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            Object.entries(valoresSegmentos).forEach(([segKey, seg]) => {
+                servicos.forEach((s, index) => {
+                    const key = `${s.id}_${segKey}`;
+                    const tempos = filteredTempos[key] || [];
+                    if (tempos.length > 0) {
+                        const media = tempos.reduce((a, b) => a + b, 0) / tempos.length;
+                        datasets[index].data.push(Math.round(media / 60));
+                    } else {
+                        datasets[index].data.push(0);
+                    }
+                });
+            });
+
+            if(chartSegmentos) chartSegmentos.destroy();
+            chartSegmentos = new Chart(document.getElementById('chartSegmentos'), {
+                type: 'bar',
+                data: { labels: labelsSegmentos, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { beginAtZero: true, title: { display: true, text: 'Minutos (Média)' } },
+                        x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
+                    },
+                    plugins: { legend: { position: 'bottom' }, title: { display: false } }
+                }
+            });
+
+            // Gráfico 2: Custo Benefício
+            let stats = {};
+            servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
+
+            let current = new Date(start);
+            while (current <= end) {
+                const dateStr = current.toISOString().split('T')[0];
+                
+                if(dadosApp.exames[dateStr]) {
+                    Object.entries(dadosApp.exames[dateStr]).forEach(([segKey, servicosData]) => {
+                        Object.entries(servicosData).forEach(([servId, qtd]) => {
+                            if (qtd > 0) {
+                                const valorUnit = valoresSegmentos[segKey]?.valores[servId];
+                                if(valorUnit) {
+                                    stats[servId].totalValor += qtd * valorUnit;
+                                }
+                            }
+                        });
+                    });
+                }
+                current.setDate(current.getDate() + 1);
+            }
+
+            Object.entries(filteredTempos).forEach(([key, tempos]) => {
+                const empresa = key.split('_')[0];
+                if(stats[empresa]) {
+                    stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0);
+                }
+            });
+
+            const labelsCB = [];
+            const dataCB = [];
+            
+            servicos.forEach(s => {
+                if(stats[s.id].totalTempo > 0) {
+                    const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo;
+                    labelsCB.push(s.nome);
+                    dataCB.push(valorHora.toFixed(2));
+                }
+            });
+
+            if(chartCustoBeneficio) chartCustoBeneficio.destroy();
+            chartCustoBeneficio = new Chart(document.getElementById('chartCustoBeneficio'), {
+                type: 'bar',
+                data: {
+                    labels: labelsCB,
+                    datasets: [{
+                        label: 'R$ / Hora',
+                        data: dataCB,
+                        backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c']
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { beginAtZero: true, title: { display: true, text: 'R$ por Hora Trabalhada' } } },
+                    plugins: { legend: { display: false } }
+                }
             });
         }
 
@@ -682,7 +816,6 @@
                 tbody.appendChild(tr);
             }
 
-            // Cards Resumo Mensal
             const resumoContainer = document.getElementById('resumo-mensal-container');
             resumoContainer.innerHTML = '';
             servicos.forEach(s => {
@@ -696,10 +829,9 @@
                 resumoContainer.appendChild(card);
             });
 
-            const totalGeralEl = document.getElementById('total-mensal-geral');
-            totalGeralEl.innerHTML = `
-                <div><span>Total de Exames no Mês</span><strong>${Object.values(totaisQtd).reduce((a,b)=>a+b,0)}</strong></div>
-                <div><span>Valor Total no Mês</span><strong>R$ ${totalGeralMes.toFixed(2)}</strong></div>
+            document.getElementById('total-mensal-geral').innerHTML = `
+                <div><span>Total de Exames</span><strong>${Object.values(totaisQtd).reduce((a,b)=>a+b,0)}</strong></div>
+                <div><span>Valor Total</span><strong>R$ ${totalGeralMes.toFixed(2)}</strong></div>
             `;
 
             const trTot = document.createElement('tr');
@@ -712,15 +844,14 @@
         }
 
         function downloadRelatorioExcel() {
-             const mesAno = mesRelatorioInput.value;
+            const mesAno = mesRelatorioInput.value;
             const [ano, mes] = mesAno.split('-');
-            let csv = 'DATA;MOBILEMED;SAGRADA;RADCLOUD;EPACS;CLINIMAGE;VX;VALOR TOTAL DIÁRIO\n';
+            let csv = 'DATA;MOBILEMED;SAGRADA;RADCLOUD;EPACS;CLINIMAGE;VX;TOTAL\n';
             const diasNoMes = new Date(ano, mes, 0).getDate();
             
             for (let dia = 1; dia <= diasNoMes; dia++) {
                 const data = `${ano}-${mes.padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-                const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
-                let linha = `${dataFormatada};`;
+                let linha = `${data};`;
                 let totalDia = 0;
                 
                 servicos.forEach(servico => {
@@ -733,19 +864,17 @@
                         });
                     }
                     totalDia += totalServicoDia;
-                    linha += `R$ ${totalServicoDia.toFixed(2)};`;
+                    linha += `${totalServicoDia.toFixed(2)};`;
                 });
-                linha += `R$ ${totalDia.toFixed(2)}\n`;
+                linha += `${totalDia.toFixed(2)}\n`;
                 csv += linha;
             }
             
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = URL.createObjectURL(blob);
             a.download = `relatorio_${mes}_${ano}.csv`;
             a.click();
-            URL.revokeObjectURL(url);
         }
 
         // --- BACKUP ---
@@ -764,16 +893,12 @@
             reader.onload = async (e) => {
                 try {
                     const json = JSON.parse(e.target.result);
-                    // Suporta formato antigo (direto no root) ou novo (dentro de exames)
-                    if(json.exames) {
-                        dadosApp = json;
-                    } else {
-                        dadosApp.exames = json; // Assume que é o arquivo antigo
-                        dadosApp.tempos = {};
-                    }
+                    if(json.exames) { dadosApp = json; } 
+                    else { dadosApp.exames = json; dadosApp.tempos = {}; }
                     await salvarDadosFirebase();
                     criarLegenda();
                     criarTabela();
+                    atualizarGraficos();
                     alert("Restaurado!");
                 } catch(err) { alert("Erro no arquivo"); }
             };
@@ -787,6 +912,7 @@
                 dadosApp.tempos[data] = {};
                 await salvarDadosFirebase();
                 criarTabela();
+                atualizarGraficos();
             }
         }
 
