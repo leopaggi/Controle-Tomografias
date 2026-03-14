@@ -24,9 +24,7 @@
         }
         
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
         body { background-color: var(--light-bg); color: #333; line-height: 1.6; padding: 20px; }
-        
         .container { max-width: 1800px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 25px; }
         
         header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
@@ -39,8 +37,8 @@
         
         /* Abas */
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
-        .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; }
-        .tab.active { background: var(--primary); color: white; }
+        .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; border: 1px solid #ddd; border-bottom: none; }
+        .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
@@ -53,67 +51,36 @@
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
 
-        /* ÁREA DO TIMER (JORNADA) */
+        /* ÁREA DO TIMER */
         .workflow-container {
-            background: white;
-            border: 1px solid #e1e1e1;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 20px;
-            align-items: center;
+            background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 15px; margin-bottom: 20px;
+            display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: center;
         }
-
         @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
 
+        /* TIMER BOX - Estados Visuais */
         .timer-box { text-align: center; background: #e8f6f3; padding: 15px; border-radius: 8px; border-left: 5px solid var(--success); position: relative; }
+        /* Estado Pausado (Vermelho) */
         .timer-box.paused { background: #fdedec; border-left-color: var(--danger); }
-        
+        /* Estado Auto-Pausado (Laranja - quando troca de aba) */
+        .timer-box.auto-paused { background: #fef9e7; border-left-color: var(--warning); }
+
         .session-label { font-size: 0.8rem; text-transform: uppercase; color: #7f8c8d; font-weight: bold; letter-spacing: 1px; margin-bottom: 5px; display: block; }
-        
         .timer-display { font-size: 3rem; font-weight: bold; color: var(--primary); font-family: 'Courier New', Courier, monospace; }
-        
         .timer-btn-group { display: flex; gap: 5px; justify-content: center; margin-top: 10px; }
-        .timer-btn { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; }
+        .timer-btn { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; border: none; cursor: pointer; }
         
         .controls-box { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
         .control-group { display: flex; flex-direction: column; gap: 5px; }
         .control-label { font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; }
-
         select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.9rem; min-width: 140px; }
 
         /* Checkboxes */
-        .checkbox-scroll {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            max-height: 100px;
-            overflow-y: auto;
-            padding: 8px;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            background: #fafafa;
-        }
-        
-        .check-item {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .checkbox-scroll { display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto; padding: 8px; border: 1px solid #eee; border-radius: 5px; background: #fafafa; }
+        .check-item { background: white; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; }
         .check-item input { position: absolute; opacity: 0; width: 0; height: 0; }
         .check-item:has(input:checked) { background: var(--secondary); color: white; border-color: var(--secondary); font-weight: bold; }
-        .selection-counter { font-size: 0.75rem; color: var(--success); margin-top: 2px; font-weight: bold; }
-
+        
         /* TABELA */
         .exams-table { width: 100%; border-collapse: collapse; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.8rem; }
         .exams-table th, .exams-table td { padding: 6px; text-align: center; border: 1px solid #ddd; }
@@ -121,7 +88,6 @@
         .exams-table tr:nth-child(even) { background-color: #f9f9f9; }
         .exam-name { text-align: left; font-weight: bold; background-color: #f8f9fa; }
         
-        /* Contadores */
         .counter { display: flex; align-items: center; justify-content: center; gap: 4px; }
         .counter-btn { width: 22px; height: 22px; border: none; border-radius: 50%; background-color: var(--secondary); color: white; font-weight: bold; cursor: pointer; font-size: 0.7rem; }
         .counter-btn:hover { transform: scale(1.1); }
@@ -137,39 +103,16 @@
         .resumo-item.total { font-weight: bold; margin-top: 5px; color: var(--success); border-top: 1px solid #ddd; }
 
         .total-geral { background: var(--primary); color: white; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center; display: flex; justify-content: space-around; align-items: center; }
-        .total-geral div { text-align: center; }
         .total-geral strong { font-size: 1.4rem; display: block; margin-top: 5px; }
 
         /* GRÁFICOS */
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-
         .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 350px; }
         .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-
-        .filter-bar {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 15px;
-            background: #f8f9fa;
-            padding: 5px;
-            border-radius: 5px;
-        }
-        .filter-btn {
-            padding: 5px 15px;
-            border-radius: 15px;
-            background: white;
-            border: 1px solid #ddd;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: #666;
-        }
-        .filter-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
+        .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #f8f9fa; padding: 5px; border-radius: 5px; }
+        .filter-btn { padding: 5px 15px; border-radius: 15px; background: white; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem; font-weight: bold; color: #666; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         
         .btn-save { background-color: var(--success); color: white; }
         .btn-reset { background-color: var(--danger); color: white; }
@@ -192,16 +135,14 @@
             <button class="tab" onclick="abrirTab(event, 'backup')">💾 Backup</button>
         </div>
         
-        <!-- ABA CONTROLE -->
         <div id="controle" class="tab-content active">
-            
             <!-- LEGENDA -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
-            <!-- ÁREA DE TRABALHO (JORNADA AUTOMÁTICA) -->
+            <!-- JORNADA AUTOMÁTICA -->
             <div class="workflow-container">
                 <div class="timer-box" id="timer-box">
                     <span class="session-label">Jornada de Trabalho</span>
@@ -217,20 +158,14 @@
                         <span class="control-label">Data</span>
                         <input type="date" id="data-exame">
                     </div>
-
                     <div class="control-group" style="flex-grow: 1;">
                         <span class="control-label">1. Empresa</span>
                         <select id="timer-servico"><option value="">Selecione...</option></select>
                     </div>
-
                     <div class="control-group" style="flex-grow: 2;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="control-label">2. Segmentos</span>
-                            <span id="counter-display" class="selection-counter"></span>
-                        </div>
+                        <span class="control-label">2. Segmentos</span>
                         <div class="checkbox-scroll" id="timer-segmentos-container"></div>
                     </div>
-
                     <div class="control-group" style="justify-content: flex-end;">
                         <button class="timer-btn btn-save" style="padding: 12px 25px; font-size: 1rem;" onclick="finalizarEContabilizar()">✅ Finalizar Laudo</button>
                     </div>
@@ -238,7 +173,7 @@
             </div>
 
             <!-- TABELA -->
-            <h3 style="margin-bottom: 10px; color: var(--primary);">Lançamento Manual / Conferência</h3>
+            <h3 style="margin-bottom: 10px; color: var(--primary);">Lançamento Manual</h3>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
                     <thead><tr><th>EXAMES</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>EPACS</th><th>CLINIMAGE</th><th>VX</th></tr></thead>
@@ -267,7 +202,7 @@
                     <div style="height: 250px; position: relative;"><canvas id="chartSegmentos"></canvas></div>
                 </div>
                 <div class="chart-box">
-                    <h3>Produtividade (R$/Hora Trabalhada)</h3>
+                    <h3>Produtividade (R$/Hora)</h3>
                     <div class="filter-bar">
                         <button class="filter-btn active" onclick="setGraphView('day')">Hoje</button>
                         <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
@@ -276,10 +211,8 @@
                     <div style="height: 250px; position: relative;"><canvas id="chartCustoBeneficio"></canvas></div>
                 </div>
             </div>
-
         </div>
 
-        <!-- RELATÓRIO -->
         <div id="relatorio" class="tab-content">
              <div style="text-align: center; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
                 <label for="mes-relatorio"><strong>Mês:</strong></label>
@@ -297,7 +230,6 @@
             </div>
         </div>
         
-        <!-- BACKUP -->
         <div id="backup" class="tab-content">
             <div style="text-align: center; padding: 20px;">
                 <h2>Gerenciamento de Dados</h2>
@@ -360,11 +292,12 @@
         let chartCustoBeneficio = null;
         let currentView = 'day';
 
-        // ESTADO DA SESSÃO (JORNADA)
-        let sessionSeconds = 0;     // Tempo total da sessão atual
-        let lastCommitTime = 0;     // Tempo do último laudo salvo
+        // ESTADO DA JORNADA
+        let sessionSeconds = 0;
+        let lastCommitTime = 0;
         let sessionInterval = null;
-        let isPaused = false;
+        let isRunning = false;
+        let manualPause = false; // FLAG: O usuário PAUSOU MANUALMENTE?
 
         // ELEMENTOS
         const dataExameInput = document.getElementById('data-exame');
@@ -378,8 +311,7 @@
         dataExameInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getDate().toString().padStart(2,'0')}`;
         mesRelatorioInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
 
-        // --- JORNADA AUTOMÁTICA ---
-        
+        // --- JORNADA AUTOMÁTICA INTELIGENTE ---
         function formatTime(s) {
             const h = Math.floor(s / 3600);
             const m = Math.floor((s % 3600) / 60);
@@ -387,37 +319,42 @@
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
         }
 
-        function updateSessionDisplay() {
-            document.getElementById('timer-display').textContent = formatTime(sessionSeconds);
-        }
+        function updateSessionDisplay() { document.getElementById('timer-display').textContent = formatTime(sessionSeconds); }
 
+        // Inicia o cronômetro
         function startSession() {
             if(sessionInterval) clearInterval(sessionInterval);
-            isPaused = false;
-            timerBox.classList.remove('paused');
+            isRunning = true;
+            manualPause = false; // Ao iniciar, remove a pausa manual
+            timerBox.classList.remove('paused', 'auto-paused'); // Remove estilos visuais
             document.getElementById('btn-pause').textContent = "⏸ Pausar";
             
             sessionInterval = setInterval(() => {
                 sessionSeconds++;
                 updateSessionDisplay();
-                // Atualiza gráfico de R$/Hora em tempo real (apenas se visão for 'day')
-                if(currentView === 'day') {
-                    // Otimização: atualizar gráfico a cada 1 minuto para não pesar
-                    if(sessionSeconds % 60 === 0) atualizarGraficos(); 
-                }
+                if(currentView === 'day' && sessionSeconds % 60 === 0) atualizarGraficos();
             }, 1000);
         }
 
+        // Pausa o cronômetro (pode ser manual ou automático)
+        function pauseSession(isAuto = false) {
+            isRunning = false;
+            clearInterval(sessionInterval);
+            
+            // Atualiza visual
+            timerBox.classList.add(isAuto ? 'auto-paused' : 'paused');
+            timerBox.classList.remove(isAuto ? 'paused' : 'auto-paused');
+            document.getElementById('btn-pause').textContent = "▶ Retomar";
+        }
+
+        // Botão de Pausar/Retomar (Manual)
         function togglePause() {
-            const btn = document.getElementById('btn-pause');
-            if(isPaused) {
-                startSession();
-                btn.textContent = "⏸ Pausar";
+            if(isRunning) {
+                manualPause = true; // Usuário pausou manualmente
+                pauseSession(false);
             } else {
-                isPaused = true;
-                clearInterval(sessionInterval);
-                timerBox.classList.add('paused');
-                btn.textContent = "▶ Retomar";
+                manualPause = false; // Usuário quer retomar
+                startSession();
             }
         }
 
@@ -426,18 +363,20 @@
                 sessionSeconds = 0;
                 lastCommitTime = 0;
                 updateSessionDisplay();
-                startSession(); // Garante que roda
+                startSession();
             }
         }
 
-        // Auto-pause on tab hidden
+        // LISTENERS DE VISIBILIDADE (Troca de Aba/Minimização)
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                if(!isPaused) togglePause(); // Pausa automaticamente se não estiver pausado
+                // Saiu da aba -> Pausa (marcando como auto-pause)
+                if(isRunning) pauseSession(true);
             } else {
-                // Opcional: Retomar automaticamente?
-                // Vamos deixar manual para o usuário ter controle total, mas avisar.
-                if(isPaused) alert("Bem-vindo de volta! Clique em Retomar se desejar continuar a jornada.");
+                // Voltou para a aba -> Se NÃO estiver em pausa manual, RETOMA automaticamente
+                if (!manualPause && !isRunning) {
+                    startSession();
+                }
             }
         });
 
@@ -484,9 +423,7 @@
             criarTabela();
             popularTimerConfig();
             atualizarGraficos();
-            
-            // INICIAR JORNADA AUTOMATICAMENTE
-            startSession();
+            startSession(); // Inicia ao carregar
         }
 
         async function salvarDadosFirebase() {
@@ -510,9 +447,7 @@
                 let html = `<h3>${seg.nome}</h3>`;
                 servicos.forEach(s => {
                     const v = seg.valores[s.id];
-                    if(v !== null) {
-                        html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`;
-                    }
+                    if(v !== null) html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`;
                 });
                 item.innerHTML = html;
                 grid.appendChild(item);
@@ -533,16 +468,10 @@
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = k;
-                checkbox.addEventListener('change', atualizarContadorSelecao);
                 label.appendChild(checkbox);
                 label.appendChild(document.createTextNode(` ${v.nome}`));
                 contSeg.appendChild(label);
             });
-        }
-
-        function atualizarContadorSelecao() {
-            const cbs = document.querySelectorAll('#timer-segmentos-container input:checked');
-            document.getElementById('counter-display').textContent = cbs.length > 0 ? `${cbs.length} selecionado(s)` : '';
         }
 
         async function finalizarEContabilizar() {
@@ -556,43 +485,37 @@
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
 
-            // LÓGICA DE TEMPO AUTOMÁTICO
-            // Tempo desde o último commit até agora
             let tempoGasto = sessionSeconds - lastCommitTime;
-            // Se for 0 (muito rápido), assume 60 segundos para evitar divisão por zero e ser realista
-            if(tempoGasto < 1) tempoGasto = 60; 
+            if(tempoGasto < 1) tempoGasto = 60;
 
             const tempoDividido = tempoGasto / checkboxes.length;
-            lastCommitTime = sessionSeconds; // Atualiza o ponto de controle
+            lastCommitTime = sessionSeconds; 
 
             let segNomes = [];
             checkboxes.forEach(cb => {
                 const seg = cb.value;
                 segNomes.push(valoresSegmentos[seg].nome);
 
-                // Salvar Tempo Dividido
                 if (tempoDividido > 0) {
                     const key = `${servico}_${seg}`;
                     if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
                     dadosApp.tempos[data][key].push(tempoDividido);
                 }
 
-                // Contabilizar +1
                 if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
                 const atual = dadosApp.exames[data][seg][servico] || 0;
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
 
-            // Feedback visual rápido (sem alert bloqueante)
             const el = document.createElement('div');
-            el.textContent = `✅ ${segNomes.join(", ")} salvo!`;
+            el.textContent = `✅ ${segNomes.join(", ")} salvo! (${formatTime(tempoGasto)} total)`;
             el.style.cssText = "position:fixed; bottom:20px; right:20px; background:#27ae60; color:white; padding:15px; border-radius:8px; z-index:9999; font-weight:bold;";
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 3000);
             
             await salvarDadosFirebase();
             criarTabela();
-            atualizarGraficos(); // Atualiza gráficos imediatamente
+            atualizarGraficos();
         }
 
         // --- TABELA DIÁRIA ---
@@ -604,12 +527,10 @@
             Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td class="exam-name">${seg.nome}</td>`;
-
                 servicos.forEach(s => {
                     const td = document.createElement('td');
                     const valor = seg.valores[s.id];
                     const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
-
                     if (valor !== null) {
                         td.innerHTML = `<div class="counter">
                             <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
@@ -640,29 +561,23 @@
             const data = dataExameInput.value;
             let totalExames = 0, totalValor = 0;
             container.innerHTML = '';
-
             servicos.forEach(s => {
                 const card = document.createElement('div');
                 card.className = 'resumo-card';
                 let items = '';
                 let subTotal = 0, subQtd = 0;
-
                 Object.entries(valoresSegmentos).forEach(([k, seg]) => {
                     const v = seg.valores[s.id];
                     const qtd = dadosApp.exames[data]?.[k]?.[s.id] || 0;
                     if(v && qtd > 0) {
-                        subTotal += qtd * v;
-                        subQtd += qtd;
+                        subTotal += qtd * v; subQtd += qtd;
                         items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`;
                     }
                 });
-
-                totalExames += subQtd;
-                totalValor += subTotal;
+                totalExames += subQtd; totalValor += subTotal;
                 card.innerHTML = `<h3>${s.nome}</h3>${items}<div class="resumo-item total"><span>Total</span><span>R$ ${subTotal.toFixed(2)}</span></div>`;
                 container.appendChild(card);
             });
-
             totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
         }
 
@@ -670,15 +585,12 @@
         function getDateRange(view) {
             const selectedDate = new Date(dataExameInput.value + "T00:00:00");
             let start, end;
-            if (view === 'day') {
-                start = new Date(selectedDate); end = new Date(selectedDate);
-            } else if (view === 'week') {
+            if (view === 'day') { start = new Date(selectedDate); end = new Date(selectedDate); }
+            else if (view === 'week') {
                 const day = selectedDate.getDay();
                 const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
-                start = new Date(selectedDate.setDate(diff));
-                start.setHours(0,0,0,0);
-                end = new Date(start);
-                end.setDate(end.getDate() + 6);
+                start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0);
+                end = new Date(start); end.setDate(end.getDate() + 6);
             } else if (view === 'month') {
                 start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
                 end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
@@ -698,7 +610,6 @@
         function atualizarGraficos() {
             const { start, end } = getDateRange(currentView);
             
-            // Filtrar tempos históricos
             let filteredTempos = {}; 
             Object.keys(dadosApp.tempos).forEach(dateStr => {
                 const d = new Date(dateStr + "T00:00:00");
@@ -710,17 +621,16 @@
                 }
             });
 
-            // 1. Gráfico de Tempo por Segmento
+            // 1. Gráfico Segmentos
             const labelsSegmentos = Object.values(valoresSegmentos).map(s => s.nome);
             const datasets = servicos.map(s => ({ label: s.nome, data: [], backgroundColor: s.color, borderWidth: 1 }));
-
             Object.entries(valoresSegmentos).forEach(([segKey, seg]) => {
                 servicos.forEach((s, index) => {
                     const key = `${s.id}_${segKey}`;
                     const tempos = filteredTempos[key] || [];
                     if (tempos.length > 0) {
                         const media = tempos.reduce((a, b) => a + b, 0) / tempos.length;
-                        datasets[index].data.push(Math.round(media / 60)); // Minutos
+                        datasets[index].data.push(Math.round(media / 60));
                     } else datasets[index].data.push(0);
                 });
             });
@@ -731,33 +641,24 @@
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Minutos (Média)' } } }, plugins: { legend: { position: 'bottom' } } }
             });
 
-            // 2. Gráfico de R$/Hora
-            // Para "Hoje": Usar SessionTime Real (Tempo Ativo)
-            // Para Histórico: Usar Soma dos Tempos Cronometrados
-            
+            // 2. Gráfico R$/Hora
             const labelsCB = [], dataCB = [];
             
             if (currentView === 'day') {
-                // LÓGICA HOJE: R$ Total / Tempo de Sessão Atual
                 const today = dataExameInput.value;
                 let totalValorDia = 0;
-                
                 Object.entries(dadosApp.exames[today] || {}).forEach(([segKey, servicosData]) => {
                     Object.entries(servicosData).forEach(([servId, qtd]) => {
                         const valorUnit = valoresSegmentos[segKey]?.valores[servId];
                         if(valorUnit && qtd > 0) totalValorDia += qtd * valorUnit;
                     });
                 });
-
                 if (sessionSeconds > 0) {
                     const valorHora = (totalValorDia * 3600) / sessionSeconds;
                     labelsCB.push("Sessão Atual");
                     dataCB.push(valorHora.toFixed(2));
-                } else {
-                    labelsCB.push("Sessão"); dataCB.push(0);
-                }
+                } else { labelsCB.push("Sessão"); dataCB.push(0); }
             } else {
-                // LÓGICA HISTÓRICO: Média baseada no tempo salvo
                 let stats = {};
                 servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
                 let current = new Date(start);
@@ -795,20 +696,30 @@
             });
         }
 
-        // --- RELATÓRIO ---
+        // --- ABAS ---
         function abrirTab(evt, id) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             evt.currentTarget.classList.add('active');
+            
+            // AUTO-RESTART LOGIC AO CLICAR NA ABA CONTROLE
+            if (id === 'controle') {
+                // Se NÃO estiver em pausa manual E não estiver rodando -> Reinicia
+                if (!manualPause && !isRunning) {
+                    startSession();
+                }
+                atualizarGraficos();
+            }
             if(id === 'relatorio') gerarRelatorioMensal();
         }
 
+        // --- RELATÓRIO ---
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
             const tbody = document.getElementById('relatorio-body');
             tbody.innerHTML = '';
-            const totais = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
+            const totaux = { mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, epacs: 0, clinimage: 0, vx: 0 };
             let totalGeralMes = 0;
             for(let d=1; d<=new Date(ano, mes, 0).getDate(); d++) {
                 const dt = `${ano}-${mes.padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -818,7 +729,7 @@
                 servicos.forEach(s => {
                     let vDia = 0;
                     Object.entries(valoresSegmentos).forEach(([k, seg]) => { if(seg.valores[s.id]) vDia += (dadosApp.exames[dt]?.[k]?.[s.id] || 0) * seg.valores[s.id]; });
-                    totais[s.id] += vDia; totalDia += vDia;
+                    totaux[s.id] += vDia; totalDia += vDia;
                     tr.innerHTML += `<td>R$ ${vDia.toFixed(2)}</td>`;
                 });
                 totalGeralMes += totalDia;
@@ -828,7 +739,7 @@
             document.getElementById('resumo-mensal-container').innerHTML = '';
             servicos.forEach(s => {
                 const card = document.createElement('div'); card.className = 'resumo-card';
-                card.innerHTML = `<h3>${s.nome}</h3><div class="resumo-item total"><span>Total:</span><span>R$ ${totais[s.id].toFixed(2)}</span></div>`;
+                card.innerHTML = `<h3>${s.nome}</h3><div class="resumo-item total"><span>Total:</span><span>R$ ${totaux[s.id].toFixed(2)}</span></div>`;
                 document.getElementById('resumo-mensal-container').appendChild(card);
             });
             document.getElementById('total-mensal-geral').innerHTML = `<div><span>Total Mês</span><strong>R$ ${totalGeralMes.toFixed(2)}</strong></div>`;
@@ -850,9 +761,7 @@
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
         }
 
-        function baixarBackupCompleto() {
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(dadosApp, null, 2)], {type: "application/json"})); a.download = `backup.json`; a.click();
-        }
+        function baixarBackupCompleto() { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(dadosApp,null,2)],{type:"application/json"})); a.download='backup.json'; a.click(); }
 
         function restaurarBackup() {
             const file = document.getElementById('upload-backup').files[0]; if(!file) return;
