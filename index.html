@@ -261,6 +261,7 @@
                         <tr>
                             <th>EXAMES</th>
                             <th>HBJ</th>
+                            <th>MOBILEMED</th>
                             <th>SAGRADA</th>
                             <th>RADCLOUD</th>
                             <th>CMT</th>
@@ -326,6 +327,7 @@
                         <tr>
                             <th>DATA</th>
                             <th>HBJ</th>
+                            <th>MOBILEMED</th>
                             <th>SAGRADA</th>
                             <th>RADCLOUD</th>
                             <th>CMT</th>
@@ -379,30 +381,31 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // VALORES ATUALIZADOS: HBJ (ex-MobileMed) com ABD TOTAL = 50, CMT (ex-EPACS)
+        // VALORES: MOBILEMED segue os mesmos valores da HBJ
         const valoresSegmentos = {
-            'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'torax': { nome: 'TORAX', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'abdomen-total': { nome: 'ABD TOTAL', valores: { 'hbj': 50, 'sagrada-familia': null, 'radcloud': null, 'cmt': 17, 'clinimage': 50, 'vx': 44 }},
-            'abd-superior': { nome: 'ABD SUP', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'pelve': { nome: 'PELVE', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'bacia': { nome: 'BACIA', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'articulacao': { nome: 'ARTIC', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'pescoco': { nome: 'PESCOCO', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'cervical': { nome: 'CERVICAL', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'dorsal': { nome: 'DORSAL', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'lombar': { nome: 'LOMBAR', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},            
-            'emergencia': { nome: 'EMERG', valores: { 'hbj': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 50, 'vx': 22 }}
+            'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'torax': { nome: 'TORAX', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'abdomen-total': { nome: 'ABD TOTAL', valores: { 'hbj': 50, 'mobilemed': 50, 'sagrada-familia': null, 'radcloud': null, 'cmt': 17, 'clinimage': 50, 'vx': 44 }},
+            'abd-superior': { nome: 'ABD SUP', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'pelve': { nome: 'PELVE', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'bacia': { nome: 'BACIA', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'articulacao': { nome: 'ARTIC', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'pescoco': { nome: 'PESCOCO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'cervical': { nome: 'CERVICAL', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'dorsal': { nome: 'DORSAL', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
+            'lombar': { nome: 'LOMBAR', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},            
+            'emergencia': { nome: 'EMERG', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 50, 'vx': 22 }}
         };
 
         const servicos = [
-            { id: 'hbj', nome: 'HBJ', color: '#3498db', oldId: 'mobilemed' },
-            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c', oldId: 'sagrada-familia' },
-            { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71', oldId: 'radcloud' },
-            { id: 'cmt', nome: 'CMT', color: '#f1c40f', oldId: 'epacs' },
-            { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6', oldId: 'clinimage' },
-            { id: 'vx', nome: 'VX', color: '#1abc9c', oldId: 'vx' }
+            { id: 'hbj', nome: 'HBJ', color: '#3498db' },
+            { id: 'mobilemed', nome: 'MOBILEMED', color: '#e67e22' },
+            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c' },
+            { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
+            { id: 'cmt', nome: 'CMT', color: '#f1c40f' },
+            { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
+            { id: 'vx', nome: 'VX', color: '#1abc9c' }
         ];
 
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
@@ -417,38 +420,6 @@
         const hoje = new Date();
         dataExameInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getDate().toString().padStart(2,'0')}`;
         mesRelatorioInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
-
-        // FUNÇÃO DE CONVERSÃO: mobilemed -> hbj, epacs -> cmt
-        function converterDadosAntigos(exames) {
-            const convertido = {};
-            for (const data in exames) {
-                convertido[data] = {};
-                for (const segmento in exames[data]) {
-                    convertido[data][segmento] = {};
-                    for (const empresa in exames[data][segmento]) {
-                        let novaEmpresa = empresa;
-                        if (empresa === 'mobilemed') novaEmpresa = 'hbj';
-                        if (empresa === 'epacs') novaEmpresa = 'cmt';
-                        convertido[data][segmento][novaEmpresa] = exames[data][segmento][empresa];
-                    }
-                }
-            }
-            return convertido;
-        }
-
-        function converterTemposAntigos(tempos) {
-            const convertido = {};
-            for (const data in tempos) {
-                convertido[data] = {};
-                for (const key in tempos[data]) {
-                    let novaKey = key;
-                    if (key.startsWith('mobilemed_')) novaKey = key.replace('mobilemed_', 'hbj_');
-                    if (key.startsWith('epacs_')) novaKey = key.replace('epacs_', 'cmt_');
-                    convertido[data][novaKey] = tempos[data][key];
-                }
-            }
-            return convertido;
-        }
 
         function formatTime(s) {
             const h = Math.floor(s / 3600);
@@ -488,7 +459,7 @@
 
         // FUNÇÃO PARA CALCULAR VALOR MENSAL
         function calcularValorMensal(ano, mes) {
-            const totals = { hbj: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0 };
+            const totals = { hbj: 0, mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0 };
             let totalGeral = 0;
             const ultimoDia = new Date(ano, mes, 0).getDate();
             
@@ -518,64 +489,16 @@
                 const doc = await db.collection('controles').doc('examesTomografia').get();
                 if (doc.exists) {
                     const data = doc.data();
-                    let exames = data.exames || data;
-                    let tempos = data.tempos || {};
-                    let pagamentos = data.pagamentos || {};
-                    
-                    // VERIFICAR SE TEM DADOS ANTIGOS (mobilemed ou epacs)
-                    let precisaConverter = false;
-                    if (exames && typeof exames === 'object') {
-                        for (const dataStr in exames) {
-                            for (const seg in exames[dataStr]) {
-                                if (exames[dataStr][seg] && (exames[dataStr][seg]['mobilemed'] || exames[dataStr][seg]['epacs'])) {
-                                    precisaConverter = true;
-                                    break;
-                                }
-                            }
-                            if (precisaConverter) break;
-                        }
-                    }
-                    
-                    if (precisaConverter) {
-                        console.log("Convertendo dados antigos (mobilemed→hbj, epacs→cmt)...");
-                        exames = converterDadosAntigos(exames);
-                        tempos = converterTemposAntigos(tempos);
-                        atualizarStatus("Dados convertidos! Salve para manter.", "warning");
-                    }
-                    
-                    dadosApp.exames = exames || {};
-                    dadosApp.tempos = tempos || {};
-                    dadosApp.pagamentos = pagamentos || {};
+                    dadosApp.exames = data.exames || data || {};
+                    dadosApp.tempos = data.tempos || {};
+                    dadosApp.pagamentos = data.pagamentos || {};
                 } else { 
                     const local = localStorage.getItem('examesTomografia'); 
                     if(local) { 
                         const parsed = JSON.parse(local);
-                        let exames = parsed.exames || parsed;
-                        let tempos = parsed.tempos || {};
-                        let pagamentos = parsed.pagamentos || {};
-                        
-                        // Converter também do localStorage
-                        let precisaConverter = false;
-                        if (exames && typeof exames === 'object') {
-                            for (const dataStr in exames) {
-                                for (const seg in exames[dataStr]) {
-                                    if (exames[dataStr][seg] && (exames[dataStr][seg]['mobilemed'] || exames[dataStr][seg]['epacs'])) {
-                                        precisaConverter = true;
-                                        break;
-                                    }
-                                }
-                                if (precisaConverter) break;
-                            }
-                        }
-                        
-                        if (precisaConverter) {
-                            exames = converterDadosAntigos(exames);
-                            tempos = converterTemposAntigos(tempos);
-                        }
-                        
-                        dadosApp.exames = exames || {};
-                        dadosApp.tempos = tempos || {};
-                        dadosApp.pagamentos = pagamentos || {};
+                        dadosApp.exames = parsed.exames || parsed || {};
+                        dadosApp.tempos = parsed.tempos || {};
+                        dadosApp.pagamentos = parsed.pagamentos || {};
                     } 
                 }
                 if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
@@ -583,8 +506,6 @@
                 if(!dadosApp.tempos) dadosApp.tempos = {};
                 
                 atualizarStatus("Sincronizado", "success");
-                
-                // Salvar os dados convertidos no Firebase para não precisar converter de novo
                 await salvarDadosFirebase();
                 
             } catch (e) {
@@ -740,7 +661,7 @@
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
                 const tr = document.createElement('tr'); 
-                tr.innerHTML = `<td class="exam-name">${seg.nome}     </td>`;
+                tr.innerHTML = `<td class="exam-name">${seg.nome}     </tr>`;
                 servicos.forEach(s => {
                     const td = document.createElement('td');
                     const valor = seg.valores[s.id]; 
@@ -1018,7 +939,7 @@
             const anoNum = parseInt(ano);
             const mesNum = parseInt(mes);
             const { totals, totalGeral } = calcularValorMensal(anoNum, mesNum);
-            let csv = 'DATA;HBJ;SAGRADA;RADCLOUD;CMT;CLINIMAGE;VX;TOTAL\n';
+            let csv = 'DATA;HBJ;MOBILEMED;SAGRADA;RADCLOUD;CMT;CLINIMAGE;VX;TOTAL\n';
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
