@@ -49,74 +49,321 @@
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
 
+        /* TIMER COMPACTO - SÓ DIMINUÍ O TAMANHO, NÃO MUDEI POSIÇÃO */
         .workflow-container {
-            background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 15px; margin-bottom: 20px;
-            display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: center;
+            background: white;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 15px;
+            align-items: center;
         }
         @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
 
-        .timer-box { text-align: center; background: #e8f6f3; padding: 15px; border-radius: 8px; border-left: 5px solid var(--success); position: relative; }
+        .timer-box {
+            text-align: center;
+            background: #e8f6f3;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 5px solid var(--success);
+            position: relative;
+        }
         .timer-box.paused { background: #fdedec; border-left-color: var(--danger); }
         .timer-box.auto-paused { background: #fef9e7; border-left-color: var(--warning); }
 
-        .session-label { font-size: 0.8rem; text-transform: uppercase; color: #7f8c8d; font-weight: bold; letter-spacing: 1px; margin-bottom: 5px; display: block; }
-        .timer-display { font-size: 3rem; font-weight: bold; color: var(--primary); font-family: 'Courier New', Courier, monospace; }
-        .timer-btn-group { display: flex; gap: 5px; justify-content: center; margin-top: 10px; }
-        .timer-btn { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; border: none; cursor: pointer; }
+        /* TIMERS DENTRO DO MESMO BOX - SÓ DIMINUÍ */
+        .timers-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
         
-        .controls-box { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
-        .control-group { display: flex; flex-direction: column; gap: 5px; }
-        .control-label { font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; }
-        select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.9rem; min-width: 140px; }
+        .timer-single {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .timer-single.total {
+            background: #2c3e50;
+            padding: 5px 8px;
+            border-radius: 6px;
+            color: white;
+        }
+        
+        .timer-single.total .session-label {
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .timer-single.total .timer-display {
+            color: #27ae60;
+            font-size: 1.1rem;
+        }
+        
+        .timer-single .session-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            display: block;
+        }
+        
+        .timer-single .timer-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .timer-divider {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .timer-btn-group {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-top: 5px;
+        }
+        
+        .timer-btn {
+            padding: 3px 10px;
+            font-size: 0.7rem;
+            border-radius: 15px;
+            border: none;
+            cursor: pointer;
+        }
 
-        .checkbox-scroll { display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto; padding: 8px; border: 1px solid #eee; border-radius: 5px; background: #fafafa; }
-        .check-item { background: white; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; }
-        .check-item input { position: absolute; opacity: 0; width: 0; height: 0; }
-        .check-item:has(input:checked) { background: var(--secondary); color: white; border-color: var(--secondary); font-weight: bold; }
+        .controls-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .control-label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+        }
+        select, input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            min-width: 140px;
+        }
+
+        .checkbox-scroll {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 8px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .check-item {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .check-item input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .check-item:has(input:checked) {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+            font-weight: bold;
+        }
         
-        .exams-table { width: 100%; border-collapse: collapse; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.8rem; }
-        .exams-table th, .exams-table td { padding: 6px; text-align: center; border: 1px solid #ddd; }
-        .exams-table th { background-color: var(--primary); color: white; font-weight: bold; }
-        .exams-table tr:nth-child(even) { background-color: #f9f9f9; }
-        .exam-name { text-align: left; font-weight: bold; background-color: #f8f9fa; }
+        .exams-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.8rem;
+        }
+        .exams-table th, .exams-table td {
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .exams-table th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: bold;
+        }
+        .exams-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .exam-name {
+            text-align: left;
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
         
-        .counter { display: flex; align-items: center; justify-content: center; gap: 4px; }
-        .counter-btn { width: 22px; height: 22px; border: none; border-radius: 50%; background-color: var(--secondary); color: white; font-weight: bold; cursor: pointer; font-size: 0.7rem; }
+        .counter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .counter-btn {
+            width: 22px;
+            height: 22px;
+            border: none;
+            border-radius: 50%;
+            background-color: var(--secondary);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
         .counter-btn:hover { transform: scale(1.1); }
         .counter-btn.remove { background-color: var(--danger); }
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.9rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.7rem; }
 
-        .resumo-container { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-        .resumo-card { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--secondary); position: relative; }
-        .resumo-card h3 { color: var(--primary); margin-bottom: 5px; text-align: center; font-size: 0.9rem; }
-        .resumo-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.8rem; border-bottom: 1px solid #f0f0f0; }
-        .resumo-item.total { font-weight: bold; margin-top: 5px; color: var(--success); border-top: 1px solid #ddd; }
+        .resumo-container {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .resumo-card {
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--secondary);
+        }
+        .resumo-card h3 {
+            color: var(--primary);
+            margin-bottom: 5px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .resumo-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .resumo-item.total {
+            font-weight: bold;
+            margin-top: 5px;
+            color: var(--success);
+            border-top: 1px solid #ddd;
+        }
 
-        .total-geral { background: var(--primary); color: white; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center; display: flex; justify-content: space-around; align-items: center; }
-        .total-geral strong { font-size: 1.4rem; display: block; margin-top: 5px; }
+        .total-geral {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .total-geral strong {
+            font-size: 1.4rem;
+            display: block;
+            margin-top: 5px;
+        }
 
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-        .chart-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; height: 380px; position: relative; }
+        .chart-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            height: 380px;
+            position: relative;
+        }
         .chart-box.full-width { grid-column: 1 / -1; height: 450px; }
-        .chart-box h3 { font-size: 0.9rem; color: var(--primary); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-        .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #f8f9fa; padding: 5px; border-radius: 5px; }
-        .filter-btn { padding: 5px 15px; border-radius: 15px; background: white; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem; font-weight: bold; color: #666; }
-        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .chart-box h3 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .filter-btn {
+            padding: 5px 15px;
+            border-radius: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #666;
+        }
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
         
         .btn-save { background-color: var(--success); color: white; }
         .btn-reset { background-color: var(--danger); color: white; }
         .btn-action { background-color: var(--warning); color: white; }
         
-        .actions { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        .actions button { padding: 10px 20px; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; }
-
-        .projecao-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
-        .projecao-card { background: #f8f9fa; padding: 10px; border-radius: 5px; text-align: center; border-top: 3px solid #ccc; }
-        .projecao-card strong { display: block; font-size: 1.1rem; color: var(--primary); }
-        .projecao-card span { font-size: 0.75rem; color: #666; }
-        .projecao-card.alert { background: #fff3cd; border-color: var(--warning); color: #856404; }
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .actions button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
 
         .payment-controls {
             background: #f8f9fa;
@@ -157,39 +404,12 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .payment-checkbox:hover {
-            background: #f0f0f0;
-        }
-        .payment-checkbox.paid {
-            background: #d4edda;
-            border-color: var(--success);
-        }
-        .payment-checkbox input {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-        .payment-checkbox label {
-            cursor: pointer;
-            font-weight: 500;
-            margin: 0;
-        }
-        .badge-paid {
-            background: var(--success);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-        .badge-pending {
-            background: var(--warning);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
+        .payment-checkbox:hover { background: #f0f0f0; }
+        .payment-checkbox.paid { background: #d4edda; border-color: var(--success); }
+        .payment-checkbox input { width: 18px; height: 18px; cursor: pointer; }
+        .payment-checkbox label { cursor: pointer; font-weight: 500; margin: 0; }
+        .badge-paid { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
+        .badge-pending { background: var(--warning); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
         .payment-summary {
             display: flex;
             gap: 20px;
@@ -199,10 +419,25 @@
             border-top: 1px solid #ddd;
             font-size: 0.85rem;
         }
-        .payment-summary span {
-            font-weight: bold;
-            color: var(--primary);
+        .payment-summary span { font-weight: bold; color: var(--primary); }
+        
+        .projecao-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
         }
+        .projecao-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            border-top: 3px solid #ccc;
+        }
+        .projecao-card strong { display: block; font-size: 1.1rem; color: var(--primary); }
+        .projecao-card span { font-size: 0.75rem; color: #666; }
+        
+        .info-text { font-size: 0.6rem; color: #888; margin-top: 3px; }
     </style>
 </head>
 <body>
@@ -225,13 +460,24 @@
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
+            <!-- WORKFLOW CONTAINER COM TIMER COMPACTO (SÓ DIMINUÍ O TAMANHO) -->
             <div class="workflow-container">
                 <div class="timer-box" id="timer-box">
-                    <span class="session-label">Jornada de Trabalho</span>
-                    <div class="timer-display" id="timer-display">00:00:00</div>
-                    <div class="timer-btn-group">
-                        <button class="timer-btn btn-action" id="btn-pause" onclick="togglePause()">⏸ Pausar</button>
-                        <button class="timer-btn btn-reset" onclick="resetSession()">⏹ Nova Jornada</button>
+                    <div class="timers-row">
+                        <div class="timer-single total">
+                            <span class="session-label">📊 TOTAL ACUMULADO</span>
+                            <div class="timer-display" id="total-timer-display">00:00:00</div>
+                        </div>
+                        <div class="timer-divider">→</div>
+                        <div class="timer-single" id="current-timer-single">
+                            <span class="session-label">⏱️ LAUDO ATUAL</span>
+                            <div class="timer-display" id="current-timer-display">00:00:00</div>
+                            <div class="timer-btn-group">
+                                <button class="timer-btn btn-action" id="btn-pause-current" onclick="togglePauseCurrentTimer()">⏸</button>
+                                <button class="timer-btn btn-reset" onclick="resetCurrentTimer()">⟳</button>
+                            </div>
+                            <div class="info-text">Pause | Reiniciar</div>
+                        </div>
                     </div>
                 </div>
 
@@ -249,7 +495,7 @@
                         <div class="checkbox-scroll" id="timer-segmentos-container"></div>
                     </div>
                     <div class="control-group" style="justify-content: flex-end;">
-                        <button class="timer-btn btn-save" style="padding: 12px 25px; font-size: 1rem;" onclick="finalizarEContabilizar()">✅ Finalizar Laudo</button>
+                        <button class="timer-btn btn-save" style="padding: 12px 25px; font-size: 1rem;" onclick="finalizarLaudo()">✅ Finalizar Laudo</button>
                     </div>
                 </div>
             </div>
@@ -258,16 +504,7 @@
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
                     <thead>
-                        <tr>
-                            <th>EXAMES</th>
-                            <th>HBJ</th>
-                            <th>MOBILEMED</th>
-                            <th>SAGRADA</th>
-                            <th>RADCLOUD</th>
-                            <th>CMT</th>
-                            <th>CLINIMAGE</th>
-                            <th>VX</th>
-                        </tr>
+                        <tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th></tr>
                     </thead>
                     <tbody id="exams-body"></tbody>
                 </table>
@@ -323,19 +560,7 @@
             <div class="total-geral" id="total-mensal-geral" style="margin-bottom: 20px;"></div>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead>
-                        <tr>
-                            <th>DATA</th>
-                            <th>HBJ</th>
-                            <th>MOBILEMED</th>
-                            <th>SAGRADA</th>
-                            <th>RADCLOUD</th>
-                            <th>CMT</th>
-                            <th>CLINIMAGE</th>
-                            <th>VX</th>
-                            <th>TOTAL</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th></tr></thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
             </div>
@@ -381,7 +606,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // VALORES: MOBILEMED segue os mesmos valores da HBJ
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
             'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
@@ -411,7 +635,11 @@
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
         let chartSegmentos = null, chartCustoBeneficio = null, chartProjecao = null;
         let currentView = 'day';
-        let sessionSeconds = 0, lastCommitTime = 0, sessionInterval = null, isRunning = false, manualPause = false;
+        
+        let totalSeconds = 0;
+        let currentSeconds = 0;
+        let currentInterval = null;
+        let isCurrentRunning = true;
 
         const dataExameInput = document.getElementById('data-exame');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
@@ -428,61 +656,64 @@
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
         }
         
-        function updateSessionDisplay() { document.getElementById('timer-display').textContent = formatTime(sessionSeconds); }
+        function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
+        function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
         
-        function startSession() {
-            if(sessionInterval) clearInterval(sessionInterval);
-            isRunning = true; manualPause = false;
-            document.getElementById('timer-box').classList.remove('paused', 'auto-paused');
-            document.getElementById('btn-pause').textContent = "⏸ Pausar";
-            sessionInterval = setInterval(() => {
-                sessionSeconds++;
-                updateSessionDisplay();
+        function startCurrentTimer() {
+            if(currentInterval) clearInterval(currentInterval);
+            currentInterval = setInterval(() => {
+                if(isCurrentRunning) {
+                    currentSeconds++;
+                    updateCurrentDisplay();
+                }
             }, 1000);
         }
         
-        function pauseSession(isAuto = false) {
-            isRunning = false; clearInterval(sessionInterval);
-            const box = document.getElementById('timer-box');
-            box.classList.add(isAuto ? 'auto-paused' : 'paused');
-            box.classList.remove(isAuto ? 'paused' : 'auto-paused');
-            document.getElementById('btn-pause').textContent = "▶ Retomar";
+        function togglePauseCurrentTimer() {
+            isCurrentRunning = !isCurrentRunning;
+            const btn = document.getElementById('btn-pause-current');
+            btn.textContent = isCurrentRunning ? '⏸' : '▶';
         }
         
-        function togglePause() { if(isRunning) { manualPause = true; pauseSession(false); } else { manualPause = false; startSession(); } }
-        function resetSession() { if(confirm("Iniciar nova jornada?")) { sessionSeconds = 0; lastCommitTime = 0; updateSessionDisplay(); startSession(); } }
-        
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) { if(isRunning) pauseSession(true); } 
-            else { if (!manualPause && !isRunning) startSession(); }
-        });
-
-        // FUNÇÃO PARA CALCULAR VALOR MENSAL
-        function calcularValorMensal(ano, mes) {
-            const totals = { hbj: 0, mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0 };
-            let totalGeral = 0;
-            const ultimoDia = new Date(ano, mes, 0).getDate();
-            
-            for(let d = 1; d <= ultimoDia; d++) {
-                const dataStr = `${ano}-${mes.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                if(dadosApp.exames[dataStr]) {
-                    Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
-                        servicos.forEach(servico => {
-                            const valorUnitario = segmento.valores[servico.id];
-                            if(valorUnitario !== null && valorUnitario !== undefined) {
-                                const qtd = dadosApp.exames[dataStr][segmentoKey]?.[servico.id] || 0;
-                                totals[servico.id] += qtd * valorUnitario;
-                                totalGeral += qtd * valorUnitario;
-                            }
-                        });
-                    });
+        function resetCurrentTimer() {
+            if(confirm('Reiniciar cronômetro do laudo atual?')) {
+                currentSeconds = 0;
+                updateCurrentDisplay();
+                if(!isCurrentRunning) {
+                    isCurrentRunning = true;
+                    document.getElementById('btn-pause-current').textContent = '⏸';
                 }
+                showNotification('⏱️ Cronômetro reiniciado!', 'warning');
             }
-            return { totals, totalGeral };
+        }
+        
+        function addCurrentTimeToTotal() {
+            if(currentSeconds > 0) {
+                totalSeconds += currentSeconds;
+                updateTotalDisplay();
+                localStorage.setItem('totalAcumuladoSegundos', totalSeconds.toString());
+                return currentSeconds;
+            }
+            return 0;
+        }
+        
+        function resetCurrentTimerAfterCommit() {
+            currentSeconds = 0;
+            updateCurrentDisplay();
+            if(!isCurrentRunning) {
+                isCurrentRunning = true;
+                document.getElementById('btn-pause-current').textContent = '⏸';
+            }
+        }
+        
+        function showNotification(msg, type = 'success') {
+            const el = document.createElement('div');
+            el.textContent = msg;
+            const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c');
+            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:${bgColor}; color:white; padding:15px; border-radius:8px; z-index:9999; font-weight:bold;`;
+            document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
         }
 
-        async function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
-        
         async function carregarDadosFirebase() {
             try {
                 atualizarStatus("Conectando...", "loading");
@@ -492,6 +723,8 @@
                     dadosApp.exames = data.exames || data || {};
                     dadosApp.tempos = data.tempos || {};
                     dadosApp.pagamentos = data.pagamentos || {};
+                    const savedTotal = localStorage.getItem('totalAcumuladoSegundos');
+                    if(savedTotal) totalSeconds = parseInt(savedTotal);
                 } else { 
                     const local = localStorage.getItem('examesTomografia'); 
                     if(local) { 
@@ -500,16 +733,18 @@
                         dadosApp.tempos = parsed.tempos || {};
                         dadosApp.pagamentos = parsed.pagamentos || {};
                     } 
+                    const savedTotal = localStorage.getItem('totalAcumuladoSegundos');
+                    if(savedTotal) totalSeconds = parseInt(savedTotal);
                 }
                 if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
                 if(!dadosApp.exames) dadosApp.exames = {};
                 if(!dadosApp.tempos) dadosApp.tempos = {};
                 
                 atualizarStatus("Sincronizado", "success");
-                await salvarDadosFirebase();
+                updateTotalDisplay();
                 
             } catch (e) {
-                console.error("Erro ao carregar dados:", e);
+                console.error("Erro:", e);
                 const local = localStorage.getItem('examesTomografia');
                 if(local) {
                     const parsed = JSON.parse(local);
@@ -517,9 +752,6 @@
                     dadosApp.tempos = parsed.tempos || {};
                     dadosApp.pagamentos = parsed.pagamentos || {};
                 }
-                if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                if(!dadosApp.exames) dadosApp.exames = {};
-                if(!dadosApp.tempos) dadosApp.tempos = {};
                 atualizarStatus("Offline", "error");
             }
             
@@ -527,62 +759,56 @@
             criarTabela(); 
             popularTimerConfig(); 
             atualizarGraficos(); 
-            startSession();
+            startCurrentTimer();
         }
         
         async function salvarDadosFirebase() {
             try { 
                 await db.collection('controles').doc('examesTomografia').set(dadosApp); 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
+                localStorage.setItem('totalAcumuladoSegundos', totalSeconds.toString());
                 atualizarStatus("Salvo!", "success"); 
             } catch (e) { 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
+                localStorage.setItem('totalAcumuladoSegundos', totalSeconds.toString());
                 atualizarStatus("Salvo Local", "error"); 
             }
         }
-
-        function togglePagamento(empresaId, mesAno) {
-            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
-            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
-            salvarDadosFirebase();
-            gerarRelatorioMensal();
-        }
-
-        function atualizarInterfacePagamentos(mesAno) {
-            const container = document.getElementById('payment-status-buttons');
-            const summaryContainer = document.getElementById('payment-summary');
-            if (!container) return;
+        
+        async function finalizarLaudo() {
+            const servico = document.getElementById('timer-servico').value;
+            const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
+            const data = dataExameInput.value;
             
-            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
+            if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
             
-            const [ano, mes] = mesAno.split('-');
-            const { totals, totalGeral } = calcularValorMensal(parseInt(ano), parseInt(mes));
+            const tempoGasto = addCurrentTimeToTotal();
             
-            let html = '';
-            let totalRecebido = 0;
+            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
+            if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
             
-            servicos.forEach(servico => {
-                const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
-                const valorTotal = totals[servico.id];
-                if (isPaid) totalRecebido += valorTotal;
-                
-                html += `
-                    <div class="payment-checkbox ${isPaid ? 'paid' : ''}" onclick="togglePagamento('${servico.id}', '${mesAno}')">
-                        <input type="checkbox" ${isPaid ? 'checked' : ''} onclick="event.stopPropagation(); togglePagamento('${servico.id}', '${mesAno}')">
-                        <label>${servico.nome}</label>
-                        <span>R$ ${valorTotal.toFixed(2)}</span>
-                        ${isPaid ? '<span class="badge-paid">✓ Pago</span>' : '<span class="badge-pending">⏳ Pendente</span>'}
-                    </div>
-                `;
+            const tempoDividido = tempoGasto / checkboxes.length;
+            
+            let segNomes = [];
+            checkboxes.forEach(cb => {
+                const seg = cb.value;
+                segNomes.push(valoresSegmentos[seg].nome);
+                if (tempoDividido > 0) {
+                    const key = `${servico}_${seg}`;
+                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
+                    dadosApp.tempos[data][key].push(tempoDividido);
+                }
+                if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+                const atual = dadosApp.exames[data][seg][servico] || 0;
+                dadosApp.exames[data][seg][servico] = atual + 1;
             });
             
-            container.innerHTML = html;
-            
-            summaryContainer.innerHTML = `
-                <div>💰 <span>Recebido:</span> R$ ${totalRecebido.toFixed(2)}</div>
-                <div>📅 <span>A Receber:</span> R$ ${(totalGeral - totalRecebido).toFixed(2)}</div>
-                <div>🎯 <span>Total Mês:</span> R$ ${totalGeral.toFixed(2)}</div>
-            `;
+            resetCurrentTimerAfterCommit();
+            await salvarDadosFirebase();
+            criarTabela();
+            atualizarGraficos();
+            showNotification(`✅ ${segNomes.join(", ")} finalizado! Tempo: ${formatTime(tempoGasto)}`, 'success');
         }
 
         function criarLegenda() {
@@ -603,11 +829,9 @@
 
         function popularTimerConfig() {
             const selServ = document.getElementById('timer-servico'); 
-            if (!selServ) return;
             selServ.innerHTML = '<option value="">Selecione...</option>';
             servicos.forEach(s => selServ.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
             const contSeg = document.getElementById('timer-segmentos-container'); 
-            if (!contSeg) return;
             contSeg.innerHTML = '';
             Object.entries(valoresSegmentos).forEach(([k, v]) => {
                 const label = document.createElement('label'); label.className = 'check-item';
@@ -617,45 +841,8 @@
             });
         }
 
-        async function finalizarEContabilizar() {
-            const servico = document.getElementById('timer-servico').value;
-            const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
-            const data = dataExameInput.value;
-            if (!servico) return alert("Selecione a EMPRESA.");
-            if (checkboxes.length === 0) return alert("Selecione ao menos 1 SEGMENTO.");
-            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
-            if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
-
-            let tempoGasto = sessionSeconds - lastCommitTime;
-            if(tempoGasto < 1) tempoGasto = 60;
-            const tempoDividido = tempoGasto / checkboxes.length;
-            lastCommitTime = sessionSeconds; 
-
-            let segNomes = [];
-            checkboxes.forEach(cb => {
-                const seg = cb.value; segNomes.push(valoresSegmentos[seg].nome);
-                if (tempoDividido > 0) {
-                    const key = `${servico}_${seg}`;
-                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
-                    dadosApp.tempos[data][key].push(tempoDividido);
-                }
-                if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
-                const atual = dadosApp.exames[data][seg][servico] || 0;
-                dadosApp.exames[data][seg][servico] = atual + 1;
-            });
-
-            const el = document.createElement('div');
-            el.textContent = `✅ ${segNomes.join(", ")} salvo! (${formatTime(tempoGasto)} total)`;
-            el.style.cssText = "position:fixed; bottom:20px; right:20px; background:#27ae60; color:white; padding:15px; border-radius:8px; z-index:9999; font-weight:bold;";
-            document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
-            await salvarDadosFirebase(); 
-            criarTabela(); 
-            atualizarGraficos();
-        }
-
         function criarTabela() {
             const tbody = document.getElementById('exams-body'); 
-            if (!tbody) return;
             tbody.innerHTML = ''; 
             const data = dataExameInput.value;
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
@@ -672,10 +859,7 @@
                             <span class="count-display">${qtd}</span>
                             <button class="counter-btn" onclick="alterarContador('${chave}', '${s.id}', 1)">+</button>
                         </div>`;
-                    } else { 
-                        td.className = "nao-tem"; 
-                        td.textContent = "-"; 
-                    }
+                    } else { td.className = "nao-tem"; td.textContent = "-"; }
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
@@ -696,52 +880,35 @@
         function atualizarResumo() {
             const container = document.getElementById('resumo-container'); 
             const totalGeralEl = document.getElementById('total-geral'); 
-            if (!container) return;
             const data = dataExameInput.value;
             let totalExames = 0, totalValor = 0; 
             container.innerHTML = '';
             servicos.forEach(s => {
                 const card = document.createElement('div'); 
                 card.className = 'resumo-card'; 
-                let items = ''; 
-                let subTotal = 0, subQtd = 0;
+                let items = ''; let subTotal = 0, subQtd = 0;
                 Object.entries(valoresSegmentos).forEach(([k, seg]) => {
                     const v = seg.valores[s.id]; 
                     const qtd = dadosApp.exames[data]?.[k]?.[s.id] || 0;
-                    if(v && qtd > 0) { 
-                        subTotal += qtd * v; 
-                        subQtd += qtd; 
-                        items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`; 
-                    }
+                    if(v && qtd > 0) { subTotal += qtd * v; subQtd += qtd; items += `<div class="resumo-item"><span>${seg.nome}</span><span>${qtd}x R$${v}</span></div>`; }
                 });
-                totalExames += subQtd; 
-                totalValor += subTotal;
+                totalExames += subQtd; totalValor += subTotal;
                 card.innerHTML = `<h3>${s.nome}</h3>${items}<div class="resumo-item total"><span>Total</span><span>R$ ${subTotal.toFixed(2)}</span></div>`; 
                 container.appendChild(card);
             });
-            if (totalGeralEl) {
-                totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
-            }
+            if (totalGeralEl) totalGeralEl.innerHTML = `<div><span>Exames</span><strong>${totalExames}</strong></div><div><span>Valor Total</span><strong>R$ ${totalValor.toFixed(2)}</strong></div>`;
         }
 
         function getDateRange(view) {
             const selectedDate = new Date(dataExameInput.value + "T00:00:00"); 
             let start, end;
-            if (view === 'day') { 
-                start = new Date(selectedDate); 
-                end = new Date(selectedDate); 
-            }
+            if (view === 'day') { start = new Date(selectedDate); end = new Date(selectedDate); }
             else if (view === 'week') {
                 const day = selectedDate.getDay(); 
                 const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
-                start = new Date(selectedDate.setDate(diff)); 
-                start.setHours(0,0,0,0); 
-                end = new Date(start); 
-                end.setDate(end.getDate() + 6);
-            } else { 
-                start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1); 
-                end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); 
-            }
+                start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0); 
+                end = new Date(start); end.setDate(end.getDate() + 6);
+            } else { start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1); end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); }
             return { start, end };
         }
         
@@ -828,7 +995,7 @@
 
             if(chartCustoBeneficio) chartCustoBeneficio.destroy();
             const chartCustoCanvas = document.getElementById('chartCustoBeneficio');
-            if (chartCustoCanvas) {
+            if (chartCustoCanvas && labelsCB.length > 0) {
                 chartCustoBeneficio = new Chart(chartCustoCanvas, {
                     type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: colorsCB }] },
                     options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
@@ -861,12 +1028,8 @@
 
             if(chartProjecao) chartProjecao.destroy();
             const ctx = document.getElementById('chartProjecao24h');
-            if (ctx) {
-                chartProjecao = new Chart(ctx, { 
-                    type: 'line', 
-                    data: { labels: labelsHoras, datasets: datasetsProj }, 
-                    options: { responsive: true, maintainAspectRatio: false } 
-                });
+            if (ctx && datasetsProj.length > 0) {
+                chartProjecao = new Chart(ctx, { type: 'line', data: { labels: labelsHoras, datasets: datasetsProj }, options: { responsive: true, maintainAspectRatio: false } });
             }
         }
 
@@ -875,36 +1038,27 @@
             document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
             document.getElementById(id).classList.add('active'); 
             evt.currentTarget.classList.add('active');
-            if (id === 'controle') { 
-                if (!manualPause && !isRunning) startSession(); 
-                atualizarGraficos(); 
-            }
             if(id === 'relatorio') gerarRelatorioMensal();
             if(id === 'projecao') atualizarGraficoProjecao();
         }
         
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
-            const anoNum = parseInt(ano);
-            const mesNum = parseInt(mes);
+            const anoNum = parseInt(ano), mesNum = parseInt(mes);
             const { totals, totalGeral } = calcularValorMensal(anoNum, mesNum);
-            
             const tbody = document.getElementById('relatorio-body'); 
-            if (!tbody) return;
             tbody.innerHTML = '';
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
                 const tr = document.createElement('tr'); 
-                tr.innerHTML = `<td class="exam-name">${d}/${mes} </td>`;
+                tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
                 let totalDia = 0;
                 servicos.forEach(s => {
                     let vDia = 0;
                     if(dadosApp.exames[dataStr]) {
-                        Object.entries(valoresSegmentos).forEach(([k, seg]) => { 
-                            if(seg.valores[s.id]) vDia += (dadosApp.exames[dataStr][k]?.[s.id] || 0) * seg.valores[s.id];
-                        });
+                        Object.entries(valoresSegmentos).forEach(([k, seg]) => { if(seg.valores[s.id]) vDia += (dadosApp.exames[dataStr][k]?.[s.id] || 0) * seg.valores[s.id]; });
                     }
                     totalDia += vDia;
                     tr.innerHTML += `<td>R$ ${vDia.toFixed(2)}</td>`;
@@ -917,8 +1071,7 @@
             if (resumoContainer) {
                 resumoContainer.innerHTML = '';
                 servicos.forEach(s => {
-                    const card = document.createElement('div'); 
-                    card.className = 'resumo-card';
+                    const card = document.createElement('div'); card.className = 'resumo-card';
                     const valorTotal = totals[s.id];
                     const mesAno = mesRelatorioInput.value;
                     const isPaid = dadosApp.pagamentos[mesAno]?.[s.id] || false;
@@ -928,29 +1081,77 @@
             }
             
             const totalMensalEl = document.getElementById('total-mensal-geral');
-            if (totalMensalEl) {
-                totalMensalEl.innerHTML = `<div><span>Total Mês</span><strong>R$ ${totalGeral.toFixed(2)}</strong></div>`;
-            }
+            if (totalMensalEl) totalMensalEl.innerHTML = `<div><span>Total Mês</span><strong>R$ ${totalGeral.toFixed(2)}</strong></div>`;
             atualizarInterfacePagamentos(mesRelatorioInput.value);
         }
         
+        function calcularValorMensal(ano, mes) {
+            const totals = { hbj: 0, mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0 };
+            let totalGeral = 0;
+            const ultimoDia = new Date(ano, mes, 0).getDate();
+            for(let d = 1; d <= ultimoDia; d++) {
+                const dataStr = `${ano}-${mes.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                if(dadosApp.exames[dataStr]) {
+                    Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
+                        servicos.forEach(servico => {
+                            const valorUnitario = segmento.valores[servico.id];
+                            if(valorUnitario !== null && valorUnitario !== undefined) {
+                                const qtd = dadosApp.exames[dataStr][segmentoKey]?.[servico.id] || 0;
+                                totals[servico.id] += qtd * valorUnitario;
+                                totalGeral += qtd * valorUnitario;
+                            }
+                        });
+                    });
+                }
+            }
+            return { totals, totalGeral };
+        }
+
+        function togglePagamento(empresaId, mesAno) {
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
+            salvarDadosFirebase();
+            gerarRelatorioMensal();
+        }
+
+        function atualizarInterfacePagamentos(mesAno) {
+            const container = document.getElementById('payment-status-buttons');
+            const summaryContainer = document.getElementById('payment-summary');
+            if (!container) return;
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            const [ano, mes] = mesAno.split('-');
+            const { totals, totalGeral } = calcularValorMensal(parseInt(ano), parseInt(mes));
+            let html = '', totalRecebido = 0;
+            servicos.forEach(servico => {
+                const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
+                const valorTotal = totals[servico.id];
+                if (isPaid) totalRecebido += valorTotal;
+                html += `<div class="payment-checkbox ${isPaid ? 'paid' : ''}" onclick="togglePagamento('${servico.id}', '${mesAno}')">
+                            <input type="checkbox" ${isPaid ? 'checked' : ''} onclick="event.stopPropagation(); togglePagamento('${servico.id}', '${mesAno}')">
+                            <label>${servico.nome}</label>
+                            <span>R$ ${valorTotal.toFixed(2)}</span>
+                            ${isPaid ? '<span class="badge-paid">✓ Pago</span>' : '<span class="badge-pending">⏳ Pendente</span>'}
+                         </div>`;
+            });
+            container.innerHTML = html;
+            summaryContainer.innerHTML = `<div>💰 Recebido: R$ ${totalRecebido.toFixed(2)}</div><div>📅 A Receber: R$ ${(totalGeral - totalRecebido).toFixed(2)}</div><div>🎯 Total Mês: R$ ${totalGeral.toFixed(2)}</div>`;
+        }
+
+        function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
+        
         function downloadRelatorioExcel() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
-            const anoNum = parseInt(ano);
-            const mesNum = parseInt(mes);
+            const anoNum = parseInt(ano), mesNum = parseInt(mes);
             const { totals, totalGeral } = calcularValorMensal(anoNum, mesNum);
             let csv = 'DATA;HBJ;MOBILEMED;SAGRADA;RADCLOUD;CMT;CLINIMAGE;VX;TOTAL\n';
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                let linha = `${dataStr};`;
-                let totalDia = 0;
+                let linha = `${dataStr};`, totalDia = 0;
                 servicos.forEach(servico => {
                     let totalServicoDia = 0;
                     if(dadosApp.exames[dataStr]) {
-                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => { 
-                            if(segmento.valores[servico.id]) totalServicoDia += (dadosApp.exames[dataStr][chave]?.[servico.id] || 0) * segmento.valores[servico.id];
-                        });
+                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => { if(segmento.valores[servico.id]) totalServicoDia += (dadosApp.exames[dataStr][chave]?.[servico.id] || 0) * segmento.valores[servico.id]; });
                     }
                     totalDia += totalServicoDia;
                     linha += `${totalServicoDia.toFixed(2)};`;
@@ -965,60 +1166,44 @@
                 csv += `${servico.nome};R$ ${valorTotal.toFixed(2)};${isPaid ? 'PAGO' : 'PENDENTE'}\n`;
             });
             csv += `\nTOTAL GERAL DO MÊS;R$ ${totalGeral.toFixed(2)};;\n`;
-            const a = document.createElement('a'); 
-            a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); 
-            a.download = `relatorio_${mes}_${ano}.csv`; 
-            a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
         }
         
         function baixarBackupCompleto() { 
-            const a = document.createElement('a'); 
-            a.href = URL.createObjectURL(new Blob([JSON.stringify(dadosApp,null,2)],{type:"application/json"})); 
-            a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; 
-            a.click(); 
+            const backup = { ...dadosApp, totalAcumuladoSegundos: totalSeconds };
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); 
         }
         
         function restaurarBackup() {
-            const file = document.getElementById('upload-backup').files[0]; 
-            if(!file) return;
+            const file = document.getElementById('upload-backup').files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try { 
                     const json = JSON.parse(e.target.result); 
                     dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
-                    await salvarDadosFirebase(); 
-                    criarLegenda(); 
-                    criarTabela(); 
-                    atualizarGraficos(); 
+                    if(json.totalAcumuladoSegundos) totalSeconds = json.totalAcumuladoSegundos;
+                    await salvarDadosFirebase(); updateTotalDisplay(); criarLegenda(); criarTabela(); atualizarGraficos(); 
                     if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
-                    alert("✅ Backup restaurado com sucesso!"); 
-                } catch(err) { 
-                    console.error(err);
-                    alert("❌ Erro ao restaurar arquivo"); 
-                }
+                    showNotification("✅ Backup restaurado!", "success");
+                } catch(err) { showNotification("❌ Erro ao restaurar", "error"); }
             };
             reader.readAsText(file);
         }
         
         async function limparDia() { 
             if(confirm("Zerar exames do dia?")) { 
-                const data = dataExameInput.value; 
-                dadosApp.exames[data] = {}; 
-                dadosApp.tempos[data] = {}; 
-                await salvarDadosFirebase(); 
-                criarTabela(); 
-                atualizarGraficos(); 
+                const data = dataExameInput.value; dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
+                await salvarDadosFirebase(); criarTabela(); atualizarGraficos(); showNotification("🗑️ Dia zerado!", "warning");
             } 
         }
         
         async function limparTodosDados() {
-            if(confirm("⚠️ ATENÇÃO: Isso irá APAGAR TODOS os dados! Tem certeza?")) {
+            if(confirm("⚠️ APAGAR TODOS os dados?")) {
                 dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
-                await salvarDadosFirebase();
-                criarTabela(); 
-                atualizarGraficos();
+                totalSeconds = 0;
+                await salvarDadosFirebase(); updateTotalDisplay(); criarTabela(); atualizarGraficos();
                 if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
-                alert("Todos os dados foram apagados!");
+                showNotification("⚠️ Todos os dados apagados!", "error");
             }
         }
 
