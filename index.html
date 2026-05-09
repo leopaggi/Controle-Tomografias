@@ -49,7 +49,6 @@
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
 
-        /* NOVO: Resumo por Empresa - estilo mais compacto */
         .resumo-empresas {
             background: white;
             border: 1px solid #e1e1e1;
@@ -315,6 +314,142 @@
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.8rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.65rem; }
 
+        /* ESTILOS PARA RELATÓRIO MENSAL - UNIFICADO */
+        .relatorio-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .filtro-mes {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .filtro-mes label {
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .filtro-mes input {
+            padding: 6px 12px;
+            border-radius: 5px;
+            border: none;
+            margin: 0 8px;
+        }
+        .resumo-pagamento-unificado {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+        @media (max-width: 800px) {
+            .resumo-pagamento-unificado { grid-template-columns: 1fr; gap: 15px; }
+        }
+        .empresas-pagamento {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn-pagamento-empresa {
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 25px;
+            padding: 6px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .btn-pagamento-empresa:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.02);
+        }
+        .btn-pagamento-empresa.pago {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .btn-pagamento-empresa.pendente {
+            background: var(--warning);
+            border-color: var(--warning);
+        }
+        .btn-pagamento-empresa input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .btn-pagamento-empresa label {
+            cursor: pointer;
+        }
+        .valor-empresa {
+            font-weight: bold;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+        .total-mes-central {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 12px 20px;
+            border-radius: 12px;
+            min-width: 180px;
+        }
+        .total-mes-central .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+        .total-mes-central .valor {
+            font-size: 1.6rem;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+        .resumo-recebimento {
+            text-align: right;
+        }
+        .resumo-recebimento .recebido {
+            background: var(--success);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .resumo-recebimento .a-receber {
+            background: var(--warning);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .resumo-recebimento .label {
+            font-size: 0.7rem;
+            opacity: 0.9;
+        }
+        .resumo-recebimento .valor {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .excel-btn {
+            background: var(--success);
+            color: white;
+            padding: 6px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -373,54 +508,6 @@
             margin-bottom: 15px;
             border-left: 4px solid var(--success);
         }
-        .payment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #ddd;
-        }
-        .payment-header h3 {
-            color: var(--primary);
-            font-size: 0.9rem;
-            margin: 0;
-        }
-        .payment-status {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .payment-checkbox {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: white;
-            padding: 5px 12px;
-            border-radius: 18px;
-            border: 1px solid #ddd;
-            cursor: pointer;
-            font-size: 0.7rem;
-        }
-        .payment-checkbox:hover { background: #f0f0f0; }
-        .payment-checkbox.paid { background: #d4edda; border-color: var(--success); }
-        .payment-checkbox input { width: 16px; height: 16px; cursor: pointer; }
-        .payment-checkbox label { cursor: pointer; font-weight: 500; margin: 0; }
-        .badge-paid { background: var(--success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.6rem; font-weight: bold; }
-        .badge-pending { background: var(--warning); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.6rem; font-weight: bold; }
-        .payment-summary {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #ddd;
-            font-size: 0.75rem;
-        }
-        .payment-summary span { font-weight: bold; color: var(--primary); }
         
         .projecao-info {
             display: grid;
@@ -456,13 +543,11 @@
         </div>
         
         <div id="controle" class="tab-content active">
-            <!-- 1 - TABELA VALORES POR SEGMENTO -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
-            <!-- 2 - RESUMO POR EMPRESA (NOVO - LOGO ABAIXO) -->
             <div class="resumo-empresas" id="resumo-empresas-container">
                 <h3>📊 Produção por Empresa</h3>
                 <div class="empresas-grid" id="empresas-resumo-grid"></div>
@@ -476,7 +561,6 @@
                 </div>
             </div>
 
-            <!-- 3 - CRONÔMETRO -->
             <div class="workflow-container">
                 <div class="timer-box" id="timer-box">
                     <div class="timer-total">
@@ -514,7 +598,6 @@
                 </div>
             </div>
 
-            <!-- 4 - TABELA DE LANÇAMENTO MANUAL -->
             <h3 style="margin-bottom: 8px; color: var(--primary); font-size: 0.9rem;">Lançamento Manual</h3>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
@@ -525,7 +608,6 @@
                 </table>
             </div>
 
-            <!-- 5 - GRÁFICOS -->
             <div class="dashboard-grid">
                 <div class="chart-box">
                     <h3>Tempo Médio por Segmento</h3>
@@ -549,26 +631,27 @@
         </div>
 
         <div id="relatorio" class="tab-content">
-            <div style="text-align: center; margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 8px;">
-                <label for="mes-relatorio"><strong>Mês:</strong></label>
-                <input type="month" id="mes-relatorio">
-                <button onclick="gerarRelatorioMensal()" class="btn-save" style="margin-left: 8px; padding: 5px 12px;">Gerar</button>
-                <button onclick="downloadRelatorioExcel()" class="btn-action" style="margin-left: 5px; padding: 5px 12px;">Excel</button>
-            </div>
-            
-            <div class="payment-controls">
-                <div class="payment-header">
-                    <h3>💰 Controle de Pagamentos por Empresa</h3>
-                    <div class="payment-status" id="payment-status-buttons"></div>
+            <!-- NOVO HEADER UNIFICADO -->
+            <div class="relatorio-header">
+                <div class="filtro-mes">
+                    <div>
+                        <label>📅 Mês de referência:</label>
+                        <input type="month" id="mes-relatorio">
+                        <button onclick="gerarRelatorioMensal()" class="excel-btn" style="background: var(--secondary);">🔄 Atualizar</button>
+                        <button onclick="downloadRelatorioExcel()" class="excel-btn">📎 Exportar Excel</button>
+                    </div>
                 </div>
-                <div class="payment-summary" id="payment-summary"></div>
+                
+                <div class="resumo-pagamento-unificado" id="unificado-pagamento-container">
+                    <!-- Conteúdo dinâmico -->
+                </div>
             </div>
-            
-            <div class="resumo-container" id="resumo-mensal-container"></div>
-            <div class="total-geral" id="total-mensal-geral" style="margin-bottom: 15px;"></div>
+
+            <!-- TABELA MENSAL -->
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th><tr></thead>
+                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th></tr>
+                    </thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
             </div>
@@ -734,7 +817,6 @@
             document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
         }
 
-        // NOVA FUNÇÃO: Atualizar resumo por empresas
         function atualizarResumoEmpresas() {
             const data = dataExameInput.value;
             const totals = {};
@@ -762,7 +844,6 @@
                 });
             }
             
-            // Renderizar grid de empresas
             const grid = document.getElementById('empresas-resumo-grid');
             if (grid) {
                 grid.innerHTML = '';
@@ -833,7 +914,7 @@
             criarLegenda(); 
             criarTabela(); 
             popularTimerConfig(); 
-            atualizarResumoEmpresas(); // Chamar nova função
+            atualizarResumoEmpresas();
             atualizarGraficos(); 
             startCurrentTimer();
         }
@@ -885,7 +966,7 @@
             resetCurrentTimerAfterCommit();
             await salvarDadosFirebase();
             criarTabela();
-            atualizarResumoEmpresas(); // Atualizar resumo
+            atualizarResumoEmpresas();
             atualizarGraficos();
             showNotification(`✅ ${segNomes.join(", ")} finalizado! Tempo: ${formatTime(tempoGasto)}`, 'success');
         }
@@ -943,7 +1024,7 @@
                 });
                 tbody.appendChild(tr);
             });
-            atualizarResumoEmpresas(); // Atualizar também aqui
+            atualizarResumoEmpresas();
         }
         
         async function alterarContador(seg, serv, delta) {
@@ -1124,22 +1205,62 @@
                 tbody.appendChild(tr);
             }
             
-            const resumoContainer = document.getElementById('resumo-mensal-container');
-            if (resumoContainer) {
-                resumoContainer.innerHTML = '';
-                servicos.forEach(s => {
-                    const card = document.createElement('div'); card.className = 'resumo-card';
-                    const valorTotal = totals[s.id];
-                    const mesAno = mesRelatorioInput.value;
-                    const isPaid = dadosApp.pagamentos[mesAno]?.[s.id] || false;
-                    card.innerHTML = `<h3>${s.nome}</h3><div class="resumo-item total"><span>Total:</span><span>R$ ${valorTotal.toFixed(2)}</span></div><div class="resumo-item"><span>Status:</span><span class="${isPaid ? 'badge-paid' : 'badge-pending'}">${isPaid ? '✓ Pago' : '⏳ Pendente'}</span></div>`;
-                    resumoContainer.appendChild(card);
-                });
-            }
+            // Renderiza o header unificado com pagamentos
+            renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeral);
+        }
+        
+        function renderizarHeaderUnificado(mesAno, totals, totalGeral) {
+            const container = document.getElementById('unificado-pagamento-container');
+            if (!container) return;
             
-            const totalMensalEl = document.getElementById('total-mensal-geral');
-            if (totalMensalEl) totalMensalEl.innerHTML = `<div><span>Total Mês</span><strong>R$ ${totalGeral.toFixed(2)}</strong></div>`;
-            atualizarInterfacePagamentos(mesRelatorioInput.value);
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            
+            let totalRecebido = 0;
+            servicos.forEach(servico => {
+                if (dadosApp.pagamentos[mesAno][servico.id]) {
+                    totalRecebido += totals[servico.id];
+                }
+            });
+            
+            const html = `
+                <div class="empresas-pagamento">
+                    ${servicos.map(servico => {
+                        const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
+                        const valorTotal = totals[servico.id];
+                        return `
+                            <div class="btn-pagamento-empresa ${isPaid ? 'pago' : 'pendente'}" style="border-color: ${servico.color}">
+                                <input type="checkbox" ${isPaid ? 'checked' : ''} 
+                                    onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">
+                                <label onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">${servico.nome}</label>
+                                <span class="valor-empresa">R$ ${valorTotal.toFixed(2)}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="total-mes-central">
+                    <div class="label">💰 TOTAL DO MÊS</div>
+                    <div class="valor">R$ ${totalGeral.toFixed(2)}</div>
+                </div>
+                <div class="resumo-recebimento">
+                    <div class="recebido">
+                        <div class="label">✓ RECEBIDO</div>
+                        <div class="valor">R$ ${totalRecebido.toFixed(2)}</div>
+                    </div>
+                    <div class="a-receber">
+                        <div class="label">⏳ A RECEBER</div>
+                        <div class="valor">R$ ${(totalGeral - totalRecebido).toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function togglePagamentoUnificado(empresaId, mesAno) {
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
+            salvarDadosFirebase();
+            gerarRelatorioMensal();
         }
         
         function calcularValorMensal(ano, mes) {
@@ -1162,36 +1283,6 @@
                 }
             }
             return { totals, totalGeral };
-        }
-
-        function togglePagamento(empresaId, mesAno) {
-            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
-            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
-            salvarDadosFirebase();
-            gerarRelatorioMensal();
-        }
-
-        function atualizarInterfacePagamentos(mesAno) {
-            const container = document.getElementById('payment-status-buttons');
-            const summaryContainer = document.getElementById('payment-summary');
-            if (!container) return;
-            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
-            const [ano, mes] = mesAno.split('-');
-            const { totals, totalGeral } = calcularValorMensal(parseInt(ano), parseInt(mes));
-            let html = '', totalRecebido = 0;
-            servicos.forEach(servico => {
-                const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
-                const valorTotal = totals[servico.id];
-                if (isPaid) totalRecebido += valorTotal;
-                html += `<div class="payment-checkbox ${isPaid ? 'paid' : ''}" onclick="togglePagamento('${servico.id}', '${mesAno}')">
-                            <input type="checkbox" ${isPaid ? 'checked' : ''} onclick="event.stopPropagation(); togglePagamento('${servico.id}', '${mesAno}')">
-                            <label>${servico.nome}</label>
-                            <span>R$ ${valorTotal.toFixed(2)}</span>
-                            ${isPaid ? '<span class="badge-paid">✓ Pago</span>' : '<span class="badge-pending">⏳ Pendente</span>'}
-                         </div>`;
-            });
-            container.innerHTML = html;
-            summaryContainer.innerHTML = `<div>💰 Recebido: R$ ${totalRecebido.toFixed(2)}</div><div>📅 A Receber: R$ ${(totalGeral - totalRecebido).toFixed(2)}</div><div>🎯 Total Mês: R$ ${totalGeral.toFixed(2)}</div>`;
         }
 
         function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
@@ -1262,7 +1353,7 @@
                 localStorage.setItem(totalKey, '0');
                 await salvarDadosFirebase(); 
                 criarTabela(); 
-                atualizarResumoEmpresas(); // Atualizar resumo
+                atualizarResumoEmpresas();
                 atualizarGraficos(); 
                 showNotification("🗑️ Dia zerado! Cronômetros resetados.", "warning");
             } 
@@ -1304,7 +1395,7 @@
                     
                     dataAnterior = novaData;
                     criarTabela(); 
-                    atualizarResumoEmpresas(); // Atualizar resumo
+                    atualizarResumoEmpresas();
                     atualizarGraficos();
                     showNotification(`📅 Data alterada para ${novaData}! Cronômetros zerados.`, "warning");
                 } else {
