@@ -49,110 +49,88 @@
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
 
-        /* NOVO LAYOUT: Cards de resumo por empresa e totais lado a lado */
-        .resumo-top-bar {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 15px;
-            margin: 20px 0;
-            align-items: stretch;
-        }
-        
-        /* Container dos cards de empresas - scroll horizontal se necessário */
-        .empresas-cards {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 10px;
-            overflow-x: auto;
-        }
-        
-        .empresas-cards h4 {
-            font-size: 0.7rem;
-            color: #666;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .cards-horizontal {
-            display: flex;
-            gap: 12px;
-            min-width: min-content;
-        }
-        
-        .card-empresa {
+        /* NOVO: Resumo por Empresa - estilo mais compacto */
+        .resumo-empresas {
             background: white;
-            border-radius: 10px;
-            padding: 8px 12px;
-            min-width: 120px;
-            border-top: 3px solid;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        
-        .card-empresa .empresa-nome {
+        .resumo-empresas h3 {
+            color: var(--primary);
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #eee;
+            display: inline-block;
+        }
+        .empresas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .empresa-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 8px 10px;
+            border-left: 3px solid;
+            transition: all 0.2s;
+        }
+        .empresa-card .empresa-nome {
             font-weight: bold;
             font-size: 0.75rem;
-            text-align: center;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        
-        .card-empresa .empresa-valor {
-            font-size: 1rem;
+        .empresa-card .empresa-valor {
+            font-size: 0.85rem;
             font-weight: bold;
-            text-align: center;
             color: var(--success);
         }
-        
-        .card-empresa .empresa-qtd {
+        .empresa-card .empresa-qtd {
             font-size: 0.65rem;
-            text-align: center;
             color: #666;
         }
-        
-        /* Cards de totais gerais e ações */
-        .totais-actions {
-            background: var(--primary);
-            border-radius: 12px;
-            padding: 10px 15px;
+        .total-resumo-empresas {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            margin-top: 5px;
+            font-size: 0.8rem;
         }
-        
-        .total-geral-card {
-            text-align: center;
+        .total-resumo-empresas .total-exames {
+            background: var(--primary);
             color: white;
-        }
-        
-        .total-geral-card .label {
-            font-size: 0.6rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.8;
-        }
-        
-        .total-geral-card .value {
-            font-size: 1.3rem;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-weight: bold;
         }
-        
-        .actions-buttons {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
+        .total-resumo-empresas .total-valor {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--success);
         }
-        
-        .btn-sm {
+        .acoes-rapidas {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn-pequeno {
             padding: 5px 12px;
             font-size: 0.7rem;
-            border-radius: 20px;
+            border-radius: 5px;
             border: none;
             cursor: pointer;
             font-weight: bold;
         }
-        
-        /* Workflow container ajustado (cronômetro + seletores) */
+
         .workflow-container {
             background: white;
             border: 1px solid #e1e1e1;
@@ -160,14 +138,11 @@
             padding: 15px;
             margin-bottom: 20px;
             display: grid;
-            grid-template-columns: 260px 1fr;
+            grid-template-columns: 300px 1fr;
             gap: 15px;
             align-items: start;
         }
-        @media (max-width: 1050px) { 
-            .resumo-top-bar { grid-template-columns: 1fr; }
-            .workflow-container { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
 
         .timer-box {
             background: #e8f6f3;
@@ -340,7 +315,6 @@
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.8rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.65rem; }
 
-        /* Dashboard gráficos */
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -392,9 +366,6 @@
         .btn-reset { background-color: var(--danger); color: white; }
         .btn-action { background-color: var(--warning); color: white; }
         
-        .info-text { font-size: 0.6rem; color: #888; margin-top: 5px; }
-
-        /* Pagamentos (relatório) */
         .payment-controls {
             background: #f8f9fa;
             border-radius: 8px;
@@ -466,6 +437,8 @@
             font-size: 0.7rem;
         }
         .projecao-card strong { display: block; font-size: 1rem; color: var(--primary); }
+        
+        .info-text { font-size: 0.6rem; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -483,52 +456,34 @@
         </div>
         
         <div id="controle" class="tab-content active">
-            <!-- Legenda de valores por segmento -->
+            <!-- 1 - TABELA VALORES POR SEGMENTO -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
 
-            <!-- TABELA DE EXAMES (lançamento manual) -->
-            <h3 style="margin-bottom: 8px; color: var(--primary); font-size: 0.9rem;">Lançamento Manual</h3>
-            <div style="overflow-x: auto;">
-                <table class="exams-table" id="exams-table">
-                    <thead>
-                        <tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th></tr>
-                    </thead>
-                    <tbody id="exams-body"></tbody>
-                </table>
-            </div>
-
-            <!-- NOVA BARRA: Resumo por empresa + Totais/Ações -->
-            <div class="resumo-top-bar">
-                <div class="empresas-cards">
-                    <h4>📊 PRODUÇÃO POR EMPRESA</h4>
-                    <div class="cards-horizontal" id="empresas-cards-container"></div>
+            <!-- 2 - RESUMO POR EMPRESA (NOVO - LOGO ABAIXO) -->
+            <div class="resumo-empresas" id="resumo-empresas-container">
+                <h3>📊 Produção por Empresa</h3>
+                <div class="empresas-grid" id="empresas-resumo-grid"></div>
+                <div class="total-resumo-empresas">
+                    <span class="total-exames" id="total-exames-dia">0 exames</span>
+                    <span class="total-valor" id="total-valor-dia">R$ 0,00</span>
                 </div>
-                <div class="totais-actions">
-                    <div class="total-geral-card">
-                        <div class="label">💰 VALOR TOTAL</div>
-                        <div class="value" id="total-valor-top">R$ 0,00</div>
-                    </div>
-                    <div class="total-geral-card">
-                        <div class="label">📋 TOTAL EXAMES</div>
-                        <div class="value" id="total-exames-top">0</div>
-                    </div>
-                    <div class="actions-buttons">
-                        <button class="btn-sm btn-save" onclick="salvarDadosFirebase()">💾 Sincronizar</button>
-                        <button class="btn-sm btn-reset" onclick="limparDia()">🗑️ Zerar Dia</button>
-                    </div>
+                <div class="acoes-rapidas">
+                    <button class="btn-pequeno btn-save" onclick="salvarDadosFirebase()">💾 Sincronizar</button>
+                    <button class="btn-pequeno btn-reset" onclick="limparDia()">🗑️ Zerar Dia</button>
                 </div>
             </div>
 
-            <!-- Workflow (cronômetro + seletores) -->
+            <!-- 3 - CRONÔMETRO -->
             <div class="workflow-container">
                 <div class="timer-box" id="timer-box">
                     <div class="timer-total">
                         <span class="session-label">📊 TOTAL ACUMULADO DO DIA</span>
                         <div class="timer-display" id="total-timer-display">00:00:00</div>
                     </div>
+                    
                     <div class="timer-current">
                         <span class="session-label">⏱️ TEMPO DO LAUDO ATUAL</span>
                         <div class="timer-display" id="current-timer-display">00:00:00</div>
@@ -559,7 +514,18 @@
                 </div>
             </div>
 
-            <!-- GRÁFICOS -->
+            <!-- 4 - TABELA DE LANÇAMENTO MANUAL -->
+            <h3 style="margin-bottom: 8px; color: var(--primary); font-size: 0.9rem;">Lançamento Manual</h3>
+            <div style="overflow-x: auto;">
+                <table class="exams-table" id="exams-table">
+                    <thead>
+                        <tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th></tr>
+                    </thead>
+                    <tbody id="exams-body"></tbody>
+                </table>
+            </div>
+
+            <!-- 5 - GRÁFICOS -->
             <div class="dashboard-grid">
                 <div class="chart-box">
                     <h3>Tempo Médio por Segmento</h3>
@@ -602,7 +568,7 @@
             <div class="total-geral" id="total-mensal-geral" style="margin-bottom: 15px;"></div>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th></tr></thead>
+                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th><tr></thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
             </div>
@@ -768,6 +734,57 @@
             document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
         }
 
+        // NOVA FUNÇÃO: Atualizar resumo por empresas
+        function atualizarResumoEmpresas() {
+            const data = dataExameInput.value;
+            const totals = {};
+            let totalGeralExames = 0;
+            let totalGeralValor = 0;
+            
+            servicos.forEach(s => {
+                totals[s.id] = { valor: 0, qtd: 0 };
+            });
+            
+            if (dadosApp.exames[data]) {
+                Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
+                    servicos.forEach(servico => {
+                        const valorUnit = segmento.valores[servico.id];
+                        if (valorUnit !== null && valorUnit !== undefined) {
+                            const qtd = dadosApp.exames[data][segmentoKey]?.[servico.id] || 0;
+                            if (qtd > 0) {
+                                totals[servico.id].valor += qtd * valorUnit;
+                                totals[servico.id].qtd += qtd;
+                                totalGeralExames += qtd;
+                                totalGeralValor += qtd * valorUnit;
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // Renderizar grid de empresas
+            const grid = document.getElementById('empresas-resumo-grid');
+            if (grid) {
+                grid.innerHTML = '';
+                servicos.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'empresa-card';
+                    card.style.borderLeftColor = s.color;
+                    card.innerHTML = `
+                        <div class="empresa-nome">
+                            <span>${s.nome}</span>
+                            <span class="empresa-qtd">${totals[s.id].qtd} exames</span>
+                        </div>
+                        <div class="empresa-valor">R$ ${totals[s.id].valor.toFixed(2)}</div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+            
+            document.getElementById('total-exames-dia').textContent = `${totalGeralExames} exames`;
+            document.getElementById('total-valor-dia').textContent = `R$ ${totalGeralValor.toFixed(2)}`;
+        }
+
         async function carregarDadosFirebase() {
             try {
                 atualizarStatus("Conectando...", "loading");
@@ -816,6 +833,7 @@
             criarLegenda(); 
             criarTabela(); 
             popularTimerConfig(); 
+            atualizarResumoEmpresas(); // Chamar nova função
             atualizarGraficos(); 
             startCurrentTimer();
         }
@@ -867,6 +885,7 @@
             resetCurrentTimerAfterCommit();
             await salvarDadosFirebase();
             criarTabela();
+            atualizarResumoEmpresas(); // Atualizar resumo
             atualizarGraficos();
             showNotification(`✅ ${segNomes.join(", ")} finalizado! Tempo: ${formatTime(tempoGasto)}`, 'success');
         }
@@ -901,52 +920,6 @@
             });
         }
 
-        // Atualiza os cards de empresas e os totais no topo
-        function atualizarResumoTopo() {
-            const data = dataExameInput.value;
-            let totaisEmpresas = {};
-            servicos.forEach(s => { totaisEmpresas[s.id] = { valor: 0, qtd: 0 }; });
-            let totalGeralValor = 0, totalGeralQtd = 0;
-            
-            if(dadosApp.exames[data]) {
-                Object.entries(valoresSegmentos).forEach(([segKey, seg]) => {
-                    servicos.forEach(s => {
-                        const valorUnit = seg.valores[s.id];
-                        if(valorUnit !== null && valorUnit !== undefined) {
-                            const qtd = dadosApp.exames[data][segKey]?.[s.id] || 0;
-                            if(qtd > 0) {
-                                totaisEmpresas[s.id].valor += qtd * valorUnit;
-                                totaisEmpresas[s.id].qtd += qtd;
-                                totalGeralValor += qtd * valorUnit;
-                                totalGeralQtd += qtd;
-                            }
-                        }
-                    });
-                });
-            }
-            
-            // Renderizar cards horizontais
-            const container = document.getElementById('empresas-cards-container');
-            if(container) {
-                container.innerHTML = '';
-                servicos.forEach(s => {
-                    const card = document.createElement('div');
-                    card.className = 'card-empresa';
-                    card.style.borderTopColor = s.color;
-                    card.innerHTML = `
-                        <div class="empresa-nome">${s.nome}</div>
-                        <div class="empresa-valor">R$ ${totaisEmpresas[s.id].valor.toFixed(2)}</div>
-                        <div class="empresa-qtd">${totaisEmpresas[s.id].qtd} exames</div>
-                    `;
-                    container.appendChild(card);
-                });
-            }
-            
-            // Atualizar totais gerais no bloco da direita
-            document.getElementById('total-valor-top').innerHTML = `R$ ${totalGeralValor.toFixed(2)}`;
-            document.getElementById('total-exames-top').innerHTML = totalGeralQtd;
-        }
-
         function criarTabela() {
             const tbody = document.getElementById('exams-body'); 
             tbody.innerHTML = ''; 
@@ -954,7 +927,7 @@
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
                 const tr = document.createElement('tr'); 
-                tr.innerHTML = `<td class="exam-name">${seg.nome}     </tr>`;
+                tr.innerHTML = `<td class="exam-name">${seg.nome}      `;
                 servicos.forEach(s => {
                     const td = document.createElement('td');
                     const valor = seg.valores[s.id]; 
@@ -970,7 +943,7 @@
                 });
                 tbody.appendChild(tr);
             });
-            atualizarResumoTopo();
+            atualizarResumoEmpresas(); // Atualizar também aqui
         }
         
         async function alterarContador(seg, serv, delta) {
@@ -983,9 +956,6 @@
             await salvarDadosFirebase();
         }
         
-        // Mantido para compatibilidade (não usado na nova UI diária, mas necessário para outras funções)
-        function atualizarResumo() { atualizarResumoTopo(); }
-
         function getDateRange(view) {
             const selectedDate = new Date(dataExameInput.value + "T00:00:00"); 
             let start, end;
@@ -1292,6 +1262,7 @@
                 localStorage.setItem(totalKey, '0');
                 await salvarDadosFirebase(); 
                 criarTabela(); 
+                atualizarResumoEmpresas(); // Atualizar resumo
                 atualizarGraficos(); 
                 showNotification("🗑️ Dia zerado! Cronômetros resetados.", "warning");
             } 
@@ -1333,6 +1304,7 @@
                     
                     dataAnterior = novaData;
                     criarTabela(); 
+                    atualizarResumoEmpresas(); // Atualizar resumo
                     atualizarGraficos();
                     showNotification(`📅 Data alterada para ${novaData}! Cronômetros zerados.`, "warning");
                 } else {
