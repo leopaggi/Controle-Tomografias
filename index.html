@@ -314,7 +314,6 @@
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.8rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.65rem; }
 
-        /* ESTILOS PARA RELATÓRIO MENSAL - UNIFICADO */
         .relatorio-header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
             border-radius: 10px;
@@ -526,6 +525,26 @@
         .projecao-card strong { display: block; font-size: 1rem; color: var(--primary); }
         
         .info-text { font-size: 0.6rem; color: #888; margin-top: 5px; }
+        
+        /* Estilo para notificação temporária */
+        .temp-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-weight: bold;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -631,7 +650,6 @@
         </div>
 
         <div id="relatorio" class="tab-content">
-            <!-- NOVO HEADER UNIFICADO -->
             <div class="relatorio-header">
                 <div class="filtro-mes">
                     <div>
@@ -647,7 +665,6 @@
                 </div>
             </div>
 
-            <!-- TABELA MENSAL -->
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
                     <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th></tr>
@@ -813,8 +830,40 @@
             const el = document.createElement('div');
             el.textContent = msg;
             const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c');
-            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:${bgColor}; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem;`;
-            document.body.appendChild(el); setTimeout(() => el.remove(), 3000);
+            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:${bgColor}; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem; animation:slideIn 0.3s ease-out; box-shadow:0 2px 10px rgba(0,0,0,0.2);`;
+            document.body.appendChild(el); 
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        // Notificação imediata de tempo sem delay
+        function showTimeNotification(segundos, segmentos) {
+            const tempoFormatado = formatTime(segundos);
+            const minutos = Math.floor(segundos / 60);
+            const segResto = segundos % 60;
+            const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`;
+            
+            const segmentosNomes = segmentos.map(s => s.nome).join(', ');
+            const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`;
+            
+            const el = document.createElement('div');
+            el.textContent = msg;
+            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:#27ae60; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem; animation:slideIn 0.3s ease-out; box-shadow:0 2px 10px rgba(0,0,0,0.2);`;
+            document.body.appendChild(el); 
+            setTimeout(() => el.remove(), 4000);
+        }
+
+        // Limpar seleções de segmentos
+        function limparSelecoesSegmentos() {
+            const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+                // Forçar atualização visual da classe
+                const label = cb.closest('.check-item');
+                if(label && !cb.checked) {
+                    label.style.background = 'white';
+                    label.style.color = '#333';
+                }
+            });
         }
 
         function atualizarResumoEmpresas() {
@@ -942,7 +991,22 @@
             if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
             
-            const tempoGasto = addCurrentTimeToTotal();
+            // CAPTURAR O TEMPO GASTO ANTES DE QUALQUER OPERAÇÃO (imediato)
+            const tempoGasto = currentSeconds;
+            
+            // MOSTRAR NOTIFICAÇÃO IMEDIATA DO TEMPO
+            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({
+                nome: valoresSegmentos[cb.value].nome
+            }));
+            showTimeNotification(tempoGasto, segmentosSelecionados);
+            
+            // Adicionar ao total acumulado
+            if(tempoGasto > 0) {
+                totalSeconds += tempoGasto;
+                updateTotalDisplay();
+                const totalKey = `totalAcumulado_${data}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+            }
             
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
@@ -963,12 +1027,19 @@
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
             
+            // LIMPAR AS SELEÇÕES DOS SEGMENTOS
+            limparSelecoesSegmentos();
+            
+            // Resetar o cronômetro atual
             resetCurrentTimerAfterCommit();
+            
+            // Salvar dados
             await salvarDadosFirebase();
+            
+            // Atualizar interfaces
             criarTabela();
             atualizarResumoEmpresas();
             atualizarGraficos();
-            showNotification(`✅ ${segNomes.join(", ")} finalizado! Tempo: ${formatTime(tempoGasto)}`, 'success');
         }
 
         function criarLegenda() {
@@ -1205,7 +1276,6 @@
                 tbody.appendChild(tr);
             }
             
-            // Renderiza o header unificado com pagamentos
             renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeral);
         }
         
