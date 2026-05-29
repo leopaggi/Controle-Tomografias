@@ -621,7 +621,7 @@
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
                     <thead>
-                        <tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th></tr>
+                        <tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th></tr>
                     </thead>
                     <tbody id="exams-body"></tbody>
                 </table>
@@ -667,7 +667,7 @@
 
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>TOTAL</th></tr>
+                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th><th>TOTAL</th></tr>
                     </thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
@@ -715,19 +715,19 @@
         const db = firebase.firestore();
 
         const valoresSegmentos = {
-            'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'torax': { nome: 'TORAX', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'abdomen-total': { nome: 'ABD TOTAL', valores: { 'hbj': 50, 'mobilemed': 50, 'sagrada-familia': null, 'radcloud': null, 'cmt': 17, 'clinimage': 50, 'vx': 44 }},
-            'abd-superior': { nome: 'ABD SUP', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'pelve': { nome: 'PELVE', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'bacia': { nome: 'BACIA', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'articulacao': { nome: 'ARTIC', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'pescoco': { nome: 'PESCOCO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'cervical': { nome: 'CERVICAL', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'dorsal': { nome: 'DORSAL', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},
-            'lombar': { nome: 'LOMBAR', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22 }},            
-            'emergencia': { nome: 'EMERG', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 50, 'vx': 22 }}
+            'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'torax': { nome: 'TORAX', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'abdomen-total': { nome: 'ABD TOTAL', valores: { 'hbj': 50, 'mobilemed': 50, 'sagrada-familia': null, 'radcloud': null, 'cmt': 17, 'clinimage': 50, 'vx': 44, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'abd-superior': { nome: 'ABD SUP', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'pelve': { nome: 'PELVE', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'bacia': { nome: 'BACIA', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'articulacao': { nome: 'ARTIC', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'pescoco': { nome: 'PESCOCO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'cervical': { nome: 'CERVICAL', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'dorsal': { nome: 'DORSAL', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
+            'lombar': { nome: 'LOMBAR', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},            
+            'emergencia': { nome: 'EMERG', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 50, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }}
         };
 
         const servicos = [
@@ -737,7 +737,9 @@
             { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
             { id: 'cmt', nome: 'CMT', color: '#f1c40f' },
             { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
-            { id: 'vx', nome: 'VX', color: '#1abc9c' }
+            { id: 'vx', nome: 'VX', color: '#1abc9c' },
+            { id: 'santa-casa-pg', nome: 'Santa Casa (PG)', color: '#ff6b6b' },
+            { id: 'hu-pg', nome: 'HU (PG)', color: '#4ecdc4' }
         ];
 
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
@@ -1334,7 +1336,10 @@
         }
         
         function calcularValorMensal(ano, mes) {
-            const totals = { hbj: 0, mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0 };
+            const totals = { 
+                hbj: 0, mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0,
+                'santa-casa-pg': 0, 'hu-pg': 0
+            };
             let totalGeral = 0;
             const ultimoDia = new Date(ano, mes, 0).getDate();
             for(let d = 1; d <= ultimoDia; d++) {
@@ -1361,7 +1366,7 @@
             const [ano, mes] = mesRelatorioInput.value.split('-');
             const anoNum = parseInt(ano), mesNum = parseInt(mes);
             const { totals, totalGeral } = calcularValorMensal(anoNum, mesNum);
-            let csv = 'DATA;HBJ;MOBILEMED;SAGRADA;RADCLOUD;CMT;CLINIMAGE;VX;TOTAL\n';
+            let csv = 'DATA;HBJ;MOBILEMED;SAGRADA;RADCLOUD;CMT;CLINIMAGE;VX;Santa Casa (PG);HU (PG);TOTAL\n';
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
