@@ -526,7 +526,6 @@
         
         .info-text { font-size: 0.6rem; color: #888; margin-top: 5px; }
         
-        /* Estilo para notificação temporária */
         .temp-notification {
             position: fixed;
             bottom: 20px;
@@ -541,6 +540,22 @@
             animation: slideIn 0.3s ease-out;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
+        
+        /* Estilo para células do relatório com valor e contagem de laudos */
+        .relatorio-cell {
+            font-size: 0.75rem;
+        }
+        .relatorio-valor {
+            font-weight: bold;
+            color: #27ae60;
+        }
+        .relatorio-qtd {
+            font-size: 0.65rem;
+            color: #666;
+            display: block;
+            margin-top: 2px;
+        }
+        
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
@@ -562,6 +577,7 @@
         </div>
         
         <div id="controle" class="tab-content active">
+            <!-- Conteúdo da aba controle igual ao original -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
@@ -667,7 +683,8 @@
 
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th><th>TOTAL</th></tr>
+                    <thead>
+                        <tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th><th>TOTAL</th></tr>
                     </thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
@@ -837,7 +854,6 @@
             setTimeout(() => el.remove(), 3000);
         }
 
-        // Notificação imediata de tempo sem delay
         function showTimeNotification(segundos, segmentos) {
             const tempoFormatado = formatTime(segundos);
             const minutos = Math.floor(segundos / 60);
@@ -854,12 +870,10 @@
             setTimeout(() => el.remove(), 4000);
         }
 
-        // Limpar seleções de segmentos
         function limparSelecoesSegmentos() {
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]');
             checkboxes.forEach(cb => {
                 cb.checked = false;
-                // Forçar atualização visual da classe
                 const label = cb.closest('.check-item');
                 if(label && !cb.checked) {
                     label.style.background = 'white';
@@ -993,16 +1007,13 @@
             if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
             
-            // CAPTURAR O TEMPO GASTO ANTES DE QUALQUER OPERAÇÃO (imediato)
             const tempoGasto = currentSeconds;
             
-            // MOSTRAR NOTIFICAÇÃO IMEDIATA DO TEMPO
             const segmentosSelecionados = Array.from(checkboxes).map(cb => ({
                 nome: valoresSegmentos[cb.value].nome
             }));
             showTimeNotification(tempoGasto, segmentosSelecionados);
             
-            // Adicionar ao total acumulado
             if(tempoGasto > 0) {
                 totalSeconds += tempoGasto;
                 updateTotalDisplay();
@@ -1015,10 +1026,8 @@
             
             const tempoDividido = tempoGasto / checkboxes.length;
             
-            let segNomes = [];
             checkboxes.forEach(cb => {
                 const seg = cb.value;
-                segNomes.push(valoresSegmentos[seg].nome);
                 if (tempoDividido > 0) {
                     const key = `${servico}_${seg}`;
                     if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
@@ -1029,16 +1038,9 @@
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
             
-            // LIMPAR AS SELEÇÕES DOS SEGMENTOS
             limparSelecoesSegmentos();
-            
-            // Resetar o cronômetro atual
             resetCurrentTimerAfterCommit();
-            
-            // Salvar dados
             await salvarDadosFirebase();
-            
-            // Atualizar interfaces
             criarTabela();
             atualizarResumoEmpresas();
             atualizarGraficos();
@@ -1253,32 +1255,119 @@
             if(id === 'projecao') atualizarGraficoProjecao();
         }
         
+        // Função auxiliar para calcular valor E quantidade por dia para cada empresa
+        function calcularValorEQtdPorDia(dataStr) {
+            const resultado = {};
+            servicos.forEach(servico => {
+                resultado[servico.id] = { valor: 0, qtd: 0 };
+            });
+            
+            if (dadosApp.exames[dataStr]) {
+                Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
+                    servicos.forEach(servico => {
+                        const valorUnitario = segmento.valores[servico.id];
+                        if (valorUnitario !== null && valorUnitario !== undefined) {
+                            const qtd = dadosApp.exames[dataStr][segmentoKey]?.[servico.id] || 0;
+                            if (qtd > 0) {
+                                resultado[servico.id].valor += qtd * valorUnitario;
+                                resultado[servico.id].qtd += qtd;
+                            }
+                        }
+                    });
+                });
+            }
+            return resultado;
+        }
+        
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
             const anoNum = parseInt(ano), mesNum = parseInt(mes);
-            const { totals, totalGeral } = calcularValorMensal(anoNum, mesNum);
+            const totals = { 
+                hbj: { valor: 0, qtd: 0 }, mobilemed: { valor: 0, qtd: 0 }, 'sagrada-familia': { valor: 0, qtd: 0 }, 
+                radcloud: { valor: 0, qtd: 0 }, cmt: { valor: 0, qtd: 0 }, clinimage: { valor: 0, qtd: 0 }, 
+                vx: { valor: 0, qtd: 0 }, 'santa-casa-pg': { valor: 0, qtd: 0 }, 'hu-pg': { valor: 0, qtd: 0 }
+            };
+            let totalGeralValor = 0;
+            let totalGeralQtd = 0;
+            const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             const tbody = document.getElementById('relatorio-body'); 
             tbody.innerHTML = '';
-            const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                const valoresDia = calcularValorEQtdPorDia(dataStr);
+                
                 const tr = document.createElement('tr'); 
                 tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
-                let totalDia = 0;
-                servicos.forEach(s => {
-                    let vDia = 0;
-                    if(dadosApp.exames[dataStr]) {
-                        Object.entries(valoresSegmentos).forEach(([k, seg]) => { if(seg.valores[s.id]) vDia += (dadosApp.exames[dataStr][k]?.[s.id] || 0) * seg.valores[s.id]; });
+                let totalDiaValor = 0;
+                let totalDiaQtd = 0;
+                
+                servicos.forEach(servico => {
+                    const vDia = valoresDia[servico.id]?.valor || 0;
+                    const qDia = valoresDia[servico.id]?.qtd || 0;
+                    totalDiaValor += vDia;
+                    totalDiaQtd += qDia;
+                    
+                    // Atualiza totais do mês
+                    totals[servico.id].valor += vDia;
+                    totals[servico.id].qtd += qDia;
+                    totalGeralValor += vDia;
+                    totalGeralQtd += qDia;
+                    
+                    // Cria célula com valor e quantidade
+                    const td = document.createElement('td');
+                    td.className = 'relatorio-cell';
+                    if (vDia > 0 || qDia > 0) {
+                        td.innerHTML = `
+                            <div class="relatorio-valor">R$ ${vDia.toFixed(2)}</div>
+                            <div class="relatorio-qtd">📋 ${qDia} laudo${qDia !== 1 ? 's' : ''}</div>
+                        `;
+                    } else {
+                        td.innerHTML = `<div class="relatorio-valor" style="color:#999;">R$ 0,00</div>
+                                        <div class="relatorio-qtd">📋 0 laudos</div>`;
                     }
-                    totalDia += vDia;
-                    tr.innerHTML += `<td>R$ ${vDia.toFixed(2)}</td>`;
+                    tr.appendChild(td);
                 });
-                tr.innerHTML += `<td><strong>R$ ${totalDia.toFixed(2)}</strong></td>`;
+                
+                // Célula total do dia
+                const tdTotal = document.createElement('td');
+                tdTotal.style.fontWeight = 'bold';
+                tdTotal.style.backgroundColor = '#f0f0f0';
+                tdTotal.innerHTML = `
+                    <div class="relatorio-valor">R$ ${totalDiaValor.toFixed(2)}</div>
+                    <div class="relatorio-qtd">📋 ${totalDiaQtd} laudo${totalDiaQtd !== 1 ? 's' : ''}</div>
+                `;
+                tr.appendChild(tdTotal);
                 tbody.appendChild(tr);
             }
             
-            renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeral);
+            // Adicionar linha de totais do mês
+            const trTotal = document.createElement('tr');
+            trTotal.style.backgroundColor = '#e8f4f8';
+            trTotal.style.fontWeight = 'bold';
+            trTotal.innerHTML = `<td class="exam-name"><strong>📊 TOTAL DO MÊS</strong></td>`;
+            
+            servicos.forEach(servico => {
+                const td = document.createElement('td');
+                td.style.backgroundColor = '#e8f4f8';
+                td.innerHTML = `
+                    <div class="relatorio-valor" style="color:#27ae60; font-size:0.85rem;">R$ ${totals[servico.id].valor.toFixed(2)}</div>
+                    <div class="relatorio-qtd" style="font-size:0.7rem;">📋 ${totals[servico.id].qtd} laudo${totals[servico.id].qtd !== 1 ? 's' : ''}</div>
+                `;
+                trTotal.appendChild(td);
+            });
+            
+            const tdTotalGeral = document.createElement('td');
+            tdTotalGeral.style.backgroundColor = '#e8f4f8';
+            tdTotalGeral.style.fontWeight = 'bold';
+            tdTotalGeral.innerHTML = `
+                <div class="relatorio-valor" style="color:#27ae60; font-size:0.9rem;">R$ ${totalGeralValor.toFixed(2)}</div>
+                <div class="relatorio-qtd" style="font-size:0.75rem;">📋 ${totalGeralQtd} laudo${totalGeralQtd !== 1 ? 's' : ''}</div>
+            `;
+            trTotal.appendChild(tdTotalGeral);
+            tbody.appendChild(trTotal);
+            
+            renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeralValor);
         }
         
         function renderizarHeaderUnificado(mesAno, totals, totalGeral) {
@@ -1290,7 +1379,7 @@
             let totalRecebido = 0;
             servicos.forEach(servico => {
                 if (dadosApp.pagamentos[mesAno][servico.id]) {
-                    totalRecebido += totals[servico.id];
+                    totalRecebido += totals[servico.id].valor;
                 }
             });
             
@@ -1298,13 +1387,15 @@
                 <div class="empresas-pagamento">
                     ${servicos.map(servico => {
                         const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
-                        const valorTotal = totals[servico.id];
+                        const valorTotal = totals[servico.id].valor;
+                        const qtdTotal = totals[servico.id].qtd;
                         return `
                             <div class="btn-pagamento-empresa ${isPaid ? 'pago' : 'pendente'}" style="border-color: ${servico.color}">
                                 <input type="checkbox" ${isPaid ? 'checked' : ''} 
                                     onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">
                                 <label onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">${servico.nome}</label>
                                 <span class="valor-empresa">R$ ${valorTotal.toFixed(2)}</span>
+                                <span class="valor-empresa" style="background: #2c3e50;">📋 ${qtdTotal}</span>
                             </div>
                         `;
                     }).join('')}
@@ -1312,6 +1403,7 @@
                 <div class="total-mes-central">
                     <div class="label">💰 TOTAL DO MÊS</div>
                     <div class="valor">R$ ${totalGeral.toFixed(2)}</div>
+                    <div style="font-size:0.7rem; margin-top:5px;">📋 ${servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0)} laudos</div>
                 </div>
                 <div class="resumo-recebimento">
                     <div class="recebido">
@@ -1334,62 +1426,60 @@
             salvarDadosFirebase();
             gerarRelatorioMensal();
         }
-        
-        function calcularValorMensal(ano, mes) {
-            const totals = { 
-                hbj: 0, mobilemed: 0, 'sagrada-familia': 0, radcloud: 0, cmt: 0, clinimage: 0, vx: 0,
-                'santa-casa-pg': 0, 'hu-pg': 0
-            };
-            let totalGeral = 0;
-            const ultimoDia = new Date(ano, mes, 0).getDate();
-            for(let d = 1; d <= ultimoDia; d++) {
-                const dataStr = `${ano}-${mes.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                if(dadosApp.exames[dataStr]) {
-                    Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
-                        servicos.forEach(servico => {
-                            const valorUnitario = segmento.valores[servico.id];
-                            if(valorUnitario !== null && valorUnitario !== undefined) {
-                                const qtd = dadosApp.exames[dataStr][segmentoKey]?.[servico.id] || 0;
-                                totals[servico.id] += qtd * valorUnitario;
-                                totalGeral += qtd * valorUnitario;
-                            }
-                        });
-                    });
-                }
-            }
-            return { totals, totalGeral };
-        }
 
         function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
         
         function downloadRelatorioExcel() {
             const [ano, mes] = mesRelatorioInput.value.split('-');
             const anoNum = parseInt(ano), mesNum = parseInt(mes);
-            const { totals, totalGeral } = calcularValorMensal(anoNum, mesNum);
-            let csv = 'DATA;HBJ;MOBILEMED;SAGRADA;RADCLOUD;CMT;CLINIMAGE;VX;Santa Casa (PG);HU (PG);TOTAL\n';
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+            
+            let csv = 'DATA;';
+            servicos.forEach(s => { csv += `${s.nome} (R$);${s.nome} (QTD);`; });
+            csv += 'TOTAL (R$);TOTAL (QTD)\n';
+            
+            const totals = {};
+            servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
+            
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                let linha = `${dataStr};`, totalDia = 0;
+                const valoresDia = calcularValorEQtdPorDia(dataStr);
+                let linha = `${dataStr};`;
+                let totalDiaValor = 0;
+                let totalDiaQtd = 0;
+                
                 servicos.forEach(servico => {
-                    let totalServicoDia = 0;
-                    if(dadosApp.exames[dataStr]) {
-                        Object.entries(valoresSegmentos).forEach(([chave, segmento]) => { if(segmento.valores[servico.id]) totalServicoDia += (dadosApp.exames[dataStr][chave]?.[servico.id] || 0) * segmento.valores[servico.id]; });
-                    }
-                    totalDia += totalServicoDia;
-                    linha += `${totalServicoDia.toFixed(2)};`;
+                    const vDia = valoresDia[servico.id]?.valor || 0;
+                    const qDia = valoresDia[servico.id]?.qtd || 0;
+                    totalDiaValor += vDia;
+                    totalDiaQtd += qDia;
+                    totals[servico.id].valor += vDia;
+                    totals[servico.id].qtd += qDia;
+                    linha += `${vDia.toFixed(2)};${qDia};`;
                 });
-                csv += linha + `${totalDia.toFixed(2)}\n`;
+                linha += `${totalDiaValor.toFixed(2)};${totalDiaQtd}\n`;
+                csv += linha;
             }
-            csv += `\n\nRESUMO DE PAGAMENTOS POR EMPRESA\n`;
+            
+            csv += `\nTOTAIS DO MÊS;`;
+            servicos.forEach(s => {
+                csv += `${totals[s.id].valor.toFixed(2)};${totals[s.id].qtd};`;
+            });
+            const totalGeralValor = servicos.reduce((acc, s) => acc + totals[s.id].valor, 0);
+            const totalGeralQtd = servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0);
+            csv += `${totalGeralValor.toFixed(2)};${totalGeralQtd}\n`;
+            
+            csv += `\nRESUMO DE PAGAMENTOS POR EMPRESA\n`;
             servicos.forEach(servico => {
-                const valorTotal = totals[servico.id];
                 const mesAno = mesRelatorioInput.value;
                 const isPaid = dadosApp.pagamentos[mesAno]?.[servico.id] || false;
-                csv += `${servico.nome};R$ ${valorTotal.toFixed(2)};${isPaid ? 'PAGO' : 'PENDENTE'}\n`;
+                csv += `${servico.nome};R$ ${totals[servico.id].valor.toFixed(2)};${totals[servico.id].qtd} laudos;${isPaid ? 'PAGO' : 'PENDENTE'}\n`;
             });
-            csv += `\nTOTAL GERAL DO MÊS;R$ ${totalGeral.toFixed(2)};;\n`;
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
+            
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); 
+            a.download = `relatorio_${mes}_${ano}.csv`; 
+            a.click();
         }
         
         function baixarBackupCompleto() { 
