@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* Seu CSS existente AQUI - mantenha o mesmo */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -42,62 +41,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* NOVOS ESTILOS PARA BACKUP */
-        .backup-status {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px 15px;
-            margin-bottom: 15px;
-            border-left: 4px solid var(--success);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .backup-status .info {
-            font-size: 0.8rem;
-            color: #666;
-        }
-        .backup-status .info strong {
-            color: var(--primary);
-        }
-        .btn-backup {
-            padding: 6px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 0.75rem;
-            transition: all 0.2s;
-        }
-        .btn-backup:hover { transform: scale(1.05); }
-        .btn-backup.primary { background: var(--secondary); color: white; }
-        .btn-backup.success { background: var(--success); color: white; }
-        .btn-backup.danger { background: var(--danger); color: white; }
-        .btn-backup.warning { background: var(--warning); color: white; }
-        .btn-backup.purple { background: #8e44ad; color: white; }
-
-        .backup-lista {
-            max-height: 200px;
-            overflow-y: auto;
-            background: #f8f9fa;
-            border-radius: 5px;
-            padding: 8px;
-            margin-top: 8px;
-        }
-        .backup-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 8px;
-            border-bottom: 1px solid #eee;
-            font-size: 0.7rem;
-        }
-        .backup-item .data { color: #666; }
-        .backup-item .qtd { font-weight: bold; color: var(--success); }
-
-        /* Seu CSS existente continua aqui */
         .legenda-container { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 20px; border-left: 4px solid var(--secondary); }
         .legenda-container h2 { color: var(--primary); margin-bottom: 10px; text-align: center; font-size: 1.1rem; }
         .legenda-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -106,152 +49,526 @@
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
 
-        .resumo-empresas { background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .resumo-empresas h3 { color: var(--primary); font-size: 0.85rem; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #eee; display: inline-block; }
-        .empresas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
-        .empresa-card { background: #f8f9fa; border-radius: 6px; padding: 8px 10px; border-left: 3px solid; transition: all 0.2s; }
-        .empresa-card .empresa-nome { font-weight: bold; font-size: 0.75rem; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
-        .empresa-card .empresa-valor { font-size: 0.85rem; font-weight: bold; color: var(--success); }
-        .empresa-card .empresa-qtd { font-size: 0.65rem; color: #666; }
-        .total-resumo-empresas { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; font-size: 0.8rem; flex-wrap: wrap; gap: 10px; }
-        .total-resumo-empresas .total-exames { background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; }
-        .total-resumo-empresas .total-valor { font-size: 1rem; font-weight: bold; color: var(--success); }
-        .acoes-rapidas { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-        .btn-pequeno { padding: 5px 12px; font-size: 0.7rem; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
+        .resumo-empresas {
+            background: white;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .resumo-empresas h3 {
+            color: var(--primary);
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #eee;
+            display: inline-block;
+        }
+        .empresas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .empresa-card {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 8px 10px;
+            border-left: 3px solid;
+            transition: all 0.2s;
+        }
+        .empresa-card .empresa-nome {
+            font-weight: bold;
+            font-size: 0.75rem;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .empresa-card .empresa-valor {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--success);
+        }
+        .empresa-card .empresa-qtd {
+            font-size: 0.65rem;
+            color: #666;
+        }
+        .total-resumo-empresas {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            margin-top: 5px;
+            font-size: 0.8rem;
+        }
+        .total-resumo-empresas .total-exames {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .total-resumo-empresas .total-valor {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--success);
+        }
+        .acoes-rapidas {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn-pequeno {
+            padding: 5px 12px;
+            font-size: 0.7rem;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
 
-        /* Resto do seu CSS continua igual */
-        .workflow-container { background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: grid; grid-template-columns: 300px 1fr; gap: 15px; align-items: start; }
+        .workflow-container {
+            background: white;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 15px;
+            align-items: start;
+        }
         @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
-        .timer-box { background: #e8f6f3; border-radius: 10px; border-left: 5px solid var(--success); padding: 10px; }
+
+        .timer-box {
+            background: #e8f6f3;
+            border-radius: 10px;
+            border-left: 5px solid var(--success);
+            padding: 10px;
+        }
         .timer-box.paused { background: #fdedec; border-left-color: var(--danger); }
-        .timer-total { background: #2c3e50; border-radius: 8px; padding: 8px 12px; text-align: center; margin-bottom: 12px; }
-        .timer-total .session-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.7); display: block; }
-        .timer-total .timer-display { font-size: 1.3rem; font-weight: bold; font-family: 'Courier New', Courier, monospace; color: #27ae60; }
-        .timer-current { text-align: center; padding: 5px; }
-        .timer-current .session-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: #2c3e50; font-weight: bold; display: block; }
-        .timer-current .timer-display { font-size: 1.3rem; font-weight: bold; font-family: 'Courier New', Courier, monospace; color: var(--primary); }
-        .timer-btn-group { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
-        .timer-btn { padding: 4px 12px; font-size: 0.75rem; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; }
-        .controls-box { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-        .control-group { display: flex; flex-direction: column; gap: 4px; }
-        .control-label { font-size: 0.7rem; font-weight: bold; color: #666; text-transform: uppercase; }
-        select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.85rem; min-width: 130px; }
-        .checkbox-scroll { display: flex; flex-wrap: wrap; gap: 6px; max-height: 80px; overflow-y: auto; padding: 6px; border: 1px solid #eee; border-radius: 5px; background: #fafafa; }
-        .check-item { background: white; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; }
-        .check-item input { position: absolute; opacity: 0; width: 0; height: 0; }
-        .check-item:has(input:checked) { background: var(--secondary); color: white; border-color: var(--secondary); font-weight: bold; }
-        .exams-table { width: 100%; border-collapse: collapse; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.75rem; }
-        .exams-table th, .exams-table td { padding: 5px; text-align: center; border: 1px solid #ddd; }
-        .exams-table th { background-color: var(--primary); color: white; font-weight: bold; }
-        .exams-table tr:nth-child(even) { background-color: #f9f9f9; }
-        .exam-name { text-align: left; font-weight: bold; background-color: #f8f9fa; }
-        .counter { display: flex; align-items: center; justify-content: center; gap: 4px; }
-        .counter-btn { width: 20px; height: 20px; border: none; border-radius: 50%; background-color: var(--secondary); color: white; font-weight: bold; cursor: pointer; font-size: 0.65rem; }
+
+        .timer-total {
+            background: #2c3e50;
+            border-radius: 8px;
+            padding: 8px 12px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .timer-total .session-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.7);
+            display: block;
+        }
+        .timer-total .timer-display {
+            font-size: 1.3rem;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            color: #27ae60;
+        }
+
+        .timer-current {
+            text-align: center;
+            padding: 5px;
+        }
+        .timer-current .session-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #2c3e50;
+            font-weight: bold;
+            display: block;
+        }
+        .timer-current .timer-display {
+            font-size: 1.3rem;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--primary);
+        }
+        .timer-btn-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .timer-btn {
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .controls-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .control-label {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+        }
+        select, input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            min-width: 130px;
+        }
+
+        .checkbox-scroll {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 80px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .check-item {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .check-item input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .check-item:has(input:checked) {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+            font-weight: bold;
+        }
+        
+        .exams-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.75rem;
+        }
+        .exams-table th, .exams-table td {
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .exams-table th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: bold;
+        }
+        .exams-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .exam-name {
+            text-align: left;
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        
+        .counter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .counter-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            border-radius: 50%;
+            background-color: var(--secondary);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.65rem;
+        }
         .counter-btn:hover { transform: scale(1.1); }
         .counter-btn.remove { background-color: var(--danger); }
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.8rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.65rem; }
 
-        .relatorio-header { background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%); border-radius: 10px; padding: 15px 20px; margin-bottom: 20px; color: white; }
-        .filtro-mes { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); }
-        .filtro-mes label { font-weight: bold; font-size: 0.85rem; }
-        .filtro-mes input { padding: 6px 12px; border-radius: 5px; border: none; margin: 0 8px; }
-        .resumo-pagamento-unificado { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; }
-        @media (max-width: 800px) { .resumo-pagamento-unificado { grid-template-columns: 1fr; gap: 15px; } }
-        .empresas-pagamento { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-        .btn-pagamento-empresa { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; padding: 6px 14px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 500; }
-        .btn-pagamento-empresa:hover { background: rgba(255,255,255,0.25); transform: scale(1.02); }
-        .btn-pagamento-empresa.pago { background: var(--success); border-color: var(--success); }
-        .btn-pagamento-empresa.pendente { background: var(--warning); border-color: var(--warning); }
-        .btn-pagamento-empresa input { width: 16px; height: 16px; cursor: pointer; margin: 0; }
-        .btn-pagamento-empresa label { cursor: pointer; }
-        .valor-empresa { font-weight: bold; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; }
-        .total-mes-central { text-align: center; background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 12px; min-width: 180px; }
-        .total-mes-central .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-        .total-mes-central .valor { font-size: 1.6rem; font-weight: bold; line-height: 1.2; }
-        .resumo-recebimento { text-align: right; }
-        .resumo-recebimento .recebido { background: var(--success); padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; }
-        .resumo-recebimento .a-receber { background: var(--warning); padding: 8px 12px; border-radius: 8px; }
-        .resumo-recebimento .label { font-size: 0.7rem; opacity: 0.9; }
-        .resumo-recebimento .valor { font-size: 1.2rem; font-weight: bold; }
+        .relatorio-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .filtro-mes {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .filtro-mes label {
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .filtro-mes input {
+            padding: 6px 12px;
+            border-radius: 5px;
+            border: none;
+            margin: 0 8px;
+        }
+        .resumo-pagamento-unificado {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+        @media (max-width: 800px) {
+            .resumo-pagamento-unificado { grid-template-columns: 1fr; gap: 15px; }
+        }
+        .empresas-pagamento {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn-pagamento-empresa {
+            background: rgba(255,255,255,0.15);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 25px;
+            padding: 6px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .btn-pagamento-empresa:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.02);
+        }
+        .btn-pagamento-empresa.pago {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .btn-pagamento-empresa.pendente {
+            background: var(--warning);
+            border-color: var(--warning);
+        }
+        .btn-pagamento-empresa input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .btn-pagamento-empresa label {
+            cursor: pointer;
+        }
+        .valor-empresa {
+            font-weight: bold;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+        .total-mes-central {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 12px 20px;
+            border-radius: 12px;
+            min-width: 180px;
+        }
+        .total-mes-central .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+        .total-mes-central .valor {
+            font-size: 1.6rem;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+        .resumo-recebimento {
+            text-align: right;
+        }
+        .resumo-recebimento .recebido {
+            background: var(--success);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .resumo-recebimento .a-receber {
+            background: var(--warning);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .resumo-recebimento .label {
+            font-size: 0.7rem;
+            opacity: 0.9;
+        }
+        .resumo-recebimento .valor {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
         
-        .excel-btn { background: var(--success); color: white; padding: 6px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.75rem; }
+        .excel-btn {
+            background: var(--success);
+            color: white;
+            padding: 6px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
 
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 35px; padding-top: 20px; border-top: 2px solid #eee; }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 35px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-        .chart-box { background: white; padding: 12px; border-radius: 8px; border: 1px solid #eee; height: 350px; }
+        .chart-box {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            height: 350px;
+        }
         .chart-box.full-width { grid-column: 1 / -1; height: 450px; }
-        .chart-box h3 { font-size: 0.85rem; color: var(--primary); margin-bottom: 8px; border-bottom: 2px solid #eee; padding-bottom: 4px; }
-        .filter-bar { display: flex; gap: 4px; margin-bottom: 10px; background: #f8f9fa; padding: 4px; border-radius: 5px; }
-        .filter-btn { padding: 4px 12px; border-radius: 12px; background: white; border: 1px solid #ddd; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
-        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .chart-box h3 {
+            font-size: 0.85rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 4px;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 5px;
+        }
+        .filter-btn {
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
         
         .btn-save { background-color: var(--success); color: white; }
         .btn-reset { background-color: var(--danger); color: white; }
         .btn-action { background-color: var(--warning); color: white; }
         
-        .payment-controls { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 15px; border-left: 4px solid var(--success); }
-        .projecao-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px; }
-        .projecao-card { background: #f8f9fa; padding: 8px; border-radius: 5px; text-align: center; border-top: 3px solid #ccc; font-size: 0.7rem; }
+        .payment-controls {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--success);
+        }
+        
+        .projecao-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .projecao-card {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            border-top: 3px solid #ccc;
+            font-size: 0.7rem;
+        }
         .projecao-card strong { display: block; font-size: 1rem; color: var(--primary); }
+        
         .info-text { font-size: 0.6rem; color: #888; margin-top: 5px; }
         
-        .temp-notification { position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; font-size: 0.9rem; animation: slideIn 0.3s ease-out; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .temp-notification.warning { background: #f39c12; }
-        .temp-notification.error { background: #e74c3c; }
-        
-        .relatorio-cell { font-size: 0.75rem; }
-        .relatorio-valor { font-weight: bold; color: #27ae60; }
-        .relatorio-qtd { font-size: 0.65rem; color: #666; display: block; margin-top: 2px; }
-        
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        /* Botão de backup flutuante */
-        .floating-backup {
+        .temp-notification {
             position: fixed;
             bottom: 20px;
-            left: 20px;
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .floating-backup button {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-weight: bold;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease-out;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            transition: all 0.3s;
         }
-        .floating-backup button:hover { transform: scale(1.1); }
-        .floating-backup .btn-backup-floating { background: #8e44ad; color: white; }
-        .floating-backup .btn-save-floating { background: var(--success); color: white; }
+        
+        /* Estilo para células do relatório com valor e contagem de laudos */
+        .relatorio-cell {
+            font-size: 0.75rem;
+        }
+        .relatorio-valor {
+            font-weight: bold;
+            color: #27ae60;
+        }
+        .relatorio-qtd {
+            font-size: 0.65rem;
+            color: #666;
+            display: block;
+            margin-top: 2px;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🛡️ Controle de Tomografia - SISTEMA PROTEGIDO</h1>
+            <h1>Controle de Tomografia</h1>
             <div id="sync-status" class="sync-status sync-loading">Conectando...</div>
         </header>
-
-        <!-- BARRA DE STATUS DE BACKUP -->
-        <div class="backup-status">
-            <div class="info">
-                💾 <strong>Último backup:</strong> <span id="ultimo-backup-data">Nunca</span> | 
-                📦 <strong>Backups salvos:</strong> <span id="qtd-backups">0</span>
-            </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-backup success" onclick="backupManual()">💾 Backup Agora</button>
-                <button class="btn-backup purple" onclick="restaurarUltimoBackup()">🔄 Restaurar Último</button>
-                <button class="btn-backup primary" onclick="exportarBackupJson()">📥 Exportar JSON</button>
-            </div>
-        </div>
-
-        <!-- SEU CONTEÚDO EXISTENTE AQUI -->
+        
         <div class="tabs">
             <button class="tab active" onclick="abrirTab(event, 'controle')">🏠 Controle Diário</button>
             <button class="tab" onclick="abrirTab(event, 'relatorio')">📊 Relatório Mensal</button>
@@ -260,6 +577,7 @@
         </div>
         
         <div id="controle" class="tab-content active">
+            <!-- Conteúdo da aba controle igual ao original -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
@@ -275,7 +593,6 @@
                 <div class="acoes-rapidas">
                     <button class="btn-pequeno btn-save" onclick="salvarDadosFirebase()">💾 Sincronizar</button>
                     <button class="btn-pequeno btn-reset" onclick="limparDia()">🗑️ Zerar Dia</button>
-                    <button class="btn-pequeno" style="background: #8e44ad; color: white;" onclick="restaurarUltimoBackup()">🔄 Recuperar Backup</button>
                 </div>
             </div>
 
@@ -388,40 +705,21 @@
         
         <div id="backup" class="tab-content">
             <div style="text-align: center; padding: 15px;">
-                <h2 style="font-size: 1rem;">💾 Gerenciamento de Backups</h2>
-                
-                <div style="margin: 15px 0;">
-                    <button onclick="backupManual()" class="btn-save" style="padding: 10px 20px;">💾 Criar Backup Agora</button>
-                    <button onclick="restaurarUltimoBackup()" class="btn-action" style="padding: 10px 20px;">🔄 Restaurar Último Backup</button>
-                    <button onclick="exportarBackupJson()" class="btn-backup primary" style="padding: 10px 20px;">📥 Exportar JSON</button>
-                    <button onclick="importarBackupJson()" class="btn-backup warning" style="padding: 10px 20px;">📤 Importar JSON</button>
+                <h2 style="font-size: 1rem;">Gerenciamento de Dados</h2>
+                <div class="actions">
+                    <button onclick="baixarBackupCompleto()" class="btn-save">💾 Backup JSON</button>
+                    <button onclick="limparTodosDados()" class="btn-reset">⚠️ Limpar Tudo</button>
                 </div>
-
-                <div style="margin: 20px 0; background: #f8f9fa; border-radius: 8px; padding: 15px;">
-                    <h3 style="font-size: 0.85rem;">📋 Histórico de Backups</h3>
-                    <div class="backup-lista" id="lista-backups">
-                        <p style="color: #999; font-size: 0.8rem;">Nenhum backup disponível</p>
-                    </div>
-                </div>
-
                 <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                    <h3 style="font-size: 0.85rem;">⚠️ Ações Perigosas</h3>
-                    <button onclick="limparTodosDados()" class="btn-reset" style="padding: 10px 20px;">🗑️ Limpar Tudo (com backup automático)</button>
+                    <h3 style="font-size: 0.85rem;">Restaurar Backup</h3>
+                    <input type="file" id="upload-backup" accept=".json" style="margin: 8px auto; display: block;">
+                    <button onclick="restaurarBackup()" class="btn-action">🔄 Restaurar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- BOTÕES FLUTUANTES DE BACKUP -->
-    <div class="floating-backup">
-        <button class="btn-backup-floating" onclick="backupManual()" title="Fazer Backup Agora">💾</button>
-        <button class="btn-save-floating" onclick="salvarDadosFirebase()" title="Sincronizar com Firebase">☁️</button>
-    </div>
-
     <script>
-        // ============================================
-        // CONFIGURAÇÃO FIREBASE
-        // ============================================
         const firebaseConfig = {
             apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo",
             authDomain: "controle-tomografias-leonardo.firebaseapp.com",
@@ -433,9 +731,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // ============================================
-        // VALORES E CONFIGURAÇÕES
-        // ============================================
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
             'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
@@ -464,353 +759,200 @@
             { id: 'hu-pg', nome: 'HU (PG)', color: '#4ecdc4' }
         ];
 
-        // ============================================
-        // VARIÁVEIS GLOBAIS
-        // ============================================
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
         let chartSegmentos = null, chartCustoBeneficio = null, chartProjecao = null;
         let currentView = 'day';
+        
         let totalSeconds = 0;
         let currentSeconds = 0;
         let currentInterval = null;
         let isCurrentRunning = true;
         let dataAnterior = '';
 
-        // ============================================
-        // SISTEMA DE BACKUP AUTOMÁTICO - MÚLTIPLAS CAMADAS
-        // ============================================
+        const dataExameInput = document.getElementById('data-exame');
+        const mesRelatorioInput = document.getElementById('mes-relatorio');
+        const syncStatus = document.getElementById('sync-status');
         
-        // CAMADA 1: Backup a cada 30 segundos no localStorage
-        setInterval(() => {
-            if (Object.keys(dadosApp.exames).length > 0) {
-                try {
-                    // Salva backup atual
-                    const backupData = {
-                        dados: dadosApp,
-                        timestamp: new Date().toISOString(),
-                        data: new Date().toISOString().slice(0,10),
-                        hora: new Date().toLocaleTimeString()
-                    };
-                    
-                    // Salva como último backup
-                    localStorage.setItem('backup_auto_ultimo', JSON.stringify(backupData));
-                    
-                    // Salva backup do dia
-                    const hoje = new Date().toISOString().slice(0,10);
-                    localStorage.setItem(`backup_dia_${hoje}`, JSON.stringify(backupData));
-                    
-                    // Mantém histórico de backups (últimos 30)
-                    let historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
-                    const entrada = {
-                        data: backupData.data,
-                        hora: backupData.hora,
-                        totalExames: Object.values(dadosApp.exames).reduce((acc, dia) => {
-                            return acc + Object.values(dia).reduce((acc2, seg) => {
-                                return acc2 + Object.values(seg).reduce((acc3, qtd) => acc3 + qtd, 0);
-                            }, 0);
-                        }, 0)
-                    };
-                    historico.push(entrada);
-                    if (historico.length > 30) historico = historico.slice(-30);
-                    localStorage.setItem('backup_historico', JSON.stringify(historico));
-                    
-                    // Atualiza interface
-                    atualizarInfoBackup();
-                    
-                } catch(e) {
-                    console.warn('⚠️ Backup automático falhou:', e);
+        const hoje = new Date();
+        const hojeStr = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getDate().toString().padStart(2,'0')}`;
+        dataExameInput.value = hojeStr;
+        dataAnterior = hojeStr;
+        mesRelatorioInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
+
+        function formatTime(s) {
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+        }
+        
+        function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
+        function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
+        
+        function startCurrentTimer() {
+            if(currentInterval) clearInterval(currentInterval);
+            currentInterval = setInterval(() => {
+                if(isCurrentRunning) {
+                    currentSeconds++;
+                    updateCurrentDisplay();
                 }
+            }, 1000);
+        }
+        
+        function togglePauseCurrentTimer() {
+            isCurrentRunning = !isCurrentRunning;
+            const btn = document.getElementById('btn-pause-current');
+            btn.textContent = isCurrentRunning ? '⏸ Pausar' : '▶ Retomar';
+            const timerBox = document.getElementById('timer-box');
+            if(!isCurrentRunning) {
+                timerBox.classList.add('paused');
+            } else {
+                timerBox.classList.remove('paused');
             }
-        }, 30000); // A cada 30 segundos
-
-        // CAMADA 2: Backup ao fechar a página
-        window.addEventListener('beforeunload', () => {
-            if (Object.keys(dadosApp.exames).length > 0) {
-                try {
-                    const backupData = {
-                        dados: dadosApp,
-                        timestamp: new Date().toISOString(),
-                        tipo: 'fechamento'
-                    };
-                    localStorage.setItem('backup_antes_fechar', JSON.stringify(backupData));
-                } catch(e) {}
+        }
+        
+        function resetCurrentTimer() {
+            if(confirm('Reiniciar cronômetro do laudo atual? O tempo atual será perdido.')) {
+                currentSeconds = 0;
+                updateCurrentDisplay();
+                if(!isCurrentRunning) {
+                    isCurrentRunning = true;
+                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar';
+                    document.getElementById('timer-box').classList.remove('paused');
+                }
+                showNotification('⏱️ Cronômetro do laudo reiniciado!', 'warning');
             }
-        });
-
-        // CAMADA 3: Backup após cada alteração significativa
-        function fazerBackupAposAlteracao() {
-            try {
-                const backupData = {
-                    dados: dadosApp,
-                    timestamp: new Date().toISOString(),
-                    tipo: 'alteracao'
-                };
-                localStorage.setItem('backup_ultima_alteracao', JSON.stringify(backupData));
-                
-                // Também salva no Firebase
-                db.collection('controles').doc('examesTomografia').set(dadosApp).catch(() => {});
-            } catch(e) {}
+        }
+        
+        function addCurrentTimeToTotal() {
+            if(currentSeconds > 0) {
+                totalSeconds += currentSeconds;
+                updateTotalDisplay();
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                return currentSeconds;
+            }
+            return 0;
+        }
+        
+        function resetCurrentTimerAfterCommit() {
+            currentSeconds = 0;
+            updateCurrentDisplay();
+            if(!isCurrentRunning) {
+                isCurrentRunning = true;
+                document.getElementById('btn-pause-current').textContent = '⏸ Pausar';
+                document.getElementById('timer-box').classList.remove('paused');
+            }
+        }
+        
+        function showNotification(msg, type = 'success') {
+            const el = document.createElement('div');
+            el.textContent = msg;
+            const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c');
+            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:${bgColor}; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem; animation:slideIn 0.3s ease-out; box-shadow:0 2px 10px rgba(0,0,0,0.2);`;
+            document.body.appendChild(el); 
+            setTimeout(() => el.remove(), 3000);
         }
 
-        // ============================================
-        // FUNÇÕES DE BACKUP
-        // ============================================
-        
-        function atualizarInfoBackup() {
-            try {
-                const historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
-                document.getElementById('qtd-backups').textContent = historico.length;
-                
-                const ultimo = localStorage.getItem('backup_auto_ultimo');
-                if (ultimo) {
-                    const data = JSON.parse(ultimo);
-                    document.getElementById('ultimo-backup-data').textContent = 
-                        `${data.data || 'Desconhecido'} às ${data.hora || '--:--:--'}`;
-                }
-            } catch(e) {}
+        function showTimeNotification(segundos, segmentos) {
+            const tempoFormatado = formatTime(segundos);
+            const minutos = Math.floor(segundos / 60);
+            const segResto = segundos % 60;
+            const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`;
+            
+            const segmentosNomes = segmentos.map(s => s.nome).join(', ');
+            const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`;
+            
+            const el = document.createElement('div');
+            el.textContent = msg;
+            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:#27ae60; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem; animation:slideIn 0.3s ease-out; box-shadow:0 2px 10px rgba(0,0,0,0.2);`;
+            document.body.appendChild(el); 
+            setTimeout(() => el.remove(), 4000);
         }
 
-        function backupManual() {
-            try {
-                const backupData = {
-                    dados: dadosApp,
-                    timestamp: new Date().toISOString(),
-                    tipo: 'manual',
-                    data: new Date().toISOString().slice(0,10),
-                    hora: new Date().toLocaleTimeString()
-                };
-                
-                // Salva em múltiplos lugares
-                localStorage.setItem('backup_manual_ultimo', JSON.stringify(backupData));
-                localStorage.setItem(`backup_manual_${Date.now()}`, JSON.stringify(backupData));
-                
-                // Atualiza histórico
-                let historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
-                historico.push({
-                    data: backupData.data,
-                    hora: backupData.hora,
-                    totalExames: Object.values(dadosApp.exames).reduce((acc, dia) => {
-                        return acc + Object.values(dia).reduce((acc2, seg) => {
-                            return acc2 + Object.values(seg).reduce((acc3, qtd) => acc3 + qtd, 0);
-                        }, 0);
-                    }, 0),
-                    tipo: 'manual'
+        function limparSelecoesSegmentos() {
+            const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+                const label = cb.closest('.check-item');
+                if(label && !cb.checked) {
+                    label.style.background = 'white';
+                    label.style.color = '#333';
+                }
+            });
+        }
+
+        function atualizarResumoEmpresas() {
+            const data = dataExameInput.value;
+            const totals = {};
+            let totalGeralExames = 0;
+            let totalGeralValor = 0;
+            
+            servicos.forEach(s => {
+                totals[s.id] = { valor: 0, qtd: 0 };
+            });
+            
+            if (dadosApp.exames[data]) {
+                Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
+                    servicos.forEach(servico => {
+                        const valorUnit = segmento.valores[servico.id];
+                        if (valorUnit !== null && valorUnit !== undefined) {
+                            const qtd = dadosApp.exames[data][segmentoKey]?.[servico.id] || 0;
+                            if (qtd > 0) {
+                                totals[servico.id].valor += qtd * valorUnit;
+                                totals[servico.id].qtd += qtd;
+                                totalGeralExames += qtd;
+                                totalGeralValor += qtd * valorUnit;
+                            }
+                        }
+                    });
                 });
-                if (historico.length > 30) historico = historico.slice(-30);
-                localStorage.setItem('backup_historico', JSON.stringify(historico));
-                
-                atualizarInfoBackup();
-                atualizarListaBackups();
-                showNotification('✅ Backup manual realizado com sucesso!', 'success');
-                
-                // Também exporta automaticamente
-                exportarBackupJson();
-                
-            } catch(e) {
-                showNotification('❌ Erro ao fazer backup: ' + e.message, 'error');
             }
-        }
-
-        function restaurarUltimoBackup() {
-            try {
-                const ultimo = localStorage.getItem('backup_auto_ultimo');
-                if (!ultimo) {
-                    showNotification('❌ Nenhum backup encontrado!', 'error');
-                    return;
-                }
-                
-                const backup = JSON.parse(ultimo);
-                if (!backup.dados || !backup.dados.exames) {
-                    showNotification('❌ Backup inválido!', 'error');
-                    return;
-                }
-                
-                const qtdDados = Object.keys(backup.dados.exames).length;
-                const qtdAtual = Object.keys(dadosApp.exames).length;
-                
-                if (qtdDados < qtdAtual) {
-                    if (!confirm(`⚠️ O backup tem ${qtdDados} dias, mas os dados atuais têm ${qtdAtual} dias. Restaurar mesmo assim?`)) {
-                        return;
-                    }
-                }
-                
-                if (confirm(`🔄 Restaurar backup de ${backup.data} às ${backup.hora}?`)) {
-                    dadosApp = backup.dados;
-                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                    
-                    // Salva no Firebase
-                    db.collection('controles').doc('examesTomografia').set(dadosApp).catch(() => {});
-                    
-                    // Recarrega a página
-                    location.reload();
-                    showNotification('✅ Backup restaurado com sucesso!', 'success');
-                }
-            } catch(e) {
-                showNotification('❌ Erro ao restaurar: ' + e.message, 'error');
+            
+            const grid = document.getElementById('empresas-resumo-grid');
+            if (grid) {
+                grid.innerHTML = '';
+                servicos.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'empresa-card';
+                    card.style.borderLeftColor = s.color;
+                    card.innerHTML = `
+                        <div class="empresa-nome">
+                            <span>${s.nome}</span>
+                            <span class="empresa-qtd">${totals[s.id].qtd} exames</span>
+                        </div>
+                        <div class="empresa-valor">R$ ${totals[s.id].valor.toFixed(2)}</div>
+                    `;
+                    grid.appendChild(card);
+                });
             }
-        }
-
-        function exportarBackupJson() {
-            try {
-                const json = JSON.stringify(dadosApp, null, 2);
-                const blob = new Blob([json], {type: 'application/json'});
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `backup_exames_${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                showNotification('📥 Backup exportado com sucesso!', 'success');
-            } catch(e) {
-                showNotification('❌ Erro ao exportar: ' + e.message, 'error');
-            }
-        }
-
-        function importarBackupJson() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const dados = JSON.parse(event.target.result);
-                        if (!dados.exames) {
-                            showNotification('❌ Arquivo inválido!', 'error');
-                            return;
-                        }
-                        
-                        if (confirm(`📤 Importar ${Object.keys(dados.exames).length} dias de dados?`)) {
-                            dadosApp = dados;
-                            localStorage.setItem('examesTomografia', JSON.stringify(dados));
-                            db.collection('controles').doc('examesTomografia').set(dados).catch(() => {});
-                            location.reload();
-                            showNotification('✅ Dados importados com sucesso!', 'success');
-                        }
-                    } catch(err) {
-                        showNotification('❌ Erro ao importar: ' + err.message, 'error');
-                    }
-                };
-                reader.readAsText(file);
-            };
-            input.click();
-        }
-
-        function atualizarListaBackups() {
-            try {
-                const historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
-                const container = document.getElementById('lista-backups');
-                if (!container) return;
-                
-                if (historico.length === 0) {
-                    container.innerHTML = '<p style="color: #999; font-size: 0.8rem;">Nenhum backup disponível</p>';
-                    return;
-                }
-                
-                container.innerHTML = historico.slice().reverse().map((b, i) => `
-                    <div class="backup-item">
-                        <span class="data">📅 ${b.data} às ${b.hora} ${b.tipo === 'manual' ? '📌' : ''}</span>
-                        <span class="qtd">${b.totalExames || 0} exames</span>
-                    </div>
-                `).join('');
-            } catch(e) {}
-        }
-
-        // ============================================
-        // FUNÇÕES DO SISTEMA ORIGINAL (MODIFICADAS PARA USAR BACKUP)
-        // ============================================
-        
-        async function salvarDadosFirebase() {
-            try { 
-                await db.collection('controles').doc('examesTomografia').set(dadosApp); 
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo!", "success");
-                fazerBackupAposAlteracao();
-                showNotification('✅ Dados sincronizados com Firebase!', 'success');
-            } catch (e) { 
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo Local", "error");
-                showNotification('⚠️ Dados salvos apenas localmente!', 'warning');
-            }
+            
+            document.getElementById('total-exames-dia').textContent = `${totalGeralExames} exames`;
+            document.getElementById('total-valor-dia').textContent = `R$ ${totalGeralValor.toFixed(2)}`;
         }
 
         async function carregarDadosFirebase() {
             try {
                 atualizarStatus("Conectando...", "loading");
-                
-                // Tenta carregar do Firebase
                 const doc = await db.collection('controles').doc('examesTomografia').get();
-                let firebaseData = null;
-                let localData = null;
-                
-                // Carrega dados locais
-                const local = localStorage.getItem('examesTomografia');
-                if (local) {
-                    try {
-                        localData = JSON.parse(local);
-                    } catch(e) {}
-                }
-                
                 if (doc.exists) {
-                    firebaseData = doc.data();
+                    const data = doc.data();
+                    dadosApp.exames = data.exames || data || {};
+                    dadosApp.tempos = data.tempos || {};
+                    dadosApp.pagamentos = data.pagamentos || {};
+                } else { 
+                    const local = localStorage.getItem('examesTomografia'); 
+                    if(local) { 
+                        const parsed = JSON.parse(local);
+                        dadosApp.exames = parsed.exames || parsed || {};
+                        dadosApp.tempos = parsed.tempos || {};
+                        dadosApp.pagamentos = parsed.pagamentos || {};
+                    } 
                 }
+                if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                if(!dadosApp.exames) dadosApp.exames = {};
+                if(!dadosApp.tempos) dadosApp.tempos = {};
                 
-                // DECISÃO: Qual dado usar?
-                if (firebaseData && localData) {
-                    // Compara quantidade de dados
-                    const qtdFirebase = Object.keys(firebaseData.exames || {}).length;
-                    const qtdLocal = Object.keys(localData.exames || {}).length;
-                    
-                    // Verifica se o local tem dados de ontem (01/08/2026)
-                    const temLocalOntem = localData.exames && localData.exames['2026-08-01'] && 
-                                         Object.keys(localData.exames['2026-08-01']).length > 0;
-                    const temFirebaseOntem = firebaseData.exames && firebaseData.exames['2026-08-01'] && 
-                                            Object.keys(firebaseData.exames['2026-08-01']).length > 0;
-                    
-                    if (temLocalOntem && !temFirebaseOntem) {
-                        // PRIORIDADE: Dados locais têm ontem, Firebase não - USAR LOCAL
-                        if (confirm('⚠️ Dados locais têm informações de 01/08/2026 que não estão no Firebase. Usar dados locais?')) {
-                            dadosApp = localData;
-                            // Salva no Firebase para sincronizar
-                            await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                            showNotification('✅ Dados locais restaurados e sincronizados!', 'success');
-                        } else {
-                            dadosApp = firebaseData;
-                        }
-                    } else if (qtdLocal > qtdFirebase) {
-                        // Dados locais têm mais dias - USAR LOCAL
-                        if (confirm(`📊 Dados locais têm ${qtdLocal} dias, Firebase tem ${qtdFirebase}. Usar dados locais?`)) {
-                            dadosApp = localData;
-                            await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                            showNotification('✅ Dados locais sincronizados com Firebase!', 'success');
-                        } else {
-                            dadosApp = firebaseData;
-                        }
-                    } else {
-                        dadosApp = firebaseData;
-                    }
-                } else if (firebaseData) {
-                    dadosApp = firebaseData;
-                } else if (localData) {
-                    dadosApp = localData;
-                    // Salva no Firebase
-                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                    showNotification('✅ Dados locais enviados para o Firebase!', 'success');
-                } else {
-                    dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
-                }
-                
-                // Garante que as estruturas existam
-                if (!dadosApp.exames) dadosApp.exames = {};
-                if (!dadosApp.tempos) dadosApp.tempos = {};
-                if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                
-                // Carrega total acumulado
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
                 const savedTotal = localStorage.getItem(totalKey);
                 if(savedTotal) {
@@ -821,23 +963,17 @@
                 updateTotalDisplay();
                 
                 atualizarStatus("Sincronizado", "success");
-                atualizarInfoBackup();
-                atualizarListaBackups();
                 
             } catch (e) {
                 console.error("Erro:", e);
-                // Fallback para dados locais
                 const local = localStorage.getItem('examesTomografia');
                 if(local) {
-                    try {
-                        const parsed = JSON.parse(local);
-                        dadosApp.exames = parsed.exames || {};
-                        dadosApp.tempos = parsed.tempos || {};
-                        dadosApp.pagamentos = parsed.pagamentos || {};
-                    } catch(err) {}
+                    const parsed = JSON.parse(local);
+                    dadosApp.exames = parsed.exames || parsed || {};
+                    dadosApp.tempos = parsed.tempos || {};
+                    dadosApp.pagamentos = parsed.pagamentos || {};
                 }
                 atualizarStatus("Offline", "error");
-                showNotification('⚠️ Modo offline - usando dados locais', 'warning');
             }
             
             criarLegenda(); 
@@ -847,43 +983,566 @@
             atualizarGraficos(); 
             startCurrentTimer();
         }
-
-        // ============================================
-        // FUNÇÕES DE NOTIFICAÇÃO (MODIFICADAS)
-        // ============================================
         
-        function showNotification(msg, type = 'success') {
-            const el = document.createElement('div');
-            el.textContent = msg;
-            el.className = `temp-notification ${type}`;
-            document.body.appendChild(el); 
-            setTimeout(() => el.remove(), 4000);
+        async function salvarDadosFirebase() {
+            try { 
+                await db.collection('controles').doc('examesTomografia').set(dadosApp); 
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("Salvo!", "success"); 
+            } catch (e) { 
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("Salvo Local", "error"); 
+            }
+        }
+        
+        async function finalizarLaudo() {
+            const servico = document.getElementById('timer-servico').value;
+            const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
+            const data = dataExameInput.value;
+            
+            if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
+            if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
+            
+            const tempoGasto = currentSeconds;
+            
+            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({
+                nome: valoresSegmentos[cb.value].nome
+            }));
+            showTimeNotification(tempoGasto, segmentosSelecionados);
+            
+            if(tempoGasto > 0) {
+                totalSeconds += tempoGasto;
+                updateTotalDisplay();
+                const totalKey = `totalAcumulado_${data}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+            }
+            
+            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
+            if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
+            
+            const tempoDividido = tempoGasto / checkboxes.length;
+            
+            checkboxes.forEach(cb => {
+                const seg = cb.value;
+                if (tempoDividido > 0) {
+                    const key = `${servico}_${seg}`;
+                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
+                    dadosApp.tempos[data][key].push(tempoDividido);
+                }
+                if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+                const atual = dadosApp.exames[data][seg][servico] || 0;
+                dadosApp.exames[data][seg][servico] = atual + 1;
+            });
+            
+            limparSelecoesSegmentos();
+            resetCurrentTimerAfterCommit();
+            await salvarDadosFirebase();
+            criarTabela();
+            atualizarResumoEmpresas();
+            atualizarGraficos();
         }
 
-        // ============================================
-        // FUNÇÕES DO SISTEMA ORIGINAL (MANTIDAS)
-        // ============================================
-        
-        // [TODAS AS SUAS FUNÇÕES ORIGINAIS AQUI]
-        // criarLegenda, criarTabela, popularTimerConfig, etc.
-        // Já estão definidas no seu código original
-        
-        // ============================================
-        // INICIALIZAÇÃO
-        // ============================================
-        
-        // Configura a data
-        const hoje = new Date();
-        const hojeStr = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getDate().toString().padStart(2,'0')}`;
-        document.getElementById('data-exame').value = hojeStr;
-        dataAnterior = hojeStr;
-        document.getElementById('mes-relatorio').value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
+        function criarLegenda() {
+            const grid = document.getElementById('legenda-grid'); 
+            if (!grid) return;
+            grid.innerHTML = '';
+            Object.values(valoresSegmentos).forEach(seg => {
+                const item = document.createElement('div'); item.className = 'legenda-item';
+                let html = `<h3>${seg.nome}</h3>`;
+                servicos.forEach(s => { 
+                    const v = seg.valores[s.id]; 
+                    if(v !== null) html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`; 
+                });
+                item.innerHTML = html; 
+                grid.appendChild(item);
+            });
+        }
 
-        // Eventos
-        document.getElementById('data-exame').addEventListener('change', () => {
-            const novaData = document.getElementById('data-exame').value;
+        function popularTimerConfig() {
+            const selServ = document.getElementById('timer-servico'); 
+            selServ.innerHTML = '<option value="">Selecione...</option>';
+            servicos.forEach(s => selServ.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
+            const contSeg = document.getElementById('timer-segmentos-container'); 
+            contSeg.innerHTML = '';
+            Object.entries(valoresSegmentos).forEach(([k, v]) => {
+                const label = document.createElement('label'); label.className = 'check-item';
+                const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = k;
+                label.appendChild(checkbox); label.appendChild(document.createTextNode(` ${v.nome}`)); 
+                contSeg.appendChild(label);
+            });
+        }
+
+        function criarTabela() {
+            const tbody = document.getElementById('exams-body'); 
+            tbody.innerHTML = ''; 
+            const data = dataExameInput.value;
+            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
+            Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
+                const tr = document.createElement('tr'); 
+                tr.innerHTML = `<td class="exam-name">${seg.nome}      `;
+                servicos.forEach(s => {
+                    const td = document.createElement('td');
+                    const valor = seg.valores[s.id]; 
+                    const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
+                    if (valor !== null && valor !== undefined) {
+                        td.innerHTML = `<div class="counter">
+                            <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
+                            <span class="count-display">${qtd}</span>
+                            <button class="counter-btn" onclick="alterarContador('${chave}', '${s.id}', 1)">+</button>
+                        </div>`;
+                    } else { td.className = "nao-tem"; td.textContent = "-"; }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            atualizarResumoEmpresas();
+        }
+        
+        async function alterarContador(seg, serv, delta) {
+            const data = dataExameInput.value; 
+            if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
+            if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+            const atual = dadosApp.exames[data][seg][serv] || 0; 
+            dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
+            criarTabela(); 
+            await salvarDadosFirebase();
+        }
+        
+        function getDateRange(view) {
+            const selectedDate = new Date(dataExameInput.value + "T00:00:00"); 
+            let start, end;
+            if (view === 'day') { start = new Date(selectedDate); end = new Date(selectedDate); }
+            else if (view === 'week') {
+                const day = selectedDate.getDay(); 
+                const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
+                start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0); 
+                end = new Date(start); end.setDate(end.getDate() + 6);
+            } else { start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1); end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); }
+            return { start, end };
+        }
+        
+        function setGraphView(view) {
+            currentView = view;
+            document.querySelectorAll('.filter-btn').forEach(btn => { 
+                if(btn.textContent.toLowerCase().includes(view.substring(0,3))) btn.classList.add('active'); 
+                else btn.classList.remove('active'); 
+            });
+            atualizarGraficos();
+        }
+
+        function getStatsByService(start, end) {
+            let stats = {};
+            servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
+            let current = new Date(start);
+            while (current <= end) {
+                const dateStr = current.toISOString().split('T')[0];
+                if(dadosApp.tempos[dateStr]) {
+                    Object.entries(dadosApp.tempos[dateStr]).forEach(([key, tempos]) => {
+                        const empresa = key.split('_')[0];
+                        const segmentoKey = key.split('_')[1];
+                        if(stats[empresa] && valoresSegmentos[segmentoKey]) {
+                            const valorUnit = valoresSegmentos[segmentoKey].valores[empresa];
+                            if (valorUnit) {
+                                stats[empresa].totalValor += tempos.length * valorUnit;
+                                stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0);
+                            }
+                        }
+                    });
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            return stats;
+        }
+
+        function atualizarGraficos() {
+            const { start, end } = getDateRange(currentView);
+            const stats = getStatsByService(start, end);
+            
+            let filteredTempos = {}; 
+            Object.keys(dadosApp.tempos).forEach(dateStr => {
+                const d = new Date(dateStr + "T00:00:00");
+                if (d >= start && d <= end) {
+                    Object.entries(dadosApp.tempos[dateStr]).forEach(([key, temps]) => {
+                        if (!filteredTempos[key]) filteredTempos[key] = [];
+                        filteredTempos[key].push(...temps);
+                    });
+                }
+            });
+
+            const labelsSegmentos = Object.values(valoresSegmentos).map(s => s.nome);
+            const datasets = servicos.map(s => ({ label: s.nome, data: [], backgroundColor: s.color, borderWidth: 1 }));
+            
+            Object.entries(valoresSegmentos).forEach(([segKey, seg]) => {
+                servicos.forEach((s, index) => {
+                    const key = `${s.id}_${segKey}`;
+                    const tempos = filteredTempos[key] || [];
+                    if (tempos.length > 0) {
+                        const media = tempos.reduce((a, b) => a + b, 0) / tempos.length;
+                        datasets[index].data.push(Math.round(media / 60));
+                    } else datasets[index].data.push(0);
+                });
+            });
+
+            if(chartSegmentos) chartSegmentos.destroy();
+            const chartSegmentosCanvas = document.getElementById('chartSegmentos');
+            if (chartSegmentosCanvas) {
+                chartSegmentos = new Chart(chartSegmentosCanvas, {
+                    type: 'bar', data: { labels: labelsSegmentos, datasets: datasets },
+                    options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, title: { display: true, text: 'MINUTOS (MÉDIA)' } } } }
+                });
+            }
+
+            const labelsCB = [], dataCB = [], colorsCB = [];
+            servicos.forEach(s => {
+                if(stats[s.id].totalTempo > 60) {
+                    const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo;
+                    labelsCB.push(s.nome);
+                    dataCB.push(valorHora.toFixed(2));
+                    colorsCB.push(s.color);
+                }
+            });
+
+            if(chartCustoBeneficio) chartCustoBeneficio.destroy();
+            const chartCustoCanvas = document.getElementById('chartCustoBeneficio');
+            if (chartCustoCanvas && labelsCB.length > 0) {
+                chartCustoBeneficio = new Chart(chartCustoCanvas, {
+                    type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: colorsCB }] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true }
+                });
+            }
+        }
+
+        function atualizarGraficoProjecao() {
+            const selectedDate = new Date(dataExameInput.value + "T00:00:00");
+            const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+            const stats = getStatsByService(start, end);
+            const containerCards = document.getElementById('projecao-resumo-cards');
+            if (containerCards) containerCards.innerHTML = '';
+            const labelsHoras = Array.from({length: 25}, (_, i) => i);
+            const datasetsProj = [];
+
+            servicos.forEach(s => {
+                const stat = stats[s.id];
+                if (stat.totalTempo > 600 && stat.totalValor > 0) {
+                    const avgPorSegundo = stat.totalValor / stat.totalTempo;
+                    const dataPoints = labelsHoras.map(h => (avgPorSegundo * 3600 * h).toFixed(2));
+                    const rsPorHora = avgPorSegundo * 3600;
+                    if (containerCards) {
+                        containerCards.innerHTML += `<div class="projecao-card" style="border-color: ${s.color}"><span>${s.nome}</span><strong>R$ ${rsPorHora.toFixed(2)}/h</strong></div>`;
+                    }
+                    datasetsProj.push({ label: `${s.nome}`, data: dataPoints, borderColor: s.color, fill: false, tension: 0.1 });
+                }
+            });
+
+            if(chartProjecao) chartProjecao.destroy();
+            const ctx = document.getElementById('chartProjecao24h');
+            if (ctx && datasetsProj.length > 0) {
+                chartProjecao = new Chart(ctx, { type: 'line', data: { labels: labelsHoras, datasets: datasetsProj }, options: { responsive: true, maintainAspectRatio: true } });
+            }
+        }
+
+        function abrirTab(evt, id) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); 
+            document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+            document.getElementById(id).classList.add('active'); 
+            evt.currentTarget.classList.add('active');
+            if(id === 'relatorio') gerarRelatorioMensal();
+            if(id === 'projecao') atualizarGraficoProjecao();
+        }
+        
+        // Função auxiliar para calcular valor E quantidade por dia para cada empresa
+        function calcularValorEQtdPorDia(dataStr) {
+            const resultado = {};
+            servicos.forEach(servico => {
+                resultado[servico.id] = { valor: 0, qtd: 0 };
+            });
+            
+            if (dadosApp.exames[dataStr]) {
+                Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
+                    servicos.forEach(servico => {
+                        const valorUnitario = segmento.valores[servico.id];
+                        if (valorUnitario !== null && valorUnitario !== undefined) {
+                            const qtd = dadosApp.exames[dataStr][segmentoKey]?.[servico.id] || 0;
+                            if (qtd > 0) {
+                                resultado[servico.id].valor += qtd * valorUnitario;
+                                resultado[servico.id].qtd += qtd;
+                            }
+                        }
+                    });
+                });
+            }
+            return resultado;
+        }
+        
+        function gerarRelatorioMensal() {
+            const [ano, mes] = mesRelatorioInput.value.split('-');
+            const anoNum = parseInt(ano), mesNum = parseInt(mes);
+            const totals = { 
+                hbj: { valor: 0, qtd: 0 }, mobilemed: { valor: 0, qtd: 0 }, 'sagrada-familia': { valor: 0, qtd: 0 }, 
+                radcloud: { valor: 0, qtd: 0 }, cmt: { valor: 0, qtd: 0 }, clinimage: { valor: 0, qtd: 0 }, 
+                vx: { valor: 0, qtd: 0 }, 'santa-casa-pg': { valor: 0, qtd: 0 }, 'hu-pg': { valor: 0, qtd: 0 }
+            };
+            let totalGeralValor = 0;
+            let totalGeralQtd = 0;
+            const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+            const tbody = document.getElementById('relatorio-body'); 
+            tbody.innerHTML = '';
+            
+            for(let d = 1; d <= ultimoDia; d++) {
+                const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                const valoresDia = calcularValorEQtdPorDia(dataStr);
+                
+                const tr = document.createElement('tr'); 
+                tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
+                let totalDiaValor = 0;
+                let totalDiaQtd = 0;
+                
+                servicos.forEach(servico => {
+                    const vDia = valoresDia[servico.id]?.valor || 0;
+                    const qDia = valoresDia[servico.id]?.qtd || 0;
+                    totalDiaValor += vDia;
+                    totalDiaQtd += qDia;
+                    
+                    // Atualiza totais do mês
+                    totals[servico.id].valor += vDia;
+                    totals[servico.id].qtd += qDia;
+                    totalGeralValor += vDia;
+                    totalGeralQtd += qDia;
+                    
+                    // Cria célula com valor e quantidade
+                    const td = document.createElement('td');
+                    td.className = 'relatorio-cell';
+                    if (vDia > 0 || qDia > 0) {
+                        td.innerHTML = `
+                            <div class="relatorio-valor">R$ ${vDia.toFixed(2)}</div>
+                            <div class="relatorio-qtd">📋 ${qDia} laudo${qDia !== 1 ? 's' : ''}</div>
+                        `;
+                    } else {
+                        td.innerHTML = `<div class="relatorio-valor" style="color:#999;">R$ 0,00</div>
+                                        <div class="relatorio-qtd">📋 0 laudos</div>`;
+                    }
+                    tr.appendChild(td);
+                });
+                
+                // Célula total do dia
+                const tdTotal = document.createElement('td');
+                tdTotal.style.fontWeight = 'bold';
+                tdTotal.style.backgroundColor = '#f0f0f0';
+                tdTotal.innerHTML = `
+                    <div class="relatorio-valor">R$ ${totalDiaValor.toFixed(2)}</div>
+                    <div class="relatorio-qtd">📋 ${totalDiaQtd} laudo${totalDiaQtd !== 1 ? 's' : ''}</div>
+                `;
+                tr.appendChild(tdTotal);
+                tbody.appendChild(tr);
+            }
+            
+            // Adicionar linha de totais do mês
+            const trTotal = document.createElement('tr');
+            trTotal.style.backgroundColor = '#e8f4f8';
+            trTotal.style.fontWeight = 'bold';
+            trTotal.innerHTML = `<td class="exam-name"><strong>📊 TOTAL DO MÊS</strong></td>`;
+            
+            servicos.forEach(servico => {
+                const td = document.createElement('td');
+                td.style.backgroundColor = '#e8f4f8';
+                td.innerHTML = `
+                    <div class="relatorio-valor" style="color:#27ae60; font-size:0.85rem;">R$ ${totals[servico.id].valor.toFixed(2)}</div>
+                    <div class="relatorio-qtd" style="font-size:0.7rem;">📋 ${totals[servico.id].qtd} laudo${totals[servico.id].qtd !== 1 ? 's' : ''}</div>
+                `;
+                trTotal.appendChild(td);
+            });
+            
+            const tdTotalGeral = document.createElement('td');
+            tdTotalGeral.style.backgroundColor = '#e8f4f8';
+            tdTotalGeral.style.fontWeight = 'bold';
+            tdTotalGeral.innerHTML = `
+                <div class="relatorio-valor" style="color:#27ae60; font-size:0.9rem;">R$ ${totalGeralValor.toFixed(2)}</div>
+                <div class="relatorio-qtd" style="font-size:0.75rem;">📋 ${totalGeralQtd} laudo${totalGeralQtd !== 1 ? 's' : ''}</div>
+            `;
+            trTotal.appendChild(tdTotalGeral);
+            tbody.appendChild(trTotal);
+            
+            renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeralValor);
+        }
+        
+        function renderizarHeaderUnificado(mesAno, totals, totalGeral) {
+            const container = document.getElementById('unificado-pagamento-container');
+            if (!container) return;
+            
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            
+            let totalRecebido = 0;
+            servicos.forEach(servico => {
+                if (dadosApp.pagamentos[mesAno][servico.id]) {
+                    totalRecebido += totals[servico.id].valor;
+                }
+            });
+            
+            const html = `
+                <div class="empresas-pagamento">
+                    ${servicos.map(servico => {
+                        const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
+                        const valorTotal = totals[servico.id].valor;
+                        const qtdTotal = totals[servico.id].qtd;
+                        return `
+                            <div class="btn-pagamento-empresa ${isPaid ? 'pago' : 'pendente'}" style="border-color: ${servico.color}">
+                                <input type="checkbox" ${isPaid ? 'checked' : ''} 
+                                    onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">
+                                <label onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">${servico.nome}</label>
+                                <span class="valor-empresa">R$ ${valorTotal.toFixed(2)}</span>
+                                <span class="valor-empresa" style="background: #2c3e50;">📋 ${qtdTotal}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="total-mes-central">
+                    <div class="label">💰 TOTAL DO MÊS</div>
+                    <div class="valor">R$ ${totalGeral.toFixed(2)}</div>
+                    <div style="font-size:0.7rem; margin-top:5px;">📋 ${servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0)} laudos</div>
+                </div>
+                <div class="resumo-recebimento">
+                    <div class="recebido">
+                        <div class="label">✓ RECEBIDO</div>
+                        <div class="valor">R$ ${totalRecebido.toFixed(2)}</div>
+                    </div>
+                    <div class="a-receber">
+                        <div class="label">⏳ A RECEBER</div>
+                        <div class="valor">R$ ${(totalGeral - totalRecebido).toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function togglePagamentoUnificado(empresaId, mesAno) {
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
+            salvarDadosFirebase();
+            gerarRelatorioMensal();
+        }
+
+        function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
+        
+        function downloadRelatorioExcel() {
+            const [ano, mes] = mesRelatorioInput.value.split('-');
+            const anoNum = parseInt(ano), mesNum = parseInt(mes);
+            const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+            
+            let csv = 'DATA;';
+            servicos.forEach(s => { csv += `${s.nome} (R$);${s.nome} (QTD);`; });
+            csv += 'TOTAL (R$);TOTAL (QTD)\n';
+            
+            const totals = {};
+            servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
+            
+            for(let d = 1; d <= ultimoDia; d++) {
+                const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                const valoresDia = calcularValorEQtdPorDia(dataStr);
+                let linha = `${dataStr};`;
+                let totalDiaValor = 0;
+                let totalDiaQtd = 0;
+                
+                servicos.forEach(servico => {
+                    const vDia = valoresDia[servico.id]?.valor || 0;
+                    const qDia = valoresDia[servico.id]?.qtd || 0;
+                    totalDiaValor += vDia;
+                    totalDiaQtd += qDia;
+                    totals[servico.id].valor += vDia;
+                    totals[servico.id].qtd += qDia;
+                    linha += `${vDia.toFixed(2)};${qDia};`;
+                });
+                linha += `${totalDiaValor.toFixed(2)};${totalDiaQtd}\n`;
+                csv += linha;
+            }
+            
+            csv += `\nTOTAIS DO MÊS;`;
+            servicos.forEach(s => {
+                csv += `${totals[s.id].valor.toFixed(2)};${totals[s.id].qtd};`;
+            });
+            const totalGeralValor = servicos.reduce((acc, s) => acc + totals[s.id].valor, 0);
+            const totalGeralQtd = servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0);
+            csv += `${totalGeralValor.toFixed(2)};${totalGeralQtd}\n`;
+            
+            csv += `\nRESUMO DE PAGAMENTOS POR EMPRESA\n`;
+            servicos.forEach(servico => {
+                const mesAno = mesRelatorioInput.value;
+                const isPaid = dadosApp.pagamentos[mesAno]?.[servico.id] || false;
+                csv += `${servico.nome};R$ ${totals[servico.id].valor.toFixed(2)};${totals[servico.id].qtd} laudos;${isPaid ? 'PAGO' : 'PENDENTE'}\n`;
+            });
+            
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); 
+            a.download = `relatorio_${mes}_${ano}.csv`; 
+            a.click();
+        }
+        
+        function baixarBackupCompleto() { 
+            const backup = { ...dadosApp };
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); 
+        }
+        
+        function restaurarBackup() {
+            const file = document.getElementById('upload-backup').files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try { 
+                    const json = JSON.parse(e.target.result); 
+                    dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
+                    await salvarDadosFirebase(); 
+                    criarLegenda(); 
+                    criarTabela(); 
+                    atualizarGraficos(); 
+                    if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                    showNotification("✅ Backup restaurado!", "success");
+                } catch(err) { showNotification("❌ Erro ao restaurar", "error"); }
+            };
+            reader.readAsText(file);
+        }
+        
+        async function limparDia() { 
+            if(confirm("Zerar exames do dia?")) { 
+                const data = dataExameInput.value; 
+                dadosApp.exames[data] = {}; 
+                dadosApp.tempos[data] = {}; 
+                totalSeconds = 0;
+                currentSeconds = 0;
+                updateTotalDisplay();
+                updateCurrentDisplay();
+                const totalKey = `totalAcumulado_${data}`;
+                localStorage.setItem(totalKey, '0');
+                await salvarDadosFirebase(); 
+                criarTabela(); 
+                atualizarResumoEmpresas();
+                atualizarGraficos(); 
+                showNotification("🗑️ Dia zerado! Cronômetros resetados.", "warning");
+            } 
+        }
+        
+        async function limparTodosDados() {
+            if(confirm("⚠️ APAGAR TODOS os dados?")) {
+                dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
+                totalSeconds = 0;
+                currentSeconds = 0;
+                updateTotalDisplay();
+                updateCurrentDisplay();
+                await salvarDadosFirebase(); 
+                criarTabela(); 
+                atualizarGraficos();
+                if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                showNotification("⚠️ Todos os dados apagados!", "error");
+            }
+        }
+
+        dataExameInput.addEventListener('change', () => { 
+            const novaData = dataExameInput.value;
             if(novaData !== dataAnterior) {
-                if(confirm(`⚠️ Mudar a data para ${novaData} irá ZERAR os cronômetros.\n\nDeseja continuar?`)) {
+                if(confirm(`⚠️ Mudar a data para ${novaData} irá ZERAR os cronômetros para iniciar um novo dia.\n\nO tempo do dia ${dataAnterior} será salvo separadamente.\n\nDeseja continuar?`)) {
                     totalSeconds = 0;
                     currentSeconds = 0;
                     isCurrentRunning = true;
@@ -903,19 +1562,19 @@
                     criarTabela(); 
                     atualizarResumoEmpresas();
                     atualizarGraficos();
-                    showNotification(`📅 Data alterada para ${novaData}!`, "warning");
+                    showNotification(`📅 Data alterada para ${novaData}! Cronômetros zerados.`, "warning");
                 } else {
-                    document.getElementById('data-exame').value = dataAnterior;
+                    dataExameInput.value = dataAnterior;
                 }
             }
         });
-
-        document.getElementById('mes-relatorio').addEventListener('change', () => gerarRelatorioMensal());
-
-        // Inicia
-        document.addEventListener('DOMContentLoaded', () => {
-            carregarDadosFirebase();
+        
+        dataExameInput.addEventListener('focus', () => {
+            dataAnterior = dataExameInput.value;
         });
+        
+        mesRelatorioInput.addEventListener('change', () => gerarRelatorioMensal());
+        document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
     </script>
 </body>
 </html>
