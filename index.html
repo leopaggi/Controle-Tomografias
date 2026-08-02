@@ -4,43 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Exames de Tomografia</title>
-    
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <style>
-        :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --success: #27ae60;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --info: #17a2b8;
-            --dark: #34495e;
-            --light-bg: #f5f7fa;
-        }
-        
+        :root { --primary: #2c3e50; --secondary: #3498db; --success: #27ae60; --warning: #f39c12; --danger: #e74c3c; --info: #17a2b8; --dark: #34495e; --light-bg: #f5f7fa; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--light-bg); color: #333; line-height: 1.6; padding: 20px; }
         .container { max-width: 1800px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 25px; }
-        
         header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         h1 { color: var(--primary); margin-bottom: 5px; font-size: 1.5rem; }
         .sync-status { padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
-        .sync-success { background: #d4edda; color: #155724; }
-        .sync-error { background: #f8d7da; color: #721c24; }
-        .sync-loading { background: #d1ecf1; color: #0c5460; }
-        .sync-warning { background: #fff3cd; color: #856404; }
-        
+        .sync-success { background: #d4edda; color: #155724; } .sync-error { background: #f8d7da; color: #721c24; } .sync-loading { background: #d1ecf1; color: #0c5460; } .sync-warning { background: #fff3cd; color: #856404; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
         .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; border: 1px solid #ddd; border-bottom: none; }
         .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
+        .tab-content { display: none; } .tab-content.active { display: block; }
         .legenda-container { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 20px; border-left: 4px solid var(--secondary); }
         .legenda-container h2 { color: var(--primary); margin-bottom: 10px; text-align: center; font-size: 1.1rem; }
         .legenda-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
@@ -48,541 +27,116 @@
         .legenda-item h3 { color: var(--primary); margin-bottom: 5px; font-size: 0.9rem; border-bottom: 1px solid #eee; padding-bottom: 3px; }
         .valor-servico { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 1px 0; color: #555; }
         .valor-servico span:last-child { font-weight: bold; color: var(--success); }
-
-        .resumo-empresas {
-            background: white;
-            border: 1px solid #e1e1e1;
-            border-radius: 8px;
-            padding: 12px 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .resumo-empresas h3 {
-            color: var(--primary);
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #eee;
-            display: inline-block;
-        }
-        .empresas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-        .empresa-card {
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 8px 10px;
-            border-left: 3px solid;
-            transition: all 0.2s;
-        }
-        .empresa-card .empresa-nome {
-            font-weight: bold;
-            font-size: 0.75rem;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .empresa-card .empresa-valor {
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: var(--success);
-        }
-        .empresa-card .empresa-qtd {
-            font-size: 0.65rem;
-            color: #666;
-        }
-        .total-resumo-empresas {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
-            margin-top: 5px;
-            font-size: 0.8rem;
-        }
-        .total-resumo-empresas .total-exames {
-            background: var(--primary);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-        }
-        .total-resumo-empresas .total-valor {
-            font-size: 1rem;
-            font-weight: bold;
-            color: var(--success);
-        }
-        .acoes-rapidas {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .btn-pequeno {
-            padding: 5px 12px;
-            font-size: 0.7rem;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .workflow-container {
-            background: white;
-            border: 1px solid #e1e1e1;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 15px;
-            align-items: start;
-        }
+        .resumo-empresas { background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .resumo-empresas h3 { color: var(--primary); font-size: 0.85rem; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #eee; display: inline-block; }
+        .empresas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+        .empresa-card { background: #f8f9fa; border-radius: 6px; padding: 8px 10px; border-left: 3px solid; transition: all 0.2s; }
+        .empresa-card .empresa-nome { font-weight: bold; font-size: 0.75rem; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .empresa-card .empresa-valor { font-size: 0.85rem; font-weight: bold; color: var(--success); }
+        .empresa-card .empresa-qtd { font-size: 0.65rem; color: #666; }
+        .total-resumo-empresas { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; font-size: 0.8rem; }
+        .total-resumo-empresas .total-exames { background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; }
+        .total-resumo-empresas .total-valor { font-size: 1rem; font-weight: bold; color: var(--success); }
+        .acoes-rapidas { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-pequeno { padding: 5px 12px; font-size: 0.7rem; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
+        .workflow-container { background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: grid; grid-template-columns: 300px 1fr; gap: 15px; align-items: start; }
         @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
-
-        .timer-box {
-            background: #e8f6f3;
-            border-radius: 10px;
-            border-left: 5px solid var(--success);
-            padding: 10px;
-        }
+        .timer-box { background: #e8f6f3; border-radius: 10px; border-left: 5px solid var(--success); padding: 10px; }
         .timer-box.paused { background: #fdedec; border-left-color: var(--danger); }
-
-        .timer-total {
-            background: #2c3e50;
-            border-radius: 8px;
-            padding: 8px 12px;
-            text-align: center;
-            margin-bottom: 12px;
-        }
-        .timer-total .session-label {
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: rgba(255,255,255,0.7);
-            display: block;
-        }
-        .timer-total .timer-display {
-            font-size: 1.3rem;
-            font-weight: bold;
-            font-family: 'Courier New', Courier, monospace;
-            color: #27ae60;
-        }
-
-        .timer-current {
-            text-align: center;
-            padding: 5px;
-        }
-        .timer-current .session-label {
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #2c3e50;
-            font-weight: bold;
-            display: block;
-        }
-        .timer-current .timer-display {
-            font-size: 1.3rem;
-            font-weight: bold;
-            font-family: 'Courier New', Courier, monospace;
-            color: var(--primary);
-        }
-        .timer-btn-group {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 8px;
-        }
-        .timer-btn {
-            padding: 4px 12px;
-            font-size: 0.75rem;
-            border-radius: 20px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .controls-box {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: flex-end;
-        }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .control-label {
-            font-size: 0.7rem;
-            font-weight: bold;
-            color: #666;
-            text-transform: uppercase;
-        }
-        select, input[type="date"] {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 0.85rem;
-            min-width: 130px;
-        }
-
-        .checkbox-scroll {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            max-height: 80px;
-            overflow-y: auto;
-            padding: 6px;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            background: #fafafa;
-        }
-        .check-item {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .check-item input {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .check-item:has(input:checked) {
-            background: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
-            font-weight: bold;
-        }
-        
-        .exams-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.75rem;
-        }
-        .exams-table th, .exams-table td {
-            padding: 5px;
-            text-align: center;
-            border: 1px solid #ddd;
-        }
-        .exams-table th {
-            background-color: var(--primary);
-            color: white;
-            font-weight: bold;
-        }
-        .exams-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .exam-name {
-            text-align: left;
-            font-weight: bold;
-            background-color: #f8f9fa;
-        }
-        
-        .counter {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-        }
-        .counter-btn {
-            width: 20px;
-            height: 20px;
-            border: none;
-            border-radius: 50%;
-            background-color: var(--secondary);
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 0.65rem;
-        }
+        .timer-total { background: #2c3e50; border-radius: 8px; padding: 8px 12px; text-align: center; margin-bottom: 12px; }
+        .timer-total .session-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.7); display: block; }
+        .timer-total .timer-display { font-size: 1.3rem; font-weight: bold; font-family: 'Courier New', Courier, monospace; color: #27ae60; }
+        .timer-current { text-align: center; padding: 5px; }
+        .timer-current .session-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: #2c3e50; font-weight: bold; display: block; }
+        .timer-current .timer-display { font-size: 1.3rem; font-weight: bold; font-family: 'Courier New', Courier, monospace; color: var(--primary); }
+        .timer-btn-group { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+        .timer-btn { padding: 4px 12px; font-size: 0.75rem; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; }
+        .controls-box { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-label { font-size: 0.7rem; font-weight: bold; color: #666; text-transform: uppercase; }
+        select, input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.85rem; min-width: 130px; }
+        .checkbox-scroll { display: flex; flex-wrap: wrap; gap: 6px; max-height: 80px; overflow-y: auto; padding: 6px; border: 1px solid #eee; border-radius: 5px; background: #fafafa; }
+        .check-item { background: white; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; }
+        .check-item input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .check-item:has(input:checked) { background: var(--secondary); color: white; border-color: var(--secondary); font-weight: bold; }
+        .exams-table { width: 100%; border-collapse: collapse; margin: 15px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.75rem; }
+        .exams-table th, .exams-table td { padding: 5px; text-align: center; border: 1px solid #ddd; }
+        .exams-table th { background-color: var(--primary); color: white; font-weight: bold; }
+        .exams-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .exam-name { text-align: left; font-weight: bold; background-color: #f8f9fa; }
+        .counter { display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .counter-btn { width: 20px; height: 20px; border: none; border-radius: 50%; background-color: var(--secondary); color: white; font-weight: bold; cursor: pointer; font-size: 0.65rem; }
         .counter-btn:hover { transform: scale(1.1); }
         .counter-btn.remove { background-color: var(--danger); }
         .count-display { font-weight: bold; min-width: 18px; font-size: 0.8rem; }
         .nao-tem { color: #999; font-style: italic; font-size: 0.65rem; }
-
-        .relatorio-header {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
-            border-radius: 10px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-            color: white;
-        }
-        .filtro-mes {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }
-        .filtro-mes label {
-            font-weight: bold;
-            font-size: 0.85rem;
-        }
-        .filtro-mes input {
-            padding: 6px 12px;
-            border-radius: 5px;
-            border: none;
-            margin: 0 8px;
-        }
-        .resumo-pagamento-unificado {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: 20px;
-            align-items: center;
-        }
-        @media (max-width: 800px) {
-            .resumo-pagamento-unificado { grid-template-columns: 1fr; gap: 15px; }
-        }
-        .empresas-pagamento {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-        }
-        .btn-pagamento-empresa {
-            background: rgba(255,255,255,0.15);
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 25px;
-            padding: 6px 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        .btn-pagamento-empresa:hover {
-            background: rgba(255,255,255,0.25);
-            transform: scale(1.02);
-        }
-        .btn-pagamento-empresa.pago {
-            background: var(--success);
-            border-color: var(--success);
-        }
-        .btn-pagamento-empresa.pendente {
-            background: var(--warning);
-            border-color: var(--warning);
-        }
-        .btn-pagamento-empresa input {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-            margin: 0;
-        }
-        .btn-pagamento-empresa label {
-            cursor: pointer;
-        }
-        .valor-empresa {
-            font-weight: bold;
-            background: rgba(0,0,0,0.3);
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-        }
-        .total-mes-central {
-            text-align: center;
-            background: rgba(255,255,255,0.1);
-            padding: 12px 20px;
-            border-radius: 12px;
-            min-width: 180px;
-        }
-        .total-mes-central .label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.8;
-        }
-        .total-mes-central .valor {
-            font-size: 1.6rem;
-            font-weight: bold;
-            line-height: 1.2;
-        }
-        .resumo-recebimento {
-            text-align: right;
-        }
-        .resumo-recebimento .recebido {
-            background: var(--success);
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-        }
-        .resumo-recebimento .a-receber {
-            background: var(--warning);
-            padding: 8px 12px;
-            border-radius: 8px;
-        }
-        .resumo-recebimento .label {
-            font-size: 0.7rem;
-            opacity: 0.9;
-        }
-        .resumo-recebimento .valor {
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-        
-        .excel-btn {
-            background: var(--success);
-            color: white;
-            padding: 6px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 0.75rem;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 35px;
-            padding-top: 20px;
-            border-top: 2px solid #eee;
-        }
+        .relatorio-header { background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%); border-radius: 10px; padding: 15px 20px; margin-bottom: 20px; color: white; }
+        .filtro-mes { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        .filtro-mes label { font-weight: bold; font-size: 0.85rem; }
+        .filtro-mes input { padding: 6px 12px; border-radius: 5px; border: none; margin: 0 8px; }
+        .resumo-pagamento-unificado { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; }
+        @media (max-width: 800px) { .resumo-pagamento-unificado { grid-template-columns: 1fr; gap: 15px; } }
+        .empresas-pagamento { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .btn-pagamento-empresa { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; padding: 6px 14px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 500; }
+        .btn-pagamento-empresa:hover { background: rgba(255,255,255,0.25); transform: scale(1.02); }
+        .btn-pagamento-empresa.pago { background: var(--success); border-color: var(--success); }
+        .btn-pagamento-empresa.pendente { background: var(--warning); border-color: var(--warning); }
+        .btn-pagamento-empresa input { width: 16px; height: 16px; cursor: pointer; margin: 0; }
+        .btn-pagamento-empresa label { cursor: pointer; }
+        .valor-empresa { font-weight: bold; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; }
+        .total-mes-central { text-align: center; background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 12px; min-width: 180px; }
+        .total-mes-central .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+        .total-mes-central .valor { font-size: 1.6rem; font-weight: bold; line-height: 1.2; }
+        .resumo-recebimento { text-align: right; }
+        .resumo-recebimento .recebido { background: var(--success); padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; }
+        .resumo-recebimento .a-receber { background: var(--warning); padding: 8px 12px; border-radius: 8px; }
+        .resumo-recebimento .label { font-size: 0.7rem; opacity: 0.9; }
+        .resumo-recebimento .valor { font-size: 1.2rem; font-weight: bold; }
+        .excel-btn { background: var(--success); color: white; padding: 6px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.75rem; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 35px; padding-top: 20px; border-top: 2px solid #eee; }
         @media (max-width: 1000px) { .dashboard-grid { grid-template-columns: 1fr; } }
-        .chart-box {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #eee;
-            height: 350px;
-        }
+        .chart-box { background: white; padding: 12px; border-radius: 8px; border: 1px solid #eee; height: 350px; }
         .chart-box.full-width { grid-column: 1 / -1; height: 450px; }
-        .chart-box h3 {
-            font-size: 0.85rem;
-            color: var(--primary);
-            margin-bottom: 8px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 4px;
-        }
-        .filter-bar {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            padding: 4px;
-            border-radius: 5px;
-        }
-        .filter-btn {
-            padding: 4px 12px;
-            border-radius: 12px;
-            background: white;
-            border: 1px solid #ddd;
-            cursor: pointer;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-        .filter-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-        
+        .chart-box h3 { font-size: 0.85rem; color: var(--primary); margin-bottom: 8px; border-bottom: 2px solid #eee; padding-bottom: 4px; }
+        .filter-bar { display: flex; gap: 4px; margin-bottom: 10px; background: #f8f9fa; padding: 4px; border-radius: 5px; }
+        .filter-btn { padding: 4px 12px; border-radius: 12px; background: white; border: 1px solid #ddd; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-save { background-color: var(--success); color: white; }
         .btn-reset { background-color: var(--danger); color: white; }
         .btn-action { background-color: var(--warning); color: white; }
-        
-        .payment-controls {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
-            border-left: 4px solid var(--success);
-        }
-        
-        .projecao-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .projecao-card {
-            background: #f8f9fa;
-            padding: 8px;
-            border-radius: 5px;
-            text-align: center;
-            border-top: 3px solid #ccc;
-            font-size: 0.7rem;
-        }
+        .projecao-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        .projecao-card { background: #f8f9fa; padding: 8px; border-radius: 5px; text-align: center; border-top: 3px solid #ccc; font-size: 0.7rem; }
         .projecao-card strong { display: block; font-size: 1rem; color: var(--primary); }
-        
         .info-text { font-size: 0.6rem; color: #888; margin-top: 5px; }
-        
-        .temp-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #27ae60;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 9999;
-            font-weight: bold;
-            font-size: 0.9rem;
-            animation: slideIn 0.3s ease-out;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-        
-        /* Estilo para células do relatório com valor e contagem de laudos */
-        .relatorio-cell {
-            font-size: 0.75rem;
-        }
-        .relatorio-valor {
-            font-weight: bold;
-            color: #27ae60;
-        }
-        .relatorio-qtd {
-            font-size: 0.65rem;
-            color: #666;
-            display: block;
-            margin-top: 2px;
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
+        .temp-notification { position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-weight: bold; font-size: 0.9rem; animation: slideIn 0.3s ease-out; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .relatorio-cell { font-size: 0.75rem; }
+        .relatorio-valor { font-weight: bold; color: #27ae60; }
+        .relatorio-qtd { font-size: 0.65rem; color: #666; display: block; margin-top: 2px; }
+        .backup-history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; background: white; }
+        .backup-history-item:last-child { border-bottom: none; }
+        .backup-history-item .b-info { font-size: 0.8rem; color: var(--primary); }
+        .backup-history-item .b-sub { font-size: 0.7rem; color: #666; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Controle de Tomografia</h1>
-            <div id="sync-status" class="sync-status sync-loading">Conectando...</div>
+            <div id="sync-status" class="sync-status sync-loading">Iniciando...</div>
         </header>
-        
         <div class="tabs">
-            <button class="tab active" onclick="abrirTab(event, 'controle')">🏠 Controle Diário</button>
-            <button class="tab" onclick="abrirTab(event, 'relatorio')">📊 Relatório Mensal</button>
-            <button class="tab" onclick="abrirTab(event, 'projecao')">🚀 Projeção 24h</button>
-            <button class="tab" onclick="abrirTab(event, 'backup')">💾 Backup</button>
+            <button class="tab active" data-tab="controle">🏠 Controle Diário</button>
+            <button class="tab" data-tab="relatorio">📊 Relatório Mensal</button>
+            <button class="tab" data-tab="projecao">🚀 Projeção 24h</button>
+            <button class="tab" data-tab="backup">💾 Backup</button>
         </div>
         
         <div id="controle" class="tab-content active">
-            <!-- Conteúdo da aba controle igual ao original -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
             </div>
-
             <div class="resumo-empresas" id="resumo-empresas-container">
                 <h3>📊 Produção por Empresa</h3>
                 <div class="empresas-grid" id="empresas-resumo-grid"></div>
@@ -591,29 +145,26 @@
                     <span class="total-valor" id="total-valor-dia">R$ 0,00</span>
                 </div>
                 <div class="acoes-rapidas">
-                    <button class="btn-pequeno btn-save" onclick="salvarDadosFirebase()">💾 Sincronizar</button>
-                    <button class="btn-pequeno btn-reset" onclick="limparDia()">🗑️ Zerar Dia</button>
+                    <button id="btn-sincronizar" class="btn-pequeno btn-save">💾 Sincronizar</button>
+                    <button id="btn-zerar-dia" class="btn-pequeno btn-reset">🗑️ Zerar Dia</button>
                 </div>
             </div>
-
             <div class="workflow-container">
                 <div class="timer-box" id="timer-box">
                     <div class="timer-total">
                         <span class="session-label">📊 TOTAL ACUMULADO DO DIA</span>
                         <div class="timer-display" id="total-timer-display">00:00:00</div>
                     </div>
-                    
                     <div class="timer-current">
                         <span class="session-label">⏱️ TEMPO DO LAUDO ATUAL</span>
                         <div class="timer-display" id="current-timer-display">00:00:00</div>
                         <div class="timer-btn-group">
-                            <button class="timer-btn btn-action" id="btn-pause-current" onclick="togglePauseCurrentTimer()">⏸ Pausar</button>
-                            <button class="timer-btn btn-reset" onclick="resetCurrentTimer()">⟳ Reiniciar</button>
+                            <button id="btn-pause-current" class="timer-btn btn-action">⏸ Pausar</button>
+                            <button id="btn-reset-current" class="timer-btn btn-reset">⟳ Reiniciar</button>
                         </div>
                         <div class="info-text">Pause para interrupções | Reinicie se perdeu o tempo</div>
                     </div>
                 </div>
-
                 <div class="controls-box">
                     <div class="control-group">
                         <span class="control-label">Data</span>
@@ -628,37 +179,33 @@
                         <div class="checkbox-scroll" id="timer-segmentos-container"></div>
                     </div>
                     <div class="control-group" style="justify-content: flex-end;">
-                        <button class="timer-btn btn-save" style="padding: 10px 20px; font-size: 0.9rem;" onclick="finalizarLaudo()">✅ Finalizar Laudo</button>
+                        <button id="btn-finalizar-laudo" class="timer-btn btn-save" style="padding: 10px 20px; font-size: 0.9rem;">✅ Finalizar Laudo</button>
                     </div>
                 </div>
             </div>
-
             <h3 style="margin-bottom: 8px; color: var(--primary); font-size: 0.9rem;">Lançamento Manual</h3>
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="exams-table">
-                    <thead>
-                        <tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th></tr>
-                    </thead>
+                    <thead><tr><th>EXAMES</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th></tr></thead>
                     <tbody id="exams-body"></tbody>
                 </table>
             </div>
-
             <div class="dashboard-grid">
                 <div class="chart-box">
                     <h3>Tempo Médio por Segmento</h3>
                     <div class="filter-bar">
-                        <button class="filter-btn active" onclick="setGraphView('day')">Hoje</button>
-                        <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
-                        <button class="filter-btn" onclick="setGraphView('month')">Mês</button>
+                        <button class="filter-btn active" data-view="day">Hoje</button>
+                        <button class="filter-btn" data-view="week">Semana</button>
+                        <button class="filter-btn" data-view="month">Mês</button>
                     </div>
                     <div style="height: 260px;"><canvas id="chartSegmentos"></canvas></div>
                 </div>
                 <div class="chart-box">
                     <h3>Produtividade Real (R$/Hora)</h3>
                     <div class="filter-bar">
-                        <button class="filter-btn active" onclick="setGraphView('day')">Hoje</button>
-                        <button class="filter-btn" onclick="setGraphView('week')">Semana</button>
-                        <button class="filter-btn" onclick="setGraphView('month')">Mês</button>
+                        <button class="filter-btn active" data-view="day">Hoje</button>
+                        <button class="filter-btn" data-view="week">Semana</button>
+                        <button class="filter-btn" data-view="month">Mês</button>
                     </div>
                     <div style="height: 260px;"><canvas id="chartCustoBeneficio"></canvas></div>
                 </div>
@@ -671,21 +218,15 @@
                     <div>
                         <label>📅 Mês de referência:</label>
                         <input type="month" id="mes-relatorio">
-                        <button onclick="gerarRelatorioMensal()" class="excel-btn" style="background: var(--secondary);">🔄 Atualizar</button>
-                        <button onclick="downloadRelatorioExcel()" class="excel-btn">📎 Exportar Excel</button>
+                        <button id="btn-atualizar-relatorio" class="excel-btn" style="background: var(--secondary);">🔄 Atualizar</button>
+                        <button id="btn-exportar-excel" class="excel-btn">📎 Exportar Excel</button>
                     </div>
                 </div>
-                
-                <div class="resumo-pagamento-unificado" id="unificado-pagamento-container">
-                    <!-- Conteúdo dinâmico -->
-                </div>
+                <div class="resumo-pagamento-unificado" id="unificado-pagamento-container"></div>
             </div>
-
             <div style="overflow-x: auto;">
                 <table class="exams-table" id="relatorio-mensal">
-                    <thead>
-                        <tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th><th>TOTAL</th></tr>
-                    </thead>
+                    <thead><tr><th>DATA</th><th>HBJ</th><th>MOBILEMED</th><th>SAGRADA</th><th>RADCLOUD</th><th>CMT</th><th>CLINIMAGE</th><th>VX</th><th>Santa Casa (PG)</th><th>HU (PG)</th><th>TOTAL</th></tr></thead>
                     <tbody id="relatorio-body"></tbody>
                 </table>
             </div>
@@ -704,30 +245,38 @@
         </div>
         
         <div id="backup" class="tab-content">
-            <div style="text-align: center; padding: 15px;">
-                <h2 style="font-size: 1rem;">Gerenciamento de Dados</h2>
-                <div class="actions">
-                    <button onclick="baixarBackupCompleto()" class="btn-save">💾 Backup JSON</button>
-                    <button onclick="limparTodosDados()" class="btn-reset">⚠️ Limpar Tudo</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid var(--secondary);">
+                    <h3 style="font-size: 0.9rem; margin-bottom: 10px;">📥 Backup Manual</h3>
+                    <p style="font-size: 0.75rem; margin-bottom: 10px; color: #666;">Faça download de um arquivo JSON com todos os dados ou restaure um arquivo salvo anteriormente.</p>
+                    <button id="btn-baixar-json" class="btn-pequeno btn-save">💾 Baixar JSON</button>
+                    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
+                    <h4 style="font-size: 0.8rem; margin-bottom: 5px;">Restaurar a partir de arquivo:</h4>
+                    <input type="file" id="upload-backup" accept=".json" style="font-size: 0.7rem; margin-bottom: 10px;">
+                    <button id="btn-restaurar-backup" class="btn-pequeno btn-action">🔄 Restaurar</button>
                 </div>
-                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                    <h3 style="font-size: 0.85rem;">Restaurar Backup</h3>
-                    <input type="file" id="upload-backup" accept=".json" style="margin: 8px auto; display: block;">
-                    <button onclick="restaurarBackup()" class="btn-action">🔄 Restaurar</button>
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid var(--warning);">
+                    <h3 style="font-size: 0.9rem; margin-bottom: 10px;">⚠️ Zona de Perigo</h3>
+                    <p style="font-size: 0.75rem; margin-bottom: 10px; color: #666;">Apaga todos os registros do sistema. Esta ação não pode ser desfeita (use o backup manual antes!).</p>
+                    <button id="btn-limpar-tudo" class="btn-pequeno btn-reset">🗑️ Limpar Todos os Dados</button>
                 </div>
+            </div>
+            <hr style="margin: 30px 0; border: 0; border-top: 2px solid #eee;">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div>
+                        <h3 style="font-size: 1rem; color: var(--primary);">⏱️ Backups Automáticos (A cada 5 min)</h3>
+                        <small style="color: #888; font-size: 0.75rem;">O sistema salva automaticamente os últimos 20 backups, mas somente se houver edições.</small>
+                    </div>
+                    <button id="btn-limpar-historico" class="btn-pequeno btn-reset">🗑️ Limpar Histórico</button>
+                </div>
+                <div id="lista-backups-automaticos" style="border: 1px solid #ddd; border-radius: 8px; max-height: 400px; overflow-y: auto;"></div>
             </div>
         </div>
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo",
-            authDomain: "controle-tomografias-leonardo.firebaseapp.com",
-            projectId: "controle-tomografias-leonardo",
-            storageBucket: "controle-tomografias-leonardo.firebasestorage.app",
-            messagingSenderId: "808856695285",
-            appId: "1:808856695285:web:9787b8beba32e3fde7f0bc"
-        };
+        const firebaseConfig = { apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo", authDomain: "controle-tomografias-leonardo.firebaseapp.com", projectId: "controle-tomografias-leonardo", storageBucket: "controle-tomografias-leonardo.firebasestorage.app", messagingSenderId: "808856695285", appId: "1:808856695285:web:9787b8beba32e3fde7f0bc" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -748,233 +297,94 @@
         };
 
         const servicos = [
-            { id: 'hbj', nome: 'HBJ', color: '#3498db' },
-            { id: 'mobilemed', nome: 'MOBILEMED', color: '#e67e22' },
-            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c' },
-            { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
-            { id: 'cmt', nome: 'CMT', color: '#f1c40f' },
-            { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
-            { id: 'vx', nome: 'VX', color: '#1abc9c' },
-            { id: 'santa-casa-pg', nome: 'Santa Casa (PG)', color: '#ff6b6b' },
+            { id: 'hbj', nome: 'HBJ', color: '#3498db' }, { id: 'mobilemed', nome: 'MOBILEMED', color: '#e67e22' },
+            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c' }, { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
+            { id: 'cmt', nome: 'CMT', color: '#f1c40f' }, { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
+            { id: 'vx', nome: 'VX', color: '#1abc9c' }, { id: 'santa-casa-pg', nome: 'Santa Casa (PG)', color: '#ff6b6b' },
             { id: 'hu-pg', nome: 'HU (PG)', color: '#4ecdc4' }
         ];
 
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
         let chartSegmentos = null, chartCustoBeneficio = null, chartProjecao = null;
-        let currentView = 'day';
-        
-        let totalSeconds = 0;
-        let currentSeconds = 0;
-        let currentInterval = null;
-        let isCurrentRunning = true;
-        let dataAnterior = '';
+        let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
+        const BACKUP_INTERVAL = 5 * 60 * 1000, MAX_BACKUPS = 20, BACKUP_KEY = 'historico_backups_tomografia';
+        let isDataModified = false;
 
         const dataExameInput = document.getElementById('data-exame');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
         const syncStatus = document.getElementById('sync-status');
-        
         const hoje = new Date();
         const hojeStr = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getDate().toString().padStart(2,'0')}`;
-        dataExameInput.value = hojeStr;
-        dataAnterior = hojeStr;
+        dataExameInput.value = hojeStr; dataAnterior = hojeStr;
         mesRelatorioInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
 
-        function formatTime(s) {
-            const h = Math.floor(s / 3600);
-            const m = Math.floor((s % 3600) / 60);
-            const sec = s % 60;
-            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
-        }
-        
+        function formatTime(s) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = s % 60; return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
         function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
         function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
-        
-        function startCurrentTimer() {
-            if(currentInterval) clearInterval(currentInterval);
-            currentInterval = setInterval(() => {
-                if(isCurrentRunning) {
-                    currentSeconds++;
-                    updateCurrentDisplay();
-                }
-            }, 1000);
-        }
+        function startCurrentTimer() { if(currentInterval) clearInterval(currentInterval); currentInterval = setInterval(() => { if(isCurrentRunning) { currentSeconds++; updateCurrentDisplay(); } }, 1000); }
         
         function togglePauseCurrentTimer() {
-            isCurrentRunning = !isCurrentRunning;
-            const btn = document.getElementById('btn-pause-current');
-            btn.textContent = isCurrentRunning ? '⏸ Pausar' : '▶ Retomar';
-            const timerBox = document.getElementById('timer-box');
-            if(!isCurrentRunning) {
-                timerBox.classList.add('paused');
-            } else {
-                timerBox.classList.remove('paused');
-            }
+            isCurrentRunning = !isCurrentRunning; 
+            const btn = document.getElementById('btn-pause-current'); 
+            btn.textContent = isCurrentRunning ? '⏸ Pausar' : '▶ Retomar'; 
+            const timerBox = document.getElementById('timer-box'); 
+            if(!isCurrentRunning) timerBox.classList.add('paused'); else timerBox.classList.remove('paused'); 
         }
         
         function resetCurrentTimer() {
-            if(confirm('Reiniciar cronômetro do laudo atual? O tempo atual será perdido.')) {
-                currentSeconds = 0;
-                updateCurrentDisplay();
-                if(!isCurrentRunning) {
-                    isCurrentRunning = true;
-                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar';
-                    document.getElementById('timer-box').classList.remove('paused');
-                }
-                showNotification('⏱️ Cronômetro do laudo reiniciado!', 'warning');
-            }
+            if(confirm('Reiniciar cronômetro do laudo atual? O tempo atual será perdido.')) { 
+                currentSeconds = 0; updateCurrentDisplay(); 
+                if(!isCurrentRunning) { 
+                    isCurrentRunning = true; 
+                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; 
+                    document.getElementById('timer-box').classList.remove('paused'); 
+                } 
+                showNotification('⏱️ Cronômetro do laudo reiniciado!', 'warning'); 
+            } 
         }
         
-        function addCurrentTimeToTotal() {
-            if(currentSeconds > 0) {
-                totalSeconds += currentSeconds;
-                updateTotalDisplay();
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                return currentSeconds;
-            }
-            return 0;
-        }
-        
-        function resetCurrentTimerAfterCommit() {
-            currentSeconds = 0;
-            updateCurrentDisplay();
-            if(!isCurrentRunning) {
-                isCurrentRunning = true;
-                document.getElementById('btn-pause-current').textContent = '⏸ Pausar';
-                document.getElementById('timer-box').classList.remove('paused');
-            }
-        }
-        
-        function showNotification(msg, type = 'success') {
-            const el = document.createElement('div');
-            el.textContent = msg;
-            const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c');
-            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:${bgColor}; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem; animation:slideIn 0.3s ease-out; box-shadow:0 2px 10px rgba(0,0,0,0.2);`;
-            document.body.appendChild(el); 
-            setTimeout(() => el.remove(), 3000);
-        }
-
-        function showTimeNotification(segundos, segmentos) {
-            const tempoFormatado = formatTime(segundos);
-            const minutos = Math.floor(segundos / 60);
-            const segResto = segundos % 60;
-            const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`;
-            
-            const segmentosNomes = segmentos.map(s => s.nome).join(', ');
-            const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`;
-            
-            const el = document.createElement('div');
-            el.textContent = msg;
-            el.style.cssText = `position:fixed; bottom:20px; right:20px; background:#27ae60; color:white; padding:12px 20px; border-radius:8px; z-index:9999; font-weight:bold; font-size:0.9rem; animation:slideIn 0.3s ease-out; box-shadow:0 2px 10px rgba(0,0,0,0.2);`;
-            document.body.appendChild(el); 
-            setTimeout(() => el.remove(), 4000);
-        }
-
-        function limparSelecoesSegmentos() {
-            const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = false;
-                const label = cb.closest('.check-item');
-                if(label && !cb.checked) {
-                    label.style.background = 'white';
-                    label.style.color = '#333';
-                }
-            });
-        }
+        function resetCurrentTimerAfterCommit() { currentSeconds = 0; updateCurrentDisplay(); if(!isCurrentRunning) { isCurrentRunning = true; document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; document.getElementById('timer-box').classList.remove('paused'); } }
+        function showNotification(msg, type = 'success') { const el = document.createElement('div'); el.className = 'temp-notification'; el.textContent = msg; const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c'); el.style.background = bgColor; document.body.appendChild(el); setTimeout(() => el.remove(), 3000); }
+        function showTimeNotification(segundos, segmentos) { const minutos = Math.floor(segundos / 60); const segResto = segundos % 60; const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`; const segmentosNomes = segmentos.map(s => s.nome).join(', '); const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`; const el = document.createElement('div'); el.className = 'temp-notification'; el.textContent = msg; document.body.appendChild(el); setTimeout(() => el.remove(), 4000); }
+        function limparSelecoesSegmentos() { const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]'); checkboxes.forEach(cb => { cb.checked = false; const label = cb.closest('.check-item'); if(label) label.style.background = 'white'; }); }
 
         function atualizarResumoEmpresas() {
-            const data = dataExameInput.value;
-            const totals = {};
-            let totalGeralExames = 0;
-            let totalGeralValor = 0;
-            
-            servicos.forEach(s => {
-                totals[s.id] = { valor: 0, qtd: 0 };
-            });
-            
+            const data = dataExameInput.value; const totals = {}; let totalGeralExames = 0, totalGeralValor = 0;
+            servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
             if (dadosApp.exames[data]) {
                 Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
                     servicos.forEach(servico => {
                         const valorUnit = segmento.valores[servico.id];
                         if (valorUnit !== null && valorUnit !== undefined) {
                             const qtd = dadosApp.exames[data][segmentoKey]?.[servico.id] || 0;
-                            if (qtd > 0) {
-                                totals[servico.id].valor += qtd * valorUnit;
-                                totals[servico.id].qtd += qtd;
-                                totalGeralExames += qtd;
-                                totalGeralValor += qtd * valorUnit;
-                            }
+                            if (qtd > 0) { totals[servico.id].valor += qtd * valorUnit; totals[servico.id].qtd += qtd; totalGeralExames += qtd; totalGeralValor += qtd * valorUnit; }
                         }
                     });
                 });
             }
-            
             const grid = document.getElementById('empresas-resumo-grid');
-            if (grid) {
-                grid.innerHTML = '';
-                servicos.forEach(s => {
-                    const card = document.createElement('div');
-                    card.className = 'empresa-card';
-                    card.style.borderLeftColor = s.color;
-                    card.innerHTML = `
-                        <div class="empresa-nome">
-                            <span>${s.nome}</span>
-                            <span class="empresa-qtd">${totals[s.id].qtd} exames</span>
-                        </div>
-                        <div class="empresa-valor">R$ ${totals[s.id].valor.toFixed(2)}</div>
-                    `;
-                    grid.appendChild(card);
-                });
-            }
-            
+            if (grid) { grid.innerHTML = ''; servicos.forEach(s => { const card = document.createElement('div'); card.className = 'empresa-card'; card.style.borderLeftColor = s.color; card.innerHTML = `<div class="empresa-nome"><span>${s.nome}</span><span class="empresa-qtd">${totals[s.id].qtd} exames</span></div><div class="empresa-valor">R$ ${totals[s.id].valor.toFixed(2)}</div>`; grid.appendChild(card); }); }
             document.getElementById('total-exames-dia').textContent = `${totalGeralExames} exames`;
             document.getElementById('total-valor-dia').textContent = `R$ ${totalGeralValor.toFixed(2)}`;
         }
 
         async function carregarDadosFirebase() {
-            try {
-                atualizarStatus("Conectando...", "loading");
-                const doc = await db.collection('controles').doc('examesTomografia').get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    dadosApp.exames = data.exames || data || {};
-                    dadosApp.tempos = data.tempos || {};
-                    dadosApp.pagamentos = data.pagamentos || {};
-                } else { 
-                    const local = localStorage.getItem('examesTomografia'); 
-                    if(local) { 
-                        const parsed = JSON.parse(local);
-                        dadosApp.exames = parsed.exames || parsed || {};
-                        dadosApp.tempos = parsed.tempos || {};
-                        dadosApp.pagamentos = parsed.pagamentos || {};
-                    } 
-                }
-                if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                if(!dadosApp.exames) dadosApp.exames = {};
-                if(!dadosApp.tempos) dadosApp.tempos = {};
-                
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                const savedTotal = localStorage.getItem(totalKey);
-                if(savedTotal) {
-                    totalSeconds = parseInt(savedTotal);
-                } else {
-                    totalSeconds = 0;
-                }
-                updateTotalDisplay();
-                
-                atualizarStatus("Sincronizado", "success");
-                
-            } catch (e) {
-                console.error("Erro:", e);
-                const local = localStorage.getItem('examesTomografia');
-                if(local) {
-                    const parsed = JSON.parse(local);
-                    dadosApp.exames = parsed.exames || parsed || {};
-                    dadosApp.tempos = parsed.tempos || {};
-                    dadosApp.pagamentos = parsed.pagamentos || {};
-                }
-                atualizarStatus("Offline", "error");
+            atualizarStatus("Carregando...", "loading");
+            const local = localStorage.getItem('examesTomografia');
+            if(local) {
+                const parsed = JSON.parse(local);
+                dadosApp.exames = parsed.exames || parsed || {};
+                dadosApp.tempos = parsed.tempos || {};
+                dadosApp.pagamentos = parsed.pagamentos || {};
             }
+            if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
+            if(!dadosApp.exames) dadosApp.exames = {};
+            if(!dadosApp.tempos) dadosApp.tempos = {};
+            
+            const totalKey = `totalAcumulado_${dataExameInput.value}`; 
+            const savedTotal = localStorage.getItem(totalKey); 
+            totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
+            updateTotalDisplay();
             
             criarLegenda(); 
             criarTabela(); 
@@ -982,118 +392,98 @@
             atualizarResumoEmpresas();
             atualizarGraficos(); 
             startCurrentTimer();
+            atualizarListaBackups(); 
+            iniciarBackupAutomatico();
+            
+            try {
+                atualizarStatus("Sincronizando...", "loading");
+                const doc = await db.collection('controles').doc('examesTomografia').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    dadosApp.exames = data.exames || data || {};
+                    dadosApp.tempos = data.tempos || {};
+                    dadosApp.pagamentos = data.pagamentos || {};
+                    if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                    if(!dadosApp.exames) dadosApp.exames = {};
+                    if(!dadosApp.tempos) dadosApp.tempos = {};
+                    criarTabela();
+                    atualizarResumoEmpresas();
+                    atualizarGraficos();
+                }
+                atualizarStatus("Sincronizado", "success");
+            } catch (e) {
+                console.error("Erro Firebase:", e);
+                atualizarStatus("Modo Offline", "warning");
+            }
         }
         
         async function salvarDadosFirebase() {
             try { 
                 await db.collection('controles').doc('examesTomografia').set(dadosApp); 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
+                const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
                 atualizarStatus("Salvo!", "success"); 
             } catch (e) { 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo Local", "error"); 
+                const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("Salvo Local", "warning"); 
             }
+            isDataModified = true; 
         }
         
         async function finalizarLaudo() {
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
             const data = dataExameInput.value;
-            
             if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
-            
             const tempoGasto = currentSeconds;
-            
-            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({
-                nome: valoresSegmentos[cb.value].nome
-            }));
+            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome }));
             showTimeNotification(tempoGasto, segmentosSelecionados);
-            
-            if(tempoGasto > 0) {
-                totalSeconds += tempoGasto;
-                updateTotalDisplay();
-                const totalKey = `totalAcumulado_${data}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-            }
-            
+            if(tempoGasto > 0) { totalSeconds += tempoGasto; updateTotalDisplay(); const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, totalSeconds.toString()); }
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
-            
             const tempoDividido = tempoGasto / checkboxes.length;
-            
             checkboxes.forEach(cb => {
                 const seg = cb.value;
-                if (tempoDividido > 0) {
-                    const key = `${servico}_${seg}`;
-                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
-                    dadosApp.tempos[data][key].push(tempoDividido);
-                }
+                if (tempoDividido > 0) { const key = `${servico}_${seg}`; if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = []; dadosApp.tempos[data][key].push(tempoDividido); }
                 if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
                 const atual = dadosApp.exames[data][seg][servico] || 0;
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
-            
-            limparSelecoesSegmentos();
-            resetCurrentTimerAfterCommit();
-            await salvarDadosFirebase();
-            criarTabela();
-            atualizarResumoEmpresas();
-            atualizarGraficos();
+            limparSelecoesSegmentos(); resetCurrentTimerAfterCommit(); await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
         }
 
         function criarLegenda() {
-            const grid = document.getElementById('legenda-grid'); 
-            if (!grid) return;
-            grid.innerHTML = '';
+            const grid = document.getElementById('legenda-grid'); if (!grid) return; grid.innerHTML = '';
             Object.values(valoresSegmentos).forEach(seg => {
                 const item = document.createElement('div'); item.className = 'legenda-item';
                 let html = `<h3>${seg.nome}</h3>`;
-                servicos.forEach(s => { 
-                    const v = seg.valores[s.id]; 
-                    if(v !== null) html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`; 
-                });
-                item.innerHTML = html; 
-                grid.appendChild(item);
+                servicos.forEach(s => { const v = seg.valores[s.id]; if(v !== null) html += `<div class="valor-servico"><span>${s.nome}:</span><span>R$ ${v.toFixed(2)}</span></div>`; });
+                item.innerHTML = html; grid.appendChild(item);
             });
         }
 
         function popularTimerConfig() {
-            const selServ = document.getElementById('timer-servico'); 
-            selServ.innerHTML = '<option value="">Selecione...</option>';
+            const selServ = document.getElementById('timer-servico'); selServ.innerHTML = '<option value="">Selecione...</option>';
             servicos.forEach(s => selServ.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
-            const contSeg = document.getElementById('timer-segmentos-container'); 
-            contSeg.innerHTML = '';
+            const contSeg = document.getElementById('timer-segmentos-container'); contSeg.innerHTML = '';
             Object.entries(valoresSegmentos).forEach(([k, v]) => {
                 const label = document.createElement('label'); label.className = 'check-item';
                 const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = k;
-                label.appendChild(checkbox); label.appendChild(document.createTextNode(` ${v.nome}`)); 
-                contSeg.appendChild(label);
+                label.appendChild(checkbox); label.appendChild(document.createTextNode(` ${v.nome}`)); contSeg.appendChild(label);
             });
         }
 
         function criarTabela() {
-            const tbody = document.getElementById('exams-body'); 
-            tbody.innerHTML = ''; 
-            const data = dataExameInput.value;
+            const tbody = document.getElementById('exams-body'); tbody.innerHTML = ''; const data = dataExameInput.value;
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             Object.entries(valoresSegmentos).forEach(([chave, seg]) => {
-                const tr = document.createElement('tr'); 
-                tr.innerHTML = `<td class="exam-name">${seg.nome}      `;
+                const tr = document.createElement('tr'); tr.innerHTML = `<td class="exam-name">${seg.nome}      `;
                 servicos.forEach(s => {
-                    const td = document.createElement('td');
-                    const valor = seg.valores[s.id]; 
-                    const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
+                    const td = document.createElement('td'); const valor = seg.valores[s.id]; const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
                     if (valor !== null && valor !== undefined) {
-                        td.innerHTML = `<div class="counter">
-                            <button class="counter-btn remove" onclick="alterarContador('${chave}', '${s.id}', -1)">-</button>
-                            <span class="count-display">${qtd}</span>
-                            <button class="counter-btn" onclick="alterarContador('${chave}', '${s.id}', 1)">+</button>
-                        </div>`;
+                        td.innerHTML = `<div class="counter"><button class="counter-btn remove" data-seg="${chave}" data-serv="${s.id}" data-delta="-1">-</button><span class="count-display">${qtd}</span><button class="counter-btn" data-seg="${chave}" data-serv="${s.id}" data-delta="1">+</button></div>`;
                     } else { td.className = "nao-tem"; td.textContent = "-"; }
                     tr.appendChild(td);
                 });
@@ -1103,53 +493,36 @@
         }
         
         async function alterarContador(seg, serv, delta) {
-            const data = dataExameInput.value; 
-            if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
-            if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
-            const atual = dadosApp.exames[data][seg][serv] || 0; 
-            dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
-            criarTabela(); 
-            await salvarDadosFirebase();
+            const data = dataExameInput.value; if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+            const atual = dadosApp.exames[data][seg][serv] || 0; dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
+            criarTabela(); await salvarDadosFirebase();
         }
         
         function getDateRange(view) {
-            const selectedDate = new Date(dataExameInput.value + "T00:00:00"); 
-            let start, end;
+            const selectedDate = new Date(dataExameInput.value + "T00:00:00"); let start, end;
             if (view === 'day') { start = new Date(selectedDate); end = new Date(selectedDate); }
-            else if (view === 'week') {
-                const day = selectedDate.getDay(); 
-                const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
-                start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0); 
-                end = new Date(start); end.setDate(end.getDate() + 6);
-            } else { start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1); end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); }
+            else if (view === 'week') { const day = selectedDate.getDay(); const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1); start = new Date(selectedDate.setDate(diff)); start.setHours(0,0,0,0); end = new Date(start); end.setDate(end.getDate() + 6); }
+            else { start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1); end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); }
             return { start, end };
         }
         
         function setGraphView(view) {
             currentView = view;
-            document.querySelectorAll('.filter-btn').forEach(btn => { 
-                if(btn.textContent.toLowerCase().includes(view.substring(0,3))) btn.classList.add('active'); 
-                else btn.classList.remove('active'); 
-            });
+            document.querySelectorAll('.filter-btn').forEach(btn => { if(btn.dataset.view === view) btn.classList.add('active'); else btn.classList.remove('active'); });
             atualizarGraficos();
         }
 
         function getStatsByService(start, end) {
-            let stats = {};
-            servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
+            let stats = {}; servicos.forEach(s => stats[s.id] = { totalValor: 0, totalTempo: 0 });
             let current = new Date(start);
             while (current <= end) {
                 const dateStr = current.toISOString().split('T')[0];
                 if(dadosApp.tempos[dateStr]) {
                     Object.entries(dadosApp.tempos[dateStr]).forEach(([key, tempos]) => {
-                        const empresa = key.split('_')[0];
-                        const segmentoKey = key.split('_')[1];
+                        const empresa = key.split('_')[0]; const segmentoKey = key.split('_')[1];
                         if(stats[empresa] && valoresSegmentos[segmentoKey]) {
                             const valorUnit = valoresSegmentos[segmentoKey].valores[empresa];
-                            if (valorUnit) {
-                                stats[empresa].totalValor += tempos.length * valorUnit;
-                                stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0);
-                            }
+                            if (valorUnit) { stats[empresa].totalValor += tempos.length * valorUnit; stats[empresa].totalTempo += tempos.reduce((a,b)=>a+b,0); }
                         }
                     });
                 }
@@ -1159,61 +532,29 @@
         }
 
         function atualizarGraficos() {
-            const { start, end } = getDateRange(currentView);
-            const stats = getStatsByService(start, end);
-            
+            const { start, end } = getDateRange(currentView); const stats = getStatsByService(start, end);
             let filteredTempos = {}; 
             Object.keys(dadosApp.tempos).forEach(dateStr => {
                 const d = new Date(dateStr + "T00:00:00");
-                if (d >= start && d <= end) {
-                    Object.entries(dadosApp.tempos[dateStr]).forEach(([key, temps]) => {
-                        if (!filteredTempos[key]) filteredTempos[key] = [];
-                        filteredTempos[key].push(...temps);
-                    });
-                }
+                if (d >= start && d <= end) { Object.entries(dadosApp.tempos[dateStr]).forEach(([key, temps]) => { if (!filteredTempos[key]) filteredTempos[key] = []; filteredTempos[key].push(...temps); }); }
             });
-
             const labelsSegmentos = Object.values(valoresSegmentos).map(s => s.nome);
             const datasets = servicos.map(s => ({ label: s.nome, data: [], backgroundColor: s.color, borderWidth: 1 }));
-            
             Object.entries(valoresSegmentos).forEach(([segKey, seg]) => {
                 servicos.forEach((s, index) => {
-                    const key = `${s.id}_${segKey}`;
-                    const tempos = filteredTempos[key] || [];
-                    if (tempos.length > 0) {
-                        const media = tempos.reduce((a, b) => a + b, 0) / tempos.length;
-                        datasets[index].data.push(Math.round(media / 60));
-                    } else datasets[index].data.push(0);
+                    const key = `${s.id}_${segKey}`; const tempos = filteredTempos[key] || [];
+                    if (tempos.length > 0) { const media = tempos.reduce((a, b) => a + b, 0) / tempos.length; datasets[index].data.push(Math.round(media / 60)); } else datasets[index].data.push(0);
                 });
             });
-
             if(chartSegmentos) chartSegmentos.destroy();
-            const chartSegmentosCanvas = document.getElementById('chartSegmentos');
-            if (chartSegmentosCanvas) {
-                chartSegmentos = new Chart(chartSegmentosCanvas, {
-                    type: 'bar', data: { labels: labelsSegmentos, datasets: datasets },
-                    options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, title: { display: true, text: 'MINUTOS (MÉDIA)' } } } }
-                });
-            }
+            const ctxSeg = document.getElementById('chartSegmentos');
+            if (ctxSeg) { chartSegmentos = new Chart(ctxSeg, { type: 'bar', data: { labels: labelsSegmentos, datasets: datasets }, options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, title: { display: true, text: 'MINUTOS (MÉDIA)' } } } } }); }
 
             const labelsCB = [], dataCB = [], colorsCB = [];
-            servicos.forEach(s => {
-                if(stats[s.id].totalTempo > 60) {
-                    const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo;
-                    labelsCB.push(s.nome);
-                    dataCB.push(valorHora.toFixed(2));
-                    colorsCB.push(s.color);
-                }
-            });
-
+            servicos.forEach(s => { if(stats[s.id].totalTempo > 60) { const valorHora = (stats[s.id].totalValor * 3600) / stats[s.id].totalTempo; labelsCB.push(s.nome); dataCB.push(valorHora.toFixed(2)); colorsCB.push(s.color); } });
             if(chartCustoBeneficio) chartCustoBeneficio.destroy();
-            const chartCustoCanvas = document.getElementById('chartCustoBeneficio');
-            if (chartCustoCanvas && labelsCB.length > 0) {
-                chartCustoBeneficio = new Chart(chartCustoCanvas, {
-                    type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: colorsCB }] },
-                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true }
-                });
-            }
+            const ctxCB = document.getElementById('chartCustoBeneficio');
+            if (ctxCB && labelsCB.length > 0) { chartCustoBeneficio = new Chart(ctxCB, { type: 'bar', data: { labels: labelsCB, datasets: [{ label: 'R$/Hora', data: dataCB, backgroundColor: colorsCB }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true } }); }
         }
 
         function atualizarGraficoProjecao() {
@@ -1225,53 +566,40 @@
             if (containerCards) containerCards.innerHTML = '';
             const labelsHoras = Array.from({length: 25}, (_, i) => i);
             const datasetsProj = [];
-
             servicos.forEach(s => {
                 const stat = stats[s.id];
                 if (stat.totalTempo > 600 && stat.totalValor > 0) {
                     const avgPorSegundo = stat.totalValor / stat.totalTempo;
                     const dataPoints = labelsHoras.map(h => (avgPorSegundo * 3600 * h).toFixed(2));
                     const rsPorHora = avgPorSegundo * 3600;
-                    if (containerCards) {
-                        containerCards.innerHTML += `<div class="projecao-card" style="border-color: ${s.color}"><span>${s.nome}</span><strong>R$ ${rsPorHora.toFixed(2)}/h</strong></div>`;
-                    }
+                    if (containerCards) { containerCards.innerHTML += `<div class="projecao-card" style="border-color: ${s.color}"><span>${s.nome}</span><strong>R$ ${rsPorHora.toFixed(2)}/h</strong></div>`; }
                     datasetsProj.push({ label: `${s.nome}`, data: dataPoints, borderColor: s.color, fill: false, tension: 0.1 });
                 }
             });
-
             if(chartProjecao) chartProjecao.destroy();
             const ctx = document.getElementById('chartProjecao24h');
-            if (ctx && datasetsProj.length > 0) {
-                chartProjecao = new Chart(ctx, { type: 'line', data: { labels: labelsHoras, datasets: datasetsProj }, options: { responsive: true, maintainAspectRatio: true } });
-            }
+            if (ctx && datasetsProj.length > 0) { chartProjecao = new Chart(ctx, { type: 'line', data: { labels: labelsHoras, datasets: datasetsProj }, options: { responsive: true, maintainAspectRatio: true } }); }
         }
 
-        function abrirTab(evt, id) {
+        function abrirTab(element, id) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); 
             document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
             document.getElementById(id).classList.add('active'); 
-            evt.currentTarget.classList.add('active');
+            element.classList.add('active');
             if(id === 'relatorio') gerarRelatorioMensal();
             if(id === 'projecao') atualizarGraficoProjecao();
+            if(id === 'backup') atualizarListaBackups();
         }
         
-        // Função auxiliar para calcular valor E quantidade por dia para cada empresa
         function calcularValorEQtdPorDia(dataStr) {
-            const resultado = {};
-            servicos.forEach(servico => {
-                resultado[servico.id] = { valor: 0, qtd: 0 };
-            });
-            
+            const resultado = {}; servicos.forEach(servico => { resultado[servico.id] = { valor: 0, qtd: 0 }; });
             if (dadosApp.exames[dataStr]) {
                 Object.entries(valoresSegmentos).forEach(([segmentoKey, segmento]) => {
                     servicos.forEach(servico => {
                         const valorUnitario = segmento.valores[servico.id];
                         if (valorUnitario !== null && valorUnitario !== undefined) {
                             const qtd = dadosApp.exames[dataStr][segmentoKey]?.[servico.id] || 0;
-                            if (qtd > 0) {
-                                resultado[servico.id].valor += qtd * valorUnitario;
-                                resultado[servico.id].qtd += qtd;
-                            }
+                            if (qtd > 0) { resultado[servico.id].valor += qtd * valorUnitario; resultado[servico.id].qtd += qtd; }
                         }
                     });
                 });
@@ -1280,124 +608,52 @@
         }
         
         function gerarRelatorioMensal() {
-            const [ano, mes] = mesRelatorioInput.value.split('-');
-            const anoNum = parseInt(ano), mesNum = parseInt(mes);
-            const totals = { 
-                hbj: { valor: 0, qtd: 0 }, mobilemed: { valor: 0, qtd: 0 }, 'sagrada-familia': { valor: 0, qtd: 0 }, 
-                radcloud: { valor: 0, qtd: 0 }, cmt: { valor: 0, qtd: 0 }, clinimage: { valor: 0, qtd: 0 }, 
-                vx: { valor: 0, qtd: 0 }, 'santa-casa-pg': { valor: 0, qtd: 0 }, 'hu-pg': { valor: 0, qtd: 0 }
-            };
-            let totalGeralValor = 0;
-            let totalGeralQtd = 0;
-            const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
-            const tbody = document.getElementById('relatorio-body'); 
-            tbody.innerHTML = '';
-            
+            const [ano, mes] = mesRelatorioInput.value.split('-'); const anoNum = parseInt(ano), mesNum = parseInt(mes);
+            const totals = { hbj: { valor: 0, qtd: 0 }, mobilemed: { valor: 0, qtd: 0 }, 'sagrada-familia': { valor: 0, qtd: 0 }, radcloud: { valor: 0, qtd: 0 }, cmt: { valor: 0, qtd: 0 }, clinimage: { valor: 0, qtd: 0 }, vx: { valor: 0, qtd: 0 }, 'santa-casa-pg': { valor: 0, qtd: 0 }, 'hu-pg': { valor: 0, qtd: 0 } };
+            let totalGeralValor = 0, totalGeralQtd = 0; const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+            const tbody = document.getElementById('relatorio-body'); tbody.innerHTML = '';
             for(let d = 1; d <= ultimoDia; d++) {
                 const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                const valoresDia = calcularValorEQtdPorDia(dataStr);
-                
-                const tr = document.createElement('tr'); 
-                tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
-                let totalDiaValor = 0;
-                let totalDiaQtd = 0;
-                
+                const valoresDia = calcularValorEQtdPorDia(dataStr); const tr = document.createElement('tr'); tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
+                let totalDiaValor = 0, totalDiaQtd = 0;
                 servicos.forEach(servico => {
-                    const vDia = valoresDia[servico.id]?.valor || 0;
-                    const qDia = valoresDia[servico.id]?.qtd || 0;
-                    totalDiaValor += vDia;
-                    totalDiaQtd += qDia;
-                    
-                    // Atualiza totais do mês
-                    totals[servico.id].valor += vDia;
-                    totals[servico.id].qtd += qDia;
-                    totalGeralValor += vDia;
-                    totalGeralQtd += qDia;
-                    
-                    // Cria célula com valor e quantidade
-                    const td = document.createElement('td');
-                    td.className = 'relatorio-cell';
-                    if (vDia > 0 || qDia > 0) {
-                        td.innerHTML = `
-                            <div class="relatorio-valor">R$ ${vDia.toFixed(2)}</div>
-                            <div class="relatorio-qtd">📋 ${qDia} laudo${qDia !== 1 ? 's' : ''}</div>
-                        `;
-                    } else {
-                        td.innerHTML = `<div class="relatorio-valor" style="color:#999;">R$ 0,00</div>
-                                        <div class="relatorio-qtd">📋 0 laudos</div>`;
-                    }
+                    const vDia = valoresDia[servico.id]?.valor || 0; const qDia = valoresDia[servico.id]?.qtd || 0;
+                    totalDiaValor += vDia; totalDiaQtd += qDia; totals[servico.id].valor += vDia; totals[servico.id].qtd += qDia; totalGeralValor += vDia; totalGeralQtd += qDia;
+                    const td = document.createElement('td'); td.className = 'relatorio-cell';
+                    if (vDia > 0 || qDia > 0) { td.innerHTML = `<div class="relatorio-valor">R$ ${vDia.toFixed(2)}</div><div class="relatorio-qtd">📋 ${qDia} laudo${qDia !== 1 ? 's' : ''}</div>`; } 
+                    else { td.innerHTML = `<div class="relatorio-valor" style="color:#999;">R$ 0,00</div><div class="relatorio-qtd">📋 0 laudos</div>`; }
                     tr.appendChild(td);
                 });
-                
-                // Célula total do dia
-                const tdTotal = document.createElement('td');
-                tdTotal.style.fontWeight = 'bold';
-                tdTotal.style.backgroundColor = '#f0f0f0';
-                tdTotal.innerHTML = `
-                    <div class="relatorio-valor">R$ ${totalDiaValor.toFixed(2)}</div>
-                    <div class="relatorio-qtd">📋 ${totalDiaQtd} laudo${totalDiaQtd !== 1 ? 's' : ''}</div>
-                `;
-                tr.appendChild(tdTotal);
-                tbody.appendChild(tr);
+                const tdTotal = document.createElement('td'); tdTotal.style.fontWeight = 'bold'; tdTotal.style.backgroundColor = '#f0f0f0';
+                tdTotal.innerHTML = `<div class="relatorio-valor">R$ ${totalDiaValor.toFixed(2)}</div><div class="relatorio-qtd">📋 ${totalDiaQtd} laudo${totalDiaQtd !== 1 ? 's' : ''}</div>`;
+                tr.appendChild(tdTotal); tbody.appendChild(tr);
             }
-            
-            // Adicionar linha de totais do mês
-            const trTotal = document.createElement('tr');
-            trTotal.style.backgroundColor = '#e8f4f8';
-            trTotal.style.fontWeight = 'bold';
-            trTotal.innerHTML = `<td class="exam-name"><strong>📊 TOTAL DO MÊS</strong></td>`;
-            
+            const trTotal = document.createElement('tr'); trTotal.style.backgroundColor = '#e8f4f8'; trTotal.style.fontWeight = 'bold'; trTotal.innerHTML = `<td class="exam-name"><strong>📊 TOTAL DO MÊS</strong></td>`;
             servicos.forEach(servico => {
-                const td = document.createElement('td');
-                td.style.backgroundColor = '#e8f4f8';
-                td.innerHTML = `
-                    <div class="relatorio-valor" style="color:#27ae60; font-size:0.85rem;">R$ ${totals[servico.id].valor.toFixed(2)}</div>
-                    <div class="relatorio-qtd" style="font-size:0.7rem;">📋 ${totals[servico.id].qtd} laudo${totals[servico.id].qtd !== 1 ? 's' : ''}</div>
-                `;
+                const td = document.createElement('td'); td.style.backgroundColor = '#e8f4f8';
+                td.innerHTML = `<div class="relatorio-valor" style="color:#27ae60; font-size:0.85rem;">R$ ${totals[servico.id].valor.toFixed(2)}</div><div class="relatorio-qtd" style="font-size:0.7rem;">📋 ${totals[servico.id].qtd} laudo${totals[servico.id].qtd !== 1 ? 's' : ''}</div>`;
                 trTotal.appendChild(td);
             });
-            
-            const tdTotalGeral = document.createElement('td');
-            tdTotalGeral.style.backgroundColor = '#e8f4f8';
-            tdTotalGeral.style.fontWeight = 'bold';
-            tdTotalGeral.innerHTML = `
-                <div class="relatorio-valor" style="color:#27ae60; font-size:0.9rem;">R$ ${totalGeralValor.toFixed(2)}</div>
-                <div class="relatorio-qtd" style="font-size:0.75rem;">📋 ${totalGeralQtd} laudo${totalGeralQtd !== 1 ? 's' : ''}</div>
-            `;
-            trTotal.appendChild(tdTotalGeral);
-            tbody.appendChild(trTotal);
-            
+            const tdTotalGeral = document.createElement('td'); tdTotalGeral.style.backgroundColor = '#e8f4f8'; tdTotalGeral.style.fontWeight = 'bold';
+            tdTotalGeral.innerHTML = `<div class="relatorio-valor" style="color:#27ae60; font-size:0.9rem;">R$ ${totalGeralValor.toFixed(2)}</div><div class="relatorio-qtd" style="font-size:0.75rem;">📋 ${totalGeralQtd} laudo${totalGeralQtd !== 1 ? 's' : ''}</div>`;
+            trTotal.appendChild(tdTotalGeral); tbody.appendChild(trTotal);
             renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeralValor);
         }
         
         function renderizarHeaderUnificado(mesAno, totals, totalGeral) {
-            const container = document.getElementById('unificado-pagamento-container');
-            if (!container) return;
-            
-            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
-            
-            let totalRecebido = 0;
-            servicos.forEach(servico => {
-                if (dadosApp.pagamentos[mesAno][servico.id]) {
-                    totalRecebido += totals[servico.id].valor;
-                }
-            });
-            
-            const html = `
+            const container = document.getElementById('unificado-pagamento-container'); if (!container) return;
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {}; let totalRecebido = 0;
+            servicos.forEach(servico => { if (dadosApp.pagamentos[mesAno][servico.id]) totalRecebido += totals[servico.id].valor; });
+            container.innerHTML = `
                 <div class="empresas-pagamento">
                     ${servicos.map(servico => {
                         const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
-                        const valorTotal = totals[servico.id].valor;
-                        const qtdTotal = totals[servico.id].qtd;
-                        return `
-                            <div class="btn-pagamento-empresa ${isPaid ? 'pago' : 'pendente'}" style="border-color: ${servico.color}">
-                                <input type="checkbox" ${isPaid ? 'checked' : ''} 
-                                    onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">
-                                <label onclick="event.stopPropagation(); togglePagamentoUnificado('${servico.id}', '${mesAno}')">${servico.nome}</label>
-                                <span class="valor-empresa">R$ ${valorTotal.toFixed(2)}</span>
-                                <span class="valor-empresa" style="background: #2c3e50;">📋 ${qtdTotal}</span>
-                            </div>
-                        `;
+                        return `<div class="btn-pagamento-empresa ${isPaid ? 'pago' : 'pendente'}" style="border-color: ${servico.color}" data-emp="${servico.id}" data-mes="${mesAno}">
+                            <input type="checkbox" ${isPaid ? 'checked' : ''}>
+                            <label>${servico.nome}</label>
+                            <span class="valor-empresa">R$ ${totals[servico.id].valor.toFixed(2)}</span>
+                            <span class="valor-empresa" style="background: #2c3e50;">📋 ${totals[servico.id].qtd}</span>
+                        </div>`;
                     }).join('')}
                 </div>
                 <div class="total-mes-central">
@@ -1406,174 +662,170 @@
                     <div style="font-size:0.7rem; margin-top:5px;">📋 ${servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0)} laudos</div>
                 </div>
                 <div class="resumo-recebimento">
-                    <div class="recebido">
-                        <div class="label">✓ RECEBIDO</div>
-                        <div class="valor">R$ ${totalRecebido.toFixed(2)}</div>
-                    </div>
-                    <div class="a-receber">
-                        <div class="label">⏳ A RECEBER</div>
-                        <div class="valor">R$ ${(totalGeral - totalRecebido).toFixed(2)}</div>
-                    </div>
-                </div>
-            `;
-            
-            container.innerHTML = html;
+                    <div class="recebido"><div class="label">✓ RECEBIDO</div><div class="valor">R$ ${totalRecebido.toFixed(2)}</div></div>
+                    <div class="a-receber"><div class="label">⏳ A RECEBER</div><div class="valor">R$ ${(totalGeral - totalRecebido).toFixed(2)}</div></div>
+                </div>`;
         }
         
         function togglePagamentoUnificado(empresaId, mesAno) {
             if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
             dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
-            salvarDadosFirebase();
-            gerarRelatorioMensal();
+            salvarDadosFirebase(); gerarRelatorioMensal();
         }
 
         function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
         
         function downloadRelatorioExcel() {
-            const [ano, mes] = mesRelatorioInput.value.split('-');
-            const anoNum = parseInt(ano), mesNum = parseInt(mes);
+            const [ano, mes] = mesRelatorioInput.value.split('-'); const anoNum = parseInt(ano), mesNum = parseInt(mes);
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
-            
-            let csv = 'DATA;';
-            servicos.forEach(s => { csv += `${s.nome} (R$);${s.nome} (QTD);`; });
-            csv += 'TOTAL (R$);TOTAL (QTD)\n';
-            
-            const totals = {};
-            servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
-            
+            let csv = 'DATA;'; servicos.forEach(s => { csv += `${s.nome} (R$);${s.nome} (QTD);`; }); csv += 'TOTAL (R$);TOTAL (QTD)\n';
+            const totals = {}; servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
             for(let d = 1; d <= ultimoDia; d++) {
-                const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-                const valoresDia = calcularValorEQtdPorDia(dataStr);
-                let linha = `${dataStr};`;
-                let totalDiaValor = 0;
-                let totalDiaQtd = 0;
-                
-                servicos.forEach(servico => {
-                    const vDia = valoresDia[servico.id]?.valor || 0;
-                    const qDia = valoresDia[servico.id]?.qtd || 0;
-                    totalDiaValor += vDia;
-                    totalDiaQtd += qDia;
-                    totals[servico.id].valor += vDia;
-                    totals[servico.id].qtd += qDia;
-                    linha += `${vDia.toFixed(2)};${qDia};`;
-                });
-                linha += `${totalDiaValor.toFixed(2)};${totalDiaQtd}\n`;
-                csv += linha;
+                const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`; const valoresDia = calcularValorEQtdPorDia(dataStr);
+                let linha = `${dataStr};`; let totalDiaValor = 0, totalDiaQtd = 0;
+                servicos.forEach(servico => { const vDia = valoresDia[servico.id]?.valor || 0; const qDia = valoresDia[servico.id]?.qtd || 0; totalDiaValor += vDia; totalDiaQtd += qDia; totals[servico.id].valor += vDia; totals[servico.id].qtd += qDia; linha += `${vDia.toFixed(2)};${qDia};`; });
+                linha += `${totalDiaValor.toFixed(2)};${totalDiaQtd}\n`; csv += linha;
             }
-            
-            csv += `\nTOTAIS DO MÊS;`;
-            servicos.forEach(s => {
-                csv += `${totals[s.id].valor.toFixed(2)};${totals[s.id].qtd};`;
-            });
-            const totalGeralValor = servicos.reduce((acc, s) => acc + totals[s.id].valor, 0);
-            const totalGeralQtd = servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0);
-            csv += `${totalGeralValor.toFixed(2)};${totalGeralQtd}\n`;
-            
-            csv += `\nRESUMO DE PAGAMENTOS POR EMPRESA\n`;
-            servicos.forEach(servico => {
-                const mesAno = mesRelatorioInput.value;
-                const isPaid = dadosApp.pagamentos[mesAno]?.[servico.id] || false;
-                csv += `${servico.nome};R$ ${totals[servico.id].valor.toFixed(2)};${totals[servico.id].qtd} laudos;${isPaid ? 'PAGO' : 'PENDENTE'}\n`;
-            });
-            
-            const a = document.createElement('a'); 
-            a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); 
-            a.download = `relatorio_${mes}_${ano}.csv`; 
-            a.click();
+            csv += `\nTOTAIS DO MÊS;`; servicos.forEach(s => { csv += `${totals[s.id].valor.toFixed(2)};${totals[s.id].qtd};`; });
+            const totalGeralValor = servicos.reduce((acc, s) => acc + totals[s.id].valor, 0); const totalGeralQtd = servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0);
+            csv += `${totalGeralValor.toFixed(2)};${totalGeralQtd}\n`; csv += `\nRESUMO DE PAGAMENTOS POR EMPRESA\n`;
+            servicos.forEach(servico => { const mesAno = mesRelatorioInput.value; const isPaid = dadosApp.pagamentos[mesAno]?.[servico.id] || false; csv += `${servico.nome};R$ ${totals[servico.id].valor.toFixed(2)};${totals[servico.id].qtd} laudos;${isPaid ? 'PAGO' : 'PENDENTE'}\n`; });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
         }
-        
-        function baixarBackupCompleto() { 
-            const backup = { ...dadosApp };
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); 
+
+        function iniciarBackupAutomatico() {
+            setInterval(() => {
+                if (isDataModified) { criarBackupAutomatico(); isDataModified = false; }
+            }, BACKUP_INTERVAL);
         }
+
+        function criarBackupAutomatico() {
+            try {
+                let backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); const agora = new Date();
+                const novoBackup = { id: agora.getTime(), data: agora.toLocaleString('pt-BR'), conteudo: { ...dadosApp }, timerDia: totalSeconds, dataReferencia: dataExameInput.value };
+                backups.unshift(novoBackup); 
+                if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
+                localStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); atualizarListaBackups();
+                showNotification("💾 Backup automático salvo!", "success");
+            } catch (e) { console.error("Erro ao salvar backup:", e); }
+        }
+
+        function atualizarListaBackups() {
+            const lista = document.getElementById('lista-backups-automaticos'); if (!lista) return;
+            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+            if (backups.length === 0) { lista.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Nenhum backup automático gerado ainda. Edite algo e aguarde 5 minutos.</div>'; return; }
+            lista.innerHTML = backups.map(b => `
+                <div class="backup-history-item">
+                    <div>
+                        <div class="b-info">🕒 ${b.data}</div>
+                        <div class="b-sub">Tempo total do dia (${b.dataReferencia}): ${formatTime(b.timerDia || 0)}</div>
+                    </div>
+                    <button class="btn-pequeno btn-action" data-id="${b.id}">🔄 Restaurar</button>
+                </div>
+            `).join('');
+        }
+
+        async function restaurarBackupAutomatico(id) {
+            if (!confirm("Restaurar este backup automático? Os dados atuais serão substituídos por esta versão.")) return;
+            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); const backup = backups.find(b => b.id === id);
+            if (backup) {
+                dadosApp = backup.conteudo || { exames: {}, tempos: {}, pagamentos: {} };
+                if (!dadosApp.exames) dadosApp.exames = {}; if (!dadosApp.tempos) dadosApp.tempos = {}; if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                totalSeconds = backup.timerDia || 0; updateTotalDisplay();
+                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+                if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                showNotification("✅ Backup automático restaurado!", "success");
+            }
+        }
+
+        function limparHistoricoBackups() {
+            if (confirm("Limpar todo o histórico de backups automáticos locais?")) { localStorage.removeItem(BACKUP_KEY); atualizarListaBackups(); showNotification("Histórico limpo!", "warning"); }
+        }
+
+        function baixarBackupCompleto() { const backup = { ...dadosApp }; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); }
         
         function restaurarBackup() {
-            const file = document.getElementById('upload-backup').files[0]; if(!file) return;
-            const reader = new FileReader();
+            const file = document.getElementById('upload-backup').files[0]; if(!file) return; const reader = new FileReader();
             reader.onload = async (e) => {
                 try { 
                     const json = JSON.parse(e.target.result); 
                     dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
-                    await salvarDadosFirebase(); 
-                    criarLegenda(); 
-                    criarTabela(); 
-                    atualizarGraficos(); 
+                    await salvarDadosFirebase(); criarLegenda(); criarTabela(); atualizarGraficos(); 
                     if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
                     showNotification("✅ Backup restaurado!", "success");
                 } catch(err) { showNotification("❌ Erro ao restaurar", "error"); }
-            };
-            reader.readAsText(file);
+            }; reader.readAsText(file);
         }
         
         async function limparDia() { 
             if(confirm("Zerar exames do dia?")) { 
-                const data = dataExameInput.value; 
-                dadosApp.exames[data] = {}; 
-                dadosApp.tempos[data] = {}; 
-                totalSeconds = 0;
-                currentSeconds = 0;
-                updateTotalDisplay();
-                updateCurrentDisplay();
-                const totalKey = `totalAcumulado_${data}`;
-                localStorage.setItem(totalKey, '0');
-                await salvarDadosFirebase(); 
-                criarTabela(); 
-                atualizarResumoEmpresas();
-                atualizarGraficos(); 
+                const data = dataExameInput.value; dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
+                totalSeconds = 0; currentSeconds = 0; updateTotalDisplay(); updateCurrentDisplay();
+                const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, '0');
+                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); 
                 showNotification("🗑️ Dia zerado! Cronômetros resetados.", "warning");
             } 
         }
         
         async function limparTodosDados() {
             if(confirm("⚠️ APAGAR TODOS os dados?")) {
-                dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
-                totalSeconds = 0;
-                currentSeconds = 0;
-                updateTotalDisplay();
-                updateCurrentDisplay();
-                await salvarDadosFirebase(); 
-                criarTabela(); 
-                atualizarGraficos();
+                dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; totalSeconds = 0; currentSeconds = 0;
+                updateTotalDisplay(); updateCurrentDisplay();
+                await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
                 if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
                 showNotification("⚠️ Todos os dados apagados!", "error");
             }
         }
 
-        dataExameInput.addEventListener('change', () => { 
-            const novaData = dataExameInput.value;
+        // ====== EVENT LISTENERS (Destrava os cliques no visualizador) ====== //
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() { abrirTab(this, this.dataset.tab); });
+        });
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() { setGraphView(this.dataset.view); });
+        });
+        document.getElementById('btn-sincronizar').addEventListener('click', salvarDadosFirebase);
+        document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
+        document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
+        document.getElementById('btn-reset-current').addEventListener('click', resetCurrentTimer);
+        document.getElementById('btn-finalizar-laudo').addEventListener('click', finalizarLaudo);
+        document.getElementById('btn-atualizar-relatorio').addEventListener('click', gerarRelatorioMensal);
+        document.getElementById('btn-exportar-excel').addEventListener('click', downloadRelatorioExcel);
+        document.getElementById('btn-baixar-json').addEventListener('click', baixarBackupCompleto);
+        document.getElementById('btn-restaurar-backup').addEventListener('click', restaurarBackup);
+        document.getElementById('btn-limpar-tudo').addEventListener('click', limparTodosDados);
+        document.getElementById('btn-limpar-historico').addEventListener('click', limparHistoricoBackups);
+
+        document.getElementById('data-exame').addEventListener('change', function() { 
+            const novaData = this.value;
             if(novaData !== dataAnterior) {
                 if(confirm(`⚠️ Mudar a data para ${novaData} irá ZERAR os cronômetros para iniciar um novo dia.\n\nO tempo do dia ${dataAnterior} será salvo separadamente.\n\nDeseja continuar?`)) {
-                    totalSeconds = 0;
-                    currentSeconds = 0;
-                    isCurrentRunning = true;
-                    updateTotalDisplay();
-                    updateCurrentDisplay();
-                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar';
-                    document.getElementById('timer-box').classList.remove('paused');
-                    
-                    const totalKey = `totalAcumulado_${novaData}`;
-                    const savedTotal = localStorage.getItem(totalKey);
-                    if(savedTotal) {
-                        totalSeconds = parseInt(savedTotal);
-                        updateTotalDisplay();
-                    }
-                    
-                    dataAnterior = novaData;
-                    criarTabela(); 
-                    atualizarResumoEmpresas();
-                    atualizarGraficos();
+                    totalSeconds = 0; currentSeconds = 0; isCurrentRunning = true;
+                    updateTotalDisplay(); updateCurrentDisplay();
+                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; document.getElementById('timer-box').classList.remove('paused');
+                    const totalKey = `totalAcumulado_${novaData}`; const savedTotal = localStorage.getItem(totalKey);
+                    if(savedTotal) { totalSeconds = parseInt(savedTotal); updateTotalDisplay(); }
+                    dataAnterior = novaData; criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
                     showNotification(`📅 Data alterada para ${novaData}! Cronômetros zerados.`, "warning");
-                } else {
-                    dataExameInput.value = dataAnterior;
-                }
+                } else { this.value = dataAnterior; }
             }
         });
-        
-        dataExameInput.addEventListener('focus', () => {
-            dataAnterior = dataExameInput.value;
+        document.getElementById('data-exame').addEventListener('focus', function() { dataAnterior = this.value; });
+        document.getElementById('mes-relatorio').addEventListener('change', gerarRelatorioMensal);
+
+        document.getElementById('exams-body').addEventListener('click', function(e) {
+            const btn = e.target.closest('.counter-btn');
+            if (btn) alterarContador(btn.dataset.seg, btn.dataset.serv, parseInt(btn.dataset.delta));
         });
-        
-        mesRelatorioInput.addEventListener('change', () => gerarRelatorioMensal());
+        document.getElementById('unificado-pagamento-container').addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-pagamento-empresa');
+            if (btn) togglePagamentoUnificado(btn.dataset.emp, btn.dataset.mes);
+        });
+        document.getElementById('lista-backups-automaticos').addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-action');
+            if (btn && btn.dataset.id) restaurarBackupAutomatico(parseInt(btn.dataset.id));
+        });
+
         document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
     </script>
 </body>
