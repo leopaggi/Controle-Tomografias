@@ -370,6 +370,8 @@
 
         async function carregarDadosFirebase() {
             atualizarStatus("Carregando...", "loading");
+            
+            // 1. Puxa dados locais primeiro
             const local = localStorage.getItem('examesTomografia');
             if(local) {
                 const parsed = JSON.parse(local);
@@ -386,6 +388,7 @@
             totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
             updateTotalDisplay();
             
+            // 2. Desenha a tela IMEDIATAMENTE com dados locais
             criarLegenda(); 
             criarTabela(); 
             popularTimerConfig(); 
@@ -395,24 +398,38 @@
             atualizarListaBackups(); 
             iniciarBackupAutomatico();
             
+            // 3. Tenta buscar na nuvem e faz o MERGE (não sobrescreve local)
             try {
                 atualizarStatus("Sincronizando...", "loading");
                 const doc = await db.collection('controles').doc('examesTomografia').get();
                 if (doc.exists) {
-                    const data = doc.data();
-                    dadosApp.exames = data.exames || data || {};
-                    dadosApp.tempos = data.tempos || {};
-                    dadosApp.pagamentos = data.pagamentos || {};
-                    if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                    if(!dadosApp.exames) dadosApp.exames = {};
-                    if(!dadosApp.tempos) dadosApp.tempos = {};
+                    const cloudData = doc.data();
+                    const cloudExames = cloudData.exames || {};
+                    const cloudTempos = cloudData.tempos || {};
+                    const cloudPagamentos = cloudData.pagamentos || {};
+
+                    // MERGE: Itera sobre a nuvem. Se a data não existir localmente, pega da nuvem.
+                    Object.keys(cloudExames).forEach(dateKey => {
+                        if (!dadosApp.exames[dateKey]) dadosApp.exames[dateKey] = cloudExames[dateKey];
+                    });
+                    Object.keys(cloudTempos).forEach(dateKey => {
+                        if (!dadosApp.tempos[dateKey]) dadosApp.tempos[dateKey] = cloudTempos[dateKey];
+                    });
+                    Object.keys(cloudPagamentos).forEach(mesKey => {
+                        if (!dadosApp.pagamentos[mesKey]) dadosApp.pagamentos[mesKey] = cloudPagamentos[mesKey];
+                    });
+
+                    // Salva o resultado do merge no Local Storage para manter tudo seguro
+                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                    
+                    // Atualiza a interface caso novos dados tenham vindo da nuvem
                     criarTabela();
                     atualizarResumoEmpresas();
                     atualizarGraficos();
                 }
                 atualizarStatus("Sincronizado", "success");
             } catch (e) {
-                console.error("Erro Firebase:", e);
+                console.error("Erro Firebase (bloqueado no visualizador?):", e);
                 atualizarStatus("Modo Offline", "warning");
             }
         }
@@ -422,11 +439,11 @@
                 await db.collection('controles').doc('examesTomografia').set(dadosApp); 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
                 const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo!", "success"); 
+                atualizarStatus("Salvo na Nuvem!", "success"); 
             } catch (e) { 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
                 const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo Local", "warning"); 
+                atualizarStatus("Salvo Local (Offline)", "warning"); 
             }
             isDataModified = true; 
         }
