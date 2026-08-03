@@ -304,7 +304,7 @@
             { id: 'hu-pg', nome: 'HU (PG)', color: '#4ecdc4' }
         ];
 
-        let dadosApp = { exames: {}, tempos: {}, pagamentos: {}, totais: {} };
+        let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
         let chartSegmentos = null, chartCustoBeneficio = null, chartProjecao = null;
         let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
         const BACKUP_INTERVAL = 5 * 60 * 1000, MAX_BACKUPS = 20, BACKUP_KEY = 'historico_backups_tomografia';
@@ -371,23 +371,24 @@
         async function carregarDadosFirebase() {
             atualizarStatus("Carregando...", "loading");
             
+            // 1. Puxa dados locais primeiro
             const local = localStorage.getItem('examesTomografia');
             if(local) {
                 const parsed = JSON.parse(local);
                 dadosApp.exames = parsed.exames || parsed || {};
                 dadosApp.tempos = parsed.tempos || {};
                 dadosApp.pagamentos = parsed.pagamentos || {};
-                dadosApp.totais = parsed.totais || {};
             }
             if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
             if(!dadosApp.exames) dadosApp.exames = {};
             if(!dadosApp.tempos) dadosApp.tempos = {};
-            if(!dadosApp.totais) dadosApp.totais = {};
             
             const totalKey = `totalAcumulado_${dataExameInput.value}`; 
-            totalSeconds = dadosApp.totais[dataExameInput.value] || (localStorage.getItem(totalKey) ? parseInt(localStorage.getItem(totalKey)) : 0);
+            const savedTotal = localStorage.getItem(totalKey); 
+            totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
             updateTotalDisplay();
             
+            // 2. Desenha a tela IMEDIATAMENTE com dados locais
             criarLegenda(); 
             criarTabela(); 
             popularTimerConfig(); 
@@ -397,45 +398,52 @@
             atualizarListaBackups(); 
             iniciarBackupAutomatico();
             
+            // 3. Tenta buscar na nuvem e faz o MERGE (não sobrescreve local)
             try {
                 atualizarStatus("Sincronizando...", "loading");
                 const doc = await db.collection('controles').doc('examesTomografia').get();
                 if (doc.exists) {
                     const cloudData = doc.data();
-                    dadosApp.exames = cloudData.exames || {};
-                    dadosApp.tempos = cloudData.tempos || {};
-                    dadosApp.pagamentos = cloudData.pagamentos || {};
-                    dadosApp.totais = cloudData.totais || {};
-                    
-                    if (dadosApp.totais[dataExameInput.value]) {
-                        totalSeconds = dadosApp.totais[dataExameInput.value];
-                        updateTotalDisplay();
-                    }
-                    
+                    const cloudExames = cloudData.exames || {};
+                    const cloudTempos = cloudData.tempos || {};
+                    const cloudPagamentos = cloudData.pagamentos || {};
+
+                    // MERGE: Itera sobre a nuvem. Se a data não existir localmente, pega da nuvem.
+                    Object.keys(cloudExames).forEach(dateKey => {
+                        if (!dadosApp.exames[dateKey]) dadosApp.exames[dateKey] = cloudExames[dateKey];
+                    });
+                    Object.keys(cloudTempos).forEach(dateKey => {
+                        if (!dadosApp.tempos[dateKey]) dadosApp.tempos[dateKey] = cloudTempos[dateKey];
+                    });
+                    Object.keys(cloudPagamentos).forEach(mesKey => {
+                        if (!dadosApp.pagamentos[mesKey]) dadosApp.pagamentos[mesKey] = cloudPagamentos[mesKey];
+                    });
+
+                    // Salva o resultado do merge no Local Storage para manter tudo seguro
                     localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                     
+                    // Atualiza a interface caso novos dados tenham vindo da nuvem
                     criarTabela();
                     atualizarResumoEmpresas();
                     atualizarGraficos();
                 }
                 atualizarStatus("Sincronizado", "success");
             } catch (e) {
-                console.error("Erro Firebase:", e);
+                console.error("Erro Firebase (bloqueado no visualizador?):", e);
                 atualizarStatus("Modo Offline", "warning");
             }
         }
         
         async function salvarDadosFirebase() {
             try { 
-                if(!dadosApp.totais) dadosApp.totais = {};
-                dadosApp.totais[dataExameInput.value] = totalSeconds;
-                
-                await db.collection('controles').doc('examesTomografia').set(dadosApp, { merge: true }); 
+                await db.collection('controles').doc('examesTomografia').set(dadosApp); 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                atualizarStatus("Sincronizado", "success");
+                const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("Salvo na Nuvem!", "success"); 
             } catch (e) { 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                atualizarStatus("Modo Offline", "warning"); 
+                const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("Salvo Local (Offline)", "warning"); 
             }
             isDataModified = true; 
         }
@@ -449,7 +457,7 @@
             const tempoGasto = currentSeconds;
             const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome }));
             showTimeNotification(tempoGasto, segmentosSelecionados);
-            if(tempoGasto > 0) { totalSeconds += tempoGasto; updateTotalDisplay(); }
+            if(tempoGasto > 0) { totalSeconds += tempoGasto; updateTotalDisplay(); const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, totalSeconds.toString()); }
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
             const tempoDividido = tempoGasto / checkboxes.length;
@@ -618,254 +626,224 @@
         
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-'); const anoNum = parseInt(ano), mesNum = parseInt(mes);
-            const totals = {};
-            servicos.forEach(s => totals[s.id] = { valor: 0, qtd: 0 });
-            
-            const tbody = document.getElementById('relatorio-body');
-            tbody.innerHTML = '';
-            
-            const diasNoMes = new Date(anoNum, mesNum, 0).getDate();
-            for(let dia = 1; dia <= diasNoMes; dia++) {
-                const dataStr = `${ano}-${mes.padStart(2,'0')}-${dia.toString().padStart(2,'0')}`;
-                const resumoDia = calcularValorEQtdPorDia(dataStr);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${dia.toString().padStart(2,'0')}/${mes}</td>`;
-                
+            const totals = { hbj: { valor: 0, qtd: 0 }, mobilemed: { valor: 0, qtd: 0 }, 'sagrada-familia': { valor: 0, qtd: 0 }, radcloud: { valor: 0, qtd: 0 }, cmt: { valor: 0, qtd: 0 }, clinimage: { valor: 0, qtd: 0 }, vx: { valor: 0, qtd: 0 }, 'santa-casa-pg': { valor: 0, qtd: 0 }, 'hu-pg': { valor: 0, qtd: 0 } };
+            let totalGeralValor = 0, totalGeralQtd = 0; const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+            const tbody = document.getElementById('relatorio-body'); tbody.innerHTML = '';
+            for(let d = 1; d <= ultimoDia; d++) {
+                const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                const valoresDia = calcularValorEQtdPorDia(dataStr); const tr = document.createElement('tr'); tr.innerHTML = `<td class="exam-name">${d}/${mes}</td>`;
                 let totalDiaValor = 0, totalDiaQtd = 0;
-                servicos.forEach(s => {
-                    const valor = resumoDia[s.id].valor;
-                    const qtd = resumoDia[s.id].qtd;
-                    totals[s.id].valor += valor;
-                    totals[s.id].qtd += qtd;
-                    totalDiaValor += valor;
-                    totalDiaQtd += qtd;
-                    tr.innerHTML += `<td class="relatorio-cell">${valor > 0 ? `R$ ${valor.toFixed(2)} <span class="relatorio-qtd">(${qtd} ex)</span>` : '-'}</td>`;
+                servicos.forEach(servico => {
+                    const vDia = valoresDia[servico.id]?.valor || 0; const qDia = valoresDia[servico.id]?.qtd || 0;
+                    totalDiaValor += vDia; totalDiaQtd += qDia; totals[servico.id].valor += vDia; totals[servico.id].qtd += qDia; totalGeralValor += vDia; totalGeralQtd += qDia;
+                    const td = document.createElement('td'); td.className = 'relatorio-cell';
+                    if (vDia > 0 || qDia > 0) { td.innerHTML = `<div class="relatorio-valor">R$ ${vDia.toFixed(2)}</div><div class="relatorio-qtd">📋 ${qDia} laudo${qDia !== 1 ? 's' : ''}</div>`; } 
+                    else { td.innerHTML = `<div class="relatorio-valor" style="color:#999;">R$ 0,00</div><div class="relatorio-qtd">📋 0 laudos</div>`; }
+                    tr.appendChild(td);
                 });
-                tr.innerHTML += `<td class="relatorio-cell relatorio-valor">R$ ${totalDiaValor.toFixed(2)} <span class="relatorio-qtd">${totalDiaQtd} ex</span></td>`;
-                tbody.appendChild(tr);
+                const tdTotal = document.createElement('td'); tdTotal.style.fontWeight = 'bold'; tdTotal.style.backgroundColor = '#f0f0f0';
+                tdTotal.innerHTML = `<div class="relatorio-valor">R$ ${totalDiaValor.toFixed(2)}</div><div class="relatorio-qtd">📋 ${totalDiaQtd} laudo${totalDiaQtd !== 1 ? 's' : ''}</div>`;
+                tr.appendChild(tdTotal); tbody.appendChild(tr);
             }
-            
-            atualizarResumoPagamentoMes(ano, mes, totals);
+            const trTotal = document.createElement('tr'); trTotal.style.backgroundColor = '#e8f4f8'; trTotal.style.fontWeight = 'bold'; trTotal.innerHTML = `<td class="exam-name"><strong>📊 TOTAL DO MÊS</strong></td>`;
+            servicos.forEach(servico => {
+                const td = document.createElement('td'); td.style.backgroundColor = '#e8f4f8';
+                td.innerHTML = `<div class="relatorio-valor" style="color:#27ae60; font-size:0.85rem;">R$ ${totals[servico.id].valor.toFixed(2)}</div><div class="relatorio-qtd" style="font-size:0.7rem;">📋 ${totals[servico.id].qtd} laudo${totals[servico.id].qtd !== 1 ? 's' : ''}</div>`;
+                trTotal.appendChild(td);
+            });
+            const tdTotalGeral = document.createElement('td'); tdTotalGeral.style.backgroundColor = '#e8f4f8'; tdTotalGeral.style.fontWeight = 'bold';
+            tdTotalGeral.innerHTML = `<div class="relatorio-valor" style="color:#27ae60; font-size:0.9rem;">R$ ${totalGeralValor.toFixed(2)}</div><div class="relatorio-qtd" style="font-size:0.75rem;">📋 ${totalGeralQtd} laudo${totalGeralQtd !== 1 ? 's' : ''}</div>`;
+            trTotal.appendChild(tdTotalGeral); tbody.appendChild(trTotal);
+            renderizarHeaderUnificado(mesRelatorioInput.value, totals, totalGeralValor);
         }
-
-        function atualizarResumoPagamentoMes(ano, mes, totals) {
-            const container = document.getElementById('unificado-pagamento-container');
-            if(!container) return;
-            const mesKey = `${ano}-${mes}`;
-            if(!dadosApp.pagamentos[mesKey]) dadosApp.pagamentos[mesKey] = {};
-            
-            let totalGeralValor = 0, totalRecebido = 0;
+        
+        function renderizarHeaderUnificado(mesAno, totals, totalGeral) {
+            const container = document.getElementById('unificado-pagamento-container'); if (!container) return;
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {}; let totalRecebido = 0;
+            servicos.forEach(servico => { if (dadosApp.pagamentos[mesAno][servico.id]) totalRecebido += totals[servico.id].valor; });
             container.innerHTML = `
                 <div class="empresas-pagamento">
-                    ${servicos.map(s => {
-                        const valor = totals[s.id].valor;
-                        totalGeralValor += valor;
-                        const isPago = dadosApp.pagamentos[mesKey][s.id] || false;
-                        if(isPago) totalRecebido += valor;
-                        return `
-                            <div class="btn-pagamento-empresa ${isPago ? 'pago' : 'pendente'}" data-serv="${s.id}">
-                                <input type="checkbox" id="pgto-${s.id}" ${isPago ? 'checked' : ''}>
-                                <label for="pgto-${s.id}">${s.nome}</label>
-                                <span class="valor-empresa">R$ ${valor.toFixed(2)}</span>
-                            </div>
-                        `;
+                    ${servicos.map(servico => {
+                        const isPaid = dadosApp.pagamentos[mesAno][servico.id] || false;
+                        return `<div class="btn-pagamento-empresa ${isPaid ? 'pago' : 'pendente'}" style="border-color: ${servico.color}" data-emp="${servico.id}" data-mes="${mesAno}">
+                            <input type="checkbox" ${isPaid ? 'checked' : ''}>
+                            <label>${servico.nome}</label>
+                            <span class="valor-empresa">R$ ${totals[servico.id].valor.toFixed(2)}</span>
+                            <span class="valor-empresa" style="background: #2c3e50;">📋 ${totals[servico.id].qtd}</span>
+                        </div>`;
                     }).join('')}
                 </div>
                 <div class="total-mes-central">
-                    <div class="label">TOTAL DO MÊS</div>
-                    <div class="valor">R$ ${totalGeralValor.toFixed(2)}</div>
+                    <div class="label">💰 TOTAL DO MÊS</div>
+                    <div class="valor">R$ ${totalGeral.toFixed(2)}</div>
+                    <div style="font-size:0.7rem; margin-top:5px;">📋 ${servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0)} laudos</div>
                 </div>
                 <div class="resumo-recebimento">
-                    <div class="recebido">
-                        <div class="label">RECEBIDO</div>
-                        <div class="valor">R$ ${totalRecebido.toFixed(2)}</div>
-                    </div>
-                    <div class="a-receber">
-                        <div class="label">A RECEBER</div>
-                        <div class="valor">R$ ${(totalGeralValor - totalRecebido).toFixed(2)}</div>
-                    </div>
-                </div>
-            `;
-            
-            container.querySelectorAll('.btn-pagamento-empresa input').forEach(input => {
-                input.addEventListener('change', async (e) => {
-                    const servId = e.target.closest('.btn-pagamento-empresa').dataset.serv;
-                    dadosApp.pagamentos[mesKey][servId] = e.target.checked;
-                    await salvarDadosFirebase();
-                    gerarRelatorioMensal();
-                });
-            });
+                    <div class="recebido"><div class="label">✓ RECEBIDO</div><div class="valor">R$ ${totalRecebido.toFixed(2)}</div></div>
+                    <div class="a-receber"><div class="label">⏳ A RECEBER</div><div class="valor">R$ ${(totalGeral - totalRecebido).toFixed(2)}</div></div>
+                </div>`;
+        }
+        
+        function togglePagamentoUnificado(empresaId, mesAno) {
+            if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
+            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
+            salvarDadosFirebase(); gerarRelatorioMensal();
         }
 
-        function exportarExcel() {
-            let csv = "Data,HBJ,MOBILEMED,SAGRADA,RADCLOUD,CMT,CLINIMAGE,VX,Santa Casa (PG),HU (PG),TOTAL\n";
-            const [ano, mes] = mesRelatorioInput.value.split('-');
-            const diasNoMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
-            for(let dia = 1; dia <= diasNoMes; dia++) {
-                const dataStr = `${ano}-${mes}-${dia.toString().padStart(2,'0')}`;
-                const resumo = calcularValorEQtdPorDia(dataStr);
-                let total = 0;
-                let row = `${dia.toString().padStart(2,'0')}/${mes}`;
-                servicos.forEach(s => { total += resumo[s.id].valor; row += `,R$ ${resumo[s.id].valor.toFixed(2)} (${resumo[s.id].qtd})`; });
-                row += `,R$ ${total.toFixed(2)}`;
-                csv += row + "\n";
+        function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
+        
+        function downloadRelatorioExcel() {
+            const [ano, mes] = mesRelatorioInput.value.split('-'); const anoNum = parseInt(ano), mesNum = parseInt(mes);
+            const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+            let csv = 'DATA;'; servicos.forEach(s => { csv += `${s.nome} (R$);${s.nome} (QTD);`; }); csv += 'TOTAL (R$);TOTAL (QTD)\n';
+            const totals = {}; servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
+            for(let d = 1; d <= ultimoDia; d++) {
+                const dataStr = `${ano}-${mes.padStart(2,'0')}-${d.toString().padStart(2,'0')}`; const valoresDia = calcularValorEQtdPorDia(dataStr);
+                let linha = `${dataStr};`; let totalDiaValor = 0, totalDiaQtd = 0;
+                servicos.forEach(servico => { const vDia = valoresDia[servico.id]?.valor || 0; const qDia = valoresDia[servico.id]?.qtd || 0; totalDiaValor += vDia; totalDiaQtd += qDia; totals[servico.id].valor += vDia; totals[servico.id].qtd += qDia; linha += `${vDia.toFixed(2)};${qDia};`; });
+                linha += `${totalDiaValor.toFixed(2)};${totalDiaQtd}\n`; csv += linha;
             }
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `relatorio_tomografia_${ano}-${mes}.csv`;
-            link.click();
+            csv += `\nTOTAIS DO MÊS;`; servicos.forEach(s => { csv += `${totals[s.id].valor.toFixed(2)};${totals[s.id].qtd};`; });
+            const totalGeralValor = servicos.reduce((acc, s) => acc + totals[s.id].valor, 0); const totalGeralQtd = servicos.reduce((acc, s) => acc + totals[s.id].qtd, 0);
+            csv += `${totalGeralValor.toFixed(2)};${totalGeralQtd}\n`; csv += `\nRESUMO DE PAGAMENTOS POR EMPRESA\n`;
+            servicos.forEach(servico => { const mesAno = mesRelatorioInput.value; const isPaid = dadosApp.pagamentos[mesAno]?.[servico.id] || false; csv += `${servico.nome};R$ ${totals[servico.id].valor.toFixed(2)};${totals[servico.id].qtd} laudos;${isPaid ? 'PAGO' : 'PENDENTE'}\n`; });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8'})); a.download = `relatorio_${mes}_${ano}.csv`; a.click();
         }
 
         function iniciarBackupAutomatico() {
             setInterval(() => {
-                if(isDataModified) {
-                    let backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
-                    backups.unshift({ data: new Date().toLocaleString('pt-BR'), dados: JSON.parse(JSON.stringify(dadosApp)) });
-                    if(backups.length > MAX_BACKUPS) backups.pop();
-                    localStorage.setItem(BACKUP_KEY, JSON.stringify(backups));
-                    isDataModified = false;
-                    atualizarListaBackups();
-                }
+                if (isDataModified) { criarBackupAutomatico(); isDataModified = false; }
             }, BACKUP_INTERVAL);
         }
 
+        function criarBackupAutomatico() {
+            try {
+                let backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); const agora = new Date();
+                const novoBackup = { id: agora.getTime(), data: agora.toLocaleString('pt-BR'), conteudo: { ...dadosApp }, timerDia: totalSeconds, dataReferencia: dataExameInput.value };
+                backups.unshift(novoBackup); 
+                if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
+                localStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); atualizarListaBackups();
+                showNotification("💾 Backup automático salvo!", "success");
+            } catch (e) { console.error("Erro ao salvar backup:", e); }
+        }
+
         function atualizarListaBackups() {
-            const lista = document.getElementById('lista-backups-automaticos');
-            if(!lista) return;
+            const lista = document.getElementById('lista-backups-automaticos'); if (!lista) return;
             const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
-            lista.innerHTML = '';
-            backups.forEach((b, i) => {
-                const item = document.createElement('div');
-                item.className = 'backup-history-item';
-                let totalEx = 0;
-                Object.values(b.dados.exames || {}).forEach(dia => { Object.values(dia).forEach(seg => { Object.values(seg).forEach(qtd => totalEx += qtd); }); });
-                item.innerHTML = `
+            if (backups.length === 0) { lista.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Nenhum backup automático gerado ainda. Edite algo e aguarde 5 minutos.</div>'; return; }
+            lista.innerHTML = backups.map(b => `
+                <div class="backup-history-item">
                     <div>
-                        <div class="b-info">💾 Backup ${i + 1} - ${b.data}</div>
-                        <div class="b-sub">${totalEx} exames registrados</div>
+                        <div class="b-info">🕒 ${b.data}</div>
+                        <div class="b-sub">Tempo total do dia (${b.dataReferencia}): ${formatTime(b.timerDia || 0)}</div>
                     </div>
-                    <button class="btn-pequeno btn-action" onclick="restaurarBackupAutomatico(${i})">🔄 Restaurar</button>
-                `;
-                lista.appendChild(item);
-            });
+                    <button class="btn-pequeno btn-action" data-id="${b.id}">🔄 Restaurar</button>
+                </div>
+            `).join('');
         }
 
-        function restaurarBackupAutomatico(index) {
-            if(confirm('Restaurar este backup? Os dados atuais serão substituídos.')) {
-                const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
-                dadosApp = backups[index].dados;
-                salvarDadosFirebase();
-                criarTabela();
-                atualizarResumoEmpresas();
+        async function restaurarBackupAutomatico(id) {
+            if (!confirm("Restaurar este backup automático? Os dados atuais serão substituídos por esta versão.")) return;
+            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); const backup = backups.find(b => b.id === id);
+            if (backup) {
+                dadosApp = backup.conteudo || { exames: {}, tempos: {}, pagamentos: {} };
+                if (!dadosApp.exames) dadosApp.exames = {}; if (!dadosApp.tempos) dadosApp.tempos = {}; if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                totalSeconds = backup.timerDia || 0; updateTotalDisplay();
+                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+                if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                showNotification("✅ Backup automático restaurado!", "success");
             }
         }
 
-        function baixarJson() {
-            const blob = new Blob([JSON.stringify(dadosApp, null, 2)], { type: 'application/json' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `backup_tomografia_${hojeStr}.json`;
-            link.click();
+        function limparHistoricoBackups() {
+            if (confirm("Limpar todo o histórico de backups automáticos locais?")) { localStorage.removeItem(BACKUP_KEY); atualizarListaBackups(); showNotification("Histórico limpo!", "warning"); }
         }
 
-        function restaurarBackup(file) {
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    dadosApp = JSON.parse(e.target.result);
-                    await salvarDadosFirebase();
-                    criarTabela();
-                    atualizarResumoEmpresas();
-                    showNotification("Backup restaurado com sucesso!");
-                } catch(err) {
-                    showNotification("Erro ao ler arquivo", "error");
-                }
-            };
-            reader.readAsText(file);
+        function baixarBackupCompleto() { const backup = { ...dadosApp }; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); }
+        
+        function restaurarBackup() {
+            const file = document.getElementById('upload-backup').files[0]; if(!file) return; const reader = new FileReader();
+            reader.onload = async (e) => {
+                try { 
+                    const json = JSON.parse(e.target.result); 
+                    dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
+                    await salvarDadosFirebase(); criarLegenda(); criarTabela(); atualizarGraficos(); 
+                    if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                    showNotification("✅ Backup restaurado!", "success");
+                } catch(err) { showNotification("❌ Erro ao restaurar", "error"); }
+            }; reader.readAsText(file);
         }
-
-        async function zerarDia() {
-            if(confirm(`Zerar todos os exames e tempos do dia ${dataExameInput.value}?`)) {
-                const data = dataExameInput.value;
-                if(dadosApp.exames[data]) delete dadosApp.exames[data];
-                if(dadosApp.tempos[data]) delete dadosApp.tempos[data];
-                if(dadosApp.totais) dadosApp.totais[data] = 0;
-                totalSeconds = 0; updateTotalDisplay();
-                await salvarDadosFirebase();
-                criarTabela();
-                showNotification("Dia zerado!", "warning");
+        
+        async function limparDia() { 
+            if(confirm("Zerar exames do dia?")) { 
+                const data = dataExameInput.value; dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
+                totalSeconds = 0; currentSeconds = 0; updateTotalDisplay(); updateCurrentDisplay();
+                const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, '0');
+                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); 
+                showNotification("🗑️ Dia zerado! Cronômetros resetados.", "warning");
+            } 
+        }
+        
+        async function limparTodosDados() {
+            if(confirm("⚠️ APAGAR TODOS os dados?")) {
+                dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; totalSeconds = 0; currentSeconds = 0;
+                updateTotalDisplay(); updateCurrentDisplay();
+                await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
+                if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                showNotification("⚠️ Todos os dados apagados!", "error");
             }
         }
 
-        async function limparTudo() {
-            if(confirm('APAGAR TODOS OS DADOS DO SISTEMA? Esta ação não pode ser desfeita!')) {
-                dadosApp = { exames: {}, tempos: {}, pagamentos: {}, totais: {} };
-                await salvarDadosFirebase();
-                criarTabela();
-                atualizarResumoEmpresas();
-                showNotification("Todos os dados foram apagados!", "error");
-            }
-        }
-
-        function atualizarStatus(texto, tipo) {
-            syncStatus.textContent = texto;
-            syncStatus.className = `sync-status sync-${tipo}`;
-        }
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', (e) => abrirTab(e.target, e.target.dataset.tab));
-            });
-            document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
-            document.getElementById('btn-reset-current').addEventListener('click', resetCurrentTimer);
-            document.getElementById('btn-finalizar-laudo').addEventListener('click', finalizarLaudo);
-            document.getElementById('btn-sincronizar').addEventListener('click', salvarDadosFirebase);
-            document.getElementById('btn-zerar-dia').addEventListener('click', zerarDia);
-            document.getElementById('btn-atualizar-relatorio').addEventListener('click', gerarRelatorioMensal);
-            document.getElementById('btn-exportar-excel').addEventListener('click', exportarExcel);
-            document.getElementById('btn-baixar-json').addEventListener('click', baixarJson);
-            document.getElementById('btn-restaurar-backup').addEventListener('click', () => {
-                const file = document.getElementById('upload-backup').files[0];
-                if(file) restaurarBackup(file);
-            });
-            document.getElementById('btn-limpar-tudo').addEventListener('click', limparTudo);
-            document.getElementById('btn-limpar-historico').addEventListener('click', () => {
-                localStorage.removeItem(BACKUP_KEY);
-                atualizarListaBackups();
-            });
-            document.getElementById('data-exame').addEventListener('change', (e) => {
-                if(dadosApp.totais && dadosApp.totais[e.target.value]) {
-                    totalSeconds = dadosApp.totais[e.target.value];
-                } else {
-                    totalSeconds = 0;
-                }
-                updateTotalDisplay();
-                criarTabela();
-                atualizarResumoEmpresas();
-                atualizarGraficos();
-            });
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => setGraphView(e.target.dataset.view));
-            });
-            document.getElementById('exams-body').addEventListener('click', async (e) => {
-                if(e.target.classList.contains('counter-btn')) {
-                    const seg = e.target.dataset.seg;
-                    const serv = e.target.dataset.serv;
-                    const delta = parseInt(e.target.dataset.delta);
-                    await alterarContador(seg, serv, delta);
-                }
-            });
-
-            // 🚀 O TRUQUE MÁGICO AQUI 🚀
-            // Sempre que a janela do navegador ganhar foco (você clicar nela), ele atualiza os dados
-            window.addEventListener('focus', () => {
-                carregarDadosFirebase();
-            });
-
-            carregarDadosFirebase();
+        // ====== EVENT LISTENERS (Destrava os cliques no visualizador) ====== //
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() { abrirTab(this, this.dataset.tab); });
         });
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() { setGraphView(this.dataset.view); });
+        });
+        document.getElementById('btn-sincronizar').addEventListener('click', salvarDadosFirebase);
+        document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
+        document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
+        document.getElementById('btn-reset-current').addEventListener('click', resetCurrentTimer);
+        document.getElementById('btn-finalizar-laudo').addEventListener('click', finalizarLaudo);
+        document.getElementById('btn-atualizar-relatorio').addEventListener('click', gerarRelatorioMensal);
+        document.getElementById('btn-exportar-excel').addEventListener('click', downloadRelatorioExcel);
+        document.getElementById('btn-baixar-json').addEventListener('click', baixarBackupCompleto);
+        document.getElementById('btn-restaurar-backup').addEventListener('click', restaurarBackup);
+        document.getElementById('btn-limpar-tudo').addEventListener('click', limparTodosDados);
+        document.getElementById('btn-limpar-historico').addEventListener('click', limparHistoricoBackups);
+
+        document.getElementById('data-exame').addEventListener('change', function() { 
+            const novaData = this.value;
+            if(novaData !== dataAnterior) {
+                if(confirm(`⚠️ Mudar a data para ${novaData} irá ZERAR os cronômetros para iniciar um novo dia.\n\nO tempo do dia ${dataAnterior} será salvo separadamente.\n\nDeseja continuar?`)) {
+                    totalSeconds = 0; currentSeconds = 0; isCurrentRunning = true;
+                    updateTotalDisplay(); updateCurrentDisplay();
+                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; document.getElementById('timer-box').classList.remove('paused');
+                    const totalKey = `totalAcumulado_${novaData}`; const savedTotal = localStorage.getItem(totalKey);
+                    if(savedTotal) { totalSeconds = parseInt(savedTotal); updateTotalDisplay(); }
+                    dataAnterior = novaData; criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+                    showNotification(`📅 Data alterada para ${novaData}! Cronômetros zerados.`, "warning");
+                } else { this.value = dataAnterior; }
+            }
+        });
+        document.getElementById('data-exame').addEventListener('focus', function() { dataAnterior = this.value; });
+        document.getElementById('mes-relatorio').addEventListener('change', gerarRelatorioMensal);
+
+        document.getElementById('exams-body').addEventListener('click', function(e) {
+            const btn = e.target.closest('.counter-btn');
+            if (btn) alterarContador(btn.dataset.seg, btn.dataset.serv, parseInt(btn.dataset.delta));
+        });
+        document.getElementById('unificado-pagamento-container').addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-pagamento-empresa');
+            if (btn) togglePagamentoUnificado(btn.dataset.emp, btn.dataset.mes);
+        });
+        document.getElementById('lista-backups-automaticos').addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-action');
+            if (btn && btn.dataset.id) restaurarBackupAutomatico(parseInt(btn.dataset.id));
+        });
+
+        document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
     </script>
 </body>
 </html>
