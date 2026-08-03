@@ -397,8 +397,9 @@
             atualizarListaBackups(); 
             iniciarBackupAutomatico();
             
-            // SINCRONIZAÇÃO EM TEMPO REAL
-            db.collection('controles').doc('examesTomografia').onSnapshot((doc) => {
+            try {
+                atualizarStatus("Sincronizando...", "loading");
+                const doc = await db.collection('controles').doc('examesTomografia').get();
                 if (doc.exists) {
                     const cloudData = doc.data();
                     dadosApp.exames = cloudData.exames || {};
@@ -416,14 +417,12 @@
                     criarTabela();
                     atualizarResumoEmpresas();
                     atualizarGraficos();
-                    atualizarStatus("Sincronizado", "success");
-                } else {
-                    atualizarStatus("Pronto (Sem dados na nuvem)", "success");
                 }
-            }, (error) => {
-                console.error("Erro ao escutar Firebase:", error);
+                atualizarStatus("Sincronizado", "success");
+            } catch (e) {
+                console.error("Erro Firebase:", e);
                 atualizarStatus("Modo Offline", "warning");
-            });
+            }
         }
         
         async function salvarDadosFirebase() {
@@ -433,9 +432,10 @@
                 
                 await db.collection('controles').doc('examesTomografia').set(dadosApp, { merge: true }); 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
+                atualizarStatus("Sincronizado", "success");
             } catch (e) { 
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                atualizarStatus("Salvo Local (Offline)", "warning"); 
+                atualizarStatus("Modo Offline", "warning"); 
             }
             isDataModified = true; 
         }
@@ -856,6 +856,12 @@
                     const delta = parseInt(e.target.dataset.delta);
                     await alterarContador(seg, serv, delta);
                 }
+            });
+
+            // 🚀 O TRUQUE MÁGICO AQUI 🚀
+            // Sempre que a janela do navegador ganhar foco (você clicar nela), ele atualiza os dados
+            window.addEventListener('focus', () => {
+                carregarDadosFirebase();
             });
 
             carregarDadosFirebase();
