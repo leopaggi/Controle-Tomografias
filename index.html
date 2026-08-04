@@ -15,7 +15,7 @@
         header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         h1 { color: var(--primary); margin-bottom: 5px; font-size: 1.5rem; }
         .sync-status { padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
-        .sync-success { background: #d4edda; color: #155724; } .sync-error { background: #f8d7da; color: #721c24; } .sync-loading { background: #d1ecf1; color: #0c5460; } .sync-warning { background: #fff3cd; color: #856404; }
+        .sync-success { background: #d4edda; color: #155724; } .sync-error { background: #f8d7da; color: #721c24; } .sync-loading { background: #d1ecf1; color: #0c5460; } .sync-warning { background: #fff3cd; color: #856404; } .sync-offline { background: #e2e3e5; color: #383d41; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
         .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; border: 1px solid #ddd; border-bottom: none; }
         .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -37,7 +37,7 @@
         .total-resumo-empresas { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; font-size: 0.8rem; }
         .total-resumo-empresas .total-exames { background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; }
         .total-resumo-empresas .total-valor { font-size: 1rem; font-weight: bold; color: var(--success); }
-        .acoes-rapidas { display: flex; gap: 10px; margin-top: 10px; }
+        .acoes-rapidas { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
         .btn-pequeno { padding: 5px 12px; font-size: 0.7rem; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
         .workflow-container { background: white; border: 1px solid #e1e1e1; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: grid; grid-template-columns: 300px 1fr; gap: 15px; align-items: start; }
         @media (max-width: 900px) { .workflow-container { grid-template-columns: 1fr; } }
@@ -116,6 +116,8 @@
         .backup-history-item:last-child { border-bottom: none; }
         .backup-history-item .b-info { font-size: 0.8rem; color: var(--primary); }
         .backup-history-item .b-sub { font-size: 0.7rem; color: #666; }
+        .backup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 800px) { .backup-grid { grid-template-columns: 1fr; } }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
@@ -147,6 +149,7 @@
                 <div class="acoes-rapidas">
                     <button id="btn-sincronizar" class="btn-pequeno btn-save">💾 Sincronizar</button>
                     <button id="btn-zerar-dia" class="btn-pequeno btn-reset">🗑️ Zerar Dia</button>
+                    <button id="btn-recuperar-backup" class="btn-pequeno btn-action">🆘 Recuperar Backup</button>
                 </div>
             </div>
             <div class="workflow-container">
@@ -245,7 +248,7 @@
         </div>
         
         <div id="backup" class="tab-content">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="backup-grid">
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid var(--secondary);">
                     <h3 style="font-size: 0.9rem; margin-bottom: 10px;">📥 Backup Manual</h3>
                     <p style="font-size: 0.75rem; margin-bottom: 10px; color: #666;">Faça download de um arquivo JSON com todos os dados ou restaure um arquivo salvo anteriormente.</p>
@@ -276,7 +279,14 @@
     </div>
 
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo", authDomain: "controle-tomografias-leonardo.firebaseapp.com", projectId: "controle-tomografias-leonardo", storageBucket: "controle-tomografias-leonardo.firebasestorage.app", messagingSenderId: "808856695285", appId: "1:808856695285:web:9787b8beba32e3fde7f0bc" };
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo", 
+            authDomain: "controle-tomografias-leonardo.firebaseapp.com", 
+            projectId: "controle-tomografias-leonardo", 
+            storageBucket: "controle-tomografias-leonardo.firebasestorage.app", 
+            messagingSenderId: "808856695285", 
+            appId: "1:808856695285:web:9787b8beba32e3fde7f0bc" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -297,10 +307,14 @@
         };
 
         const servicos = [
-            { id: 'hbj', nome: 'HBJ', color: '#3498db' }, { id: 'mobilemed', nome: 'MOBILEMED', color: '#e67e22' },
-            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c' }, { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
-            { id: 'cmt', nome: 'CMT', color: '#f1c40f' }, { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
-            { id: 'vx', nome: 'VX', color: '#1abc9c' }, { id: 'santa-casa-pg', nome: 'Santa Casa (PG)', color: '#ff6b6b' },
+            { id: 'hbj', nome: 'HBJ', color: '#3498db' }, 
+            { id: 'mobilemed', nome: 'MOBILEMED', color: '#e67e22' },
+            { id: 'sagrada-familia', nome: 'SAGRADA', color: '#e74c3c' }, 
+            { id: 'radcloud', nome: 'RADCLOUD', color: '#2ecc71' },
+            { id: 'cmt', nome: 'CMT', color: '#f1c40f' }, 
+            { id: 'clinimage', nome: 'CLINIMAGE', color: '#9b59b6' },
+            { id: 'vx', nome: 'VX', color: '#1abc9c' }, 
+            { id: 'santa-casa-pg', nome: 'Santa Casa (PG)', color: '#ff6b6b' },
             { id: 'hu-pg', nome: 'HU (PG)', color: '#4ecdc4' }
         ];
 
@@ -348,6 +362,255 @@
         function showTimeNotification(segundos, segmentos) { const minutos = Math.floor(segundos / 60); const segResto = segundos % 60; const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`; const segmentosNomes = segmentos.map(s => s.nome).join(', '); const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`; const el = document.createElement('div'); el.className = 'temp-notification'; el.textContent = msg; document.body.appendChild(el); setTimeout(() => el.remove(), 4000); }
         function limparSelecoesSegmentos() { const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]'); checkboxes.forEach(cb => { cb.checked = false; const label = cb.closest('.check-item'); if(label) label.style.background = 'white'; }); }
 
+        // ============================================================
+        // 🛡️ SISTEMA DE SINCRONIZAÇÃO SEGURA COM MERGE
+        // ============================================================
+
+        // 1. BACKUP DE EMERGÊNCIA
+        function fazerBackupEmergencia() {
+            try {
+                const backup = {
+                    timestamp: Date.now(),
+                    data: new Date().toISOString(),
+                    dados: JSON.parse(JSON.stringify(dadosApp)),
+                    totalSegundos: totalSeconds,
+                    dataAtual: dataExameInput.value
+                };
+                const key = 'backup_emergencia_' + Date.now();
+                localStorage.setItem(key, JSON.stringify(backup));
+                
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('backup_emergencia_'));
+                if (keys.length > 10) {
+                    const toRemove = keys.sort().slice(0, keys.length - 10);
+                    toRemove.forEach(k => localStorage.removeItem(k));
+                }
+                console.log('✅ Backup de emergência criado');
+            } catch(e) {
+                console.error('❌ Erro no backup de emergência:', e);
+            }
+        }
+
+        // 2. MERGE INTELIGENTE (SOMA, NUNCA SUBSTITUI)
+        function mergeDados(dadosLocal, dadosNuvem) {
+            const resultado = {
+                exames: JSON.parse(JSON.stringify(dadosLocal.exames || {})),
+                tempos: JSON.parse(JSON.stringify(dadosLocal.tempos || {})),
+                pagamentos: JSON.parse(JSON.stringify(dadosLocal.pagamentos || {}))
+            };
+            
+            // MERGE DE EXAMES
+            Object.keys(dadosNuvem.exames || {}).forEach(data => {
+                if (!resultado.exames[data]) {
+                    resultado.exames[data] = JSON.parse(JSON.stringify(dadosNuvem.exames[data]));
+                } else {
+                    Object.keys(dadosNuvem.exames[data]).forEach(segmento => {
+                        if (!resultado.exames[data][segmento]) {
+                            resultado.exames[data][segmento] = {};
+                        }
+                        Object.keys(dadosNuvem.exames[data][segmento]).forEach(empresa => {
+                            const valorNuvem = dadosNuvem.exames[data][segmento][empresa] || 0;
+                            const valorLocal = resultado.exames[data][segmento][empresa] || 0;
+                            if (valorNuvem > 0) {
+                                resultado.exames[data][segmento][empresa] = valorLocal + valorNuvem;
+                            }
+                        });
+                    });
+                }
+            });
+            
+            // MERGE DE TEMPOS
+            Object.keys(dadosNuvem.tempos || {}).forEach(data => {
+                if (!resultado.tempos[data]) {
+                    resultado.tempos[data] = JSON.parse(JSON.stringify(dadosNuvem.tempos[data]));
+                } else {
+                    Object.keys(dadosNuvem.tempos[data]).forEach(key => {
+                        if (!resultado.tempos[data][key]) {
+                            resultado.tempos[data][key] = [];
+                        }
+                        if (Array.isArray(dadosNuvem.tempos[data][key])) {
+                            resultado.tempos[data][key].push(...dadosNuvem.tempos[data][key]);
+                        }
+                    });
+                }
+            });
+            
+            // MERGE DE PAGAMENTOS
+            Object.keys(dadosNuvem.pagamentos || {}).forEach(mes => {
+                if (!resultado.pagamentos[mes]) {
+                    resultado.pagamentos[mes] = JSON.parse(JSON.stringify(dadosNuvem.pagamentos[mes]));
+                } else {
+                    Object.keys(dadosNuvem.pagamentos[mes]).forEach(empresa => {
+                        if (dadosNuvem.pagamentos[mes][empresa] === true) {
+                            resultado.pagamentos[mes][empresa] = true;
+                        }
+                    });
+                }
+            });
+            
+            return resultado;
+        }
+
+        // 3. FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
+        async function sincronizarDados() {
+            try {
+                atualizarStatus("Sincronizando...", "loading");
+                fazerBackupEmergencia();
+                
+                const doc = await db.collection('controles').doc('examesTomografia').get();
+                const dadosNuvem = doc.exists ? doc.data() : { exames: {}, tempos: {}, pagamentos: {} };
+                
+                if (!dadosNuvem.exames) dadosNuvem.exames = {};
+                if (!dadosNuvem.tempos) dadosNuvem.tempos = {};
+                if (!dadosNuvem.pagamentos) dadosNuvem.pagamentos = {};
+                
+                const dadosMergeados = mergeDados(dadosApp, dadosNuvem);
+                dadosApp = dadosMergeados;
+                
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                
+                criarTabela();
+                atualizarResumoEmpresas();
+                atualizarGraficos();
+                if (document.getElementById('relatorio').classList.contains('active')) {
+                    gerarRelatorioMensal();
+                }
+                
+                atualizarStatus("✅ Sincronizado!", "success");
+                showNotification("🔄 Dados sincronizados com sucesso!", "success");
+                return true;
+            } catch (e) {
+                console.error("❌ Erro na sincronização:", e);
+                atualizarStatus("⚠️ Offline (salvo local)", "warning");
+                showNotification("⚠️ Falha na sincronização. Dados salvos localmente.", "error");
+                return false;
+            }
+        }
+
+        // 4. CARREGAR DADOS INICIAL (com merge)
+        async function carregarDadosFirebase() {
+            try {
+                atualizarStatus("Carregando...", "loading");
+                
+                // 1. CARREGA DADOS LOCAIS
+                const local = localStorage.getItem('examesTomografia');
+                if (local) {
+                    const parsed = JSON.parse(local);
+                    dadosApp.exames = parsed.exames || parsed || {};
+                    dadosApp.tempos = parsed.tempos || {};
+                    dadosApp.pagamentos = parsed.pagamentos || {};
+                }
+                
+                if (!dadosApp.exames) dadosApp.exames = {};
+                if (!dadosApp.tempos) dadosApp.tempos = {};
+                if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                const savedTotal = localStorage.getItem(totalKey);
+                totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
+                updateTotalDisplay();
+                
+                // 2. DESENHA A TELA
+                criarLegenda();
+                criarTabela();
+                popularTimerConfig();
+                atualizarResumoEmpresas();
+                atualizarGraficos();
+                startCurrentTimer();
+                atualizarListaBackups();
+                iniciarBackupAutomatico();
+                
+                // 3. TENTA SINCRONIZAR COM A NUVEM (merge)
+                try {
+                    const doc = await db.collection('controles').doc('examesTomografia').get();
+                    if (doc.exists) {
+                        const dadosNuvem = doc.data();
+                        const dadosMergeados = mergeDados(dadosApp, dadosNuvem);
+                        dadosApp = dadosMergeados;
+                        
+                        localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                        await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                        
+                        criarTabela();
+                        atualizarResumoEmpresas();
+                        atualizarGraficos();
+                        
+                        atualizarStatus("✅ Sincronizado!", "success");
+                        showNotification("🔄 Dados sincronizados da nuvem!", "success");
+                    } else {
+                        await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                        atualizarStatus("✅ Pronto!", "success");
+                    }
+                } catch (e) {
+                    console.warn("⚠️ Firebase offline, usando dados locais:", e);
+                    atualizarStatus("📁 Modo Offline", "warning");
+                }
+                
+            } catch (e) {
+                console.error("❌ Erro ao carregar:", e);
+                atualizarStatus("❌ Erro ao carregar", "error");
+            }
+        }
+
+        // 5. FUNÇÃO DE SALVAR (com merge)
+        async function salvarDadosFirebase() {
+            try {
+                fazerBackupEmergencia();
+                
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                
+                await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                
+                atualizarStatus("✅ Salvo!", "success");
+                return true;
+            } catch (e) {
+                console.warn("⚠️ Erro ao salvar na nuvem:", e);
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("📁 Salvo localmente", "warning");
+                return false;
+            }
+        }
+
+        // 6. RECUPERAR BACKUP DE EMERGÊNCIA
+        function recuperarBackupEmergencia() {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('backup_emergencia_'));
+            if (keys.length === 0) {
+                showNotification("❌ Nenhum backup de emergência encontrado!", "error");
+                return;
+            }
+            
+            const ultimoKey = keys.sort().pop();
+            try {
+                const backup = JSON.parse(localStorage.getItem(ultimoKey));
+                const confirmar = confirm(
+                    `⚠️ Recuperar backup de ${new Date(backup.data).toLocaleString()}?\n\n` +
+                    `Isso irá restaurar os dados daquele momento.\n` +
+                    `Os dados atuais serão perdidos!`
+                );
+                
+                if (confirmar) {
+                    dadosApp = backup.dados;
+                    totalSeconds = backup.totalSegundos || 0;
+                    updateTotalDisplay();
+                    salvarDadosFirebase();
+                    criarTabela();
+                    atualizarResumoEmpresas();
+                    atualizarGraficos();
+                    showNotification("✅ Backup recuperado com sucesso!", "success");
+                }
+            } catch(e) {
+                showNotification("❌ Erro ao recuperar backup!", "error");
+            }
+        }
+
+        // ============================================================
+        // FUNÇÕES EXISTENTES (mantidas)
+        // ============================================================
+
         function atualizarResumoEmpresas() {
             const data = dataExameInput.value; const totals = {}; let totalGeralExames = 0, totalGeralValor = 0;
             servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
@@ -368,86 +631,6 @@
             document.getElementById('total-valor-dia').textContent = `R$ ${totalGeralValor.toFixed(2)}`;
         }
 
-        async function carregarDadosFirebase() {
-            atualizarStatus("Carregando...", "loading");
-            
-            // 1. Puxa dados locais primeiro
-            const local = localStorage.getItem('examesTomografia');
-            if(local) {
-                const parsed = JSON.parse(local);
-                dadosApp.exames = parsed.exames || parsed || {};
-                dadosApp.tempos = parsed.tempos || {};
-                dadosApp.pagamentos = parsed.pagamentos || {};
-            }
-            if(!dadosApp.pagamentos) dadosApp.pagamentos = {};
-            if(!dadosApp.exames) dadosApp.exames = {};
-            if(!dadosApp.tempos) dadosApp.tempos = {};
-            
-            const totalKey = `totalAcumulado_${dataExameInput.value}`; 
-            const savedTotal = localStorage.getItem(totalKey); 
-            totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
-            updateTotalDisplay();
-            
-            // 2. Desenha a tela IMEDIATAMENTE com dados locais
-            criarLegenda(); 
-            criarTabela(); 
-            popularTimerConfig(); 
-            atualizarResumoEmpresas();
-            atualizarGraficos(); 
-            startCurrentTimer();
-            atualizarListaBackups(); 
-            iniciarBackupAutomatico();
-            
-            // 3. Tenta buscar na nuvem e faz o MERGE (não sobrescreve local)
-            try {
-                atualizarStatus("Sincronizando...", "loading");
-                const doc = await db.collection('controles').doc('examesTomografia').get();
-                if (doc.exists) {
-                    const cloudData = doc.data();
-                    const cloudExames = cloudData.exames || {};
-                    const cloudTempos = cloudData.tempos || {};
-                    const cloudPagamentos = cloudData.pagamentos || {};
-
-                    // MERGE: Itera sobre a nuvem. Se a data não existir localmente, pega da nuvem.
-                    Object.keys(cloudExames).forEach(dateKey => {
-                        if (!dadosApp.exames[dateKey]) dadosApp.exames[dateKey] = cloudExames[dateKey];
-                    });
-                    Object.keys(cloudTempos).forEach(dateKey => {
-                        if (!dadosApp.tempos[dateKey]) dadosApp.tempos[dateKey] = cloudTempos[dateKey];
-                    });
-                    Object.keys(cloudPagamentos).forEach(mesKey => {
-                        if (!dadosApp.pagamentos[mesKey]) dadosApp.pagamentos[mesKey] = cloudPagamentos[mesKey];
-                    });
-
-                    // Salva o resultado do merge no Local Storage para manter tudo seguro
-                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                    
-                    // Atualiza a interface caso novos dados tenham vindo da nuvem
-                    criarTabela();
-                    atualizarResumoEmpresas();
-                    atualizarGraficos();
-                }
-                atualizarStatus("Sincronizado", "success");
-            } catch (e) {
-                console.error("Erro Firebase (bloqueado no visualizador?):", e);
-                atualizarStatus("Modo Offline", "warning");
-            }
-        }
-        
-        async function salvarDadosFirebase() {
-            try { 
-                await db.collection('controles').doc('examesTomografia').set(dadosApp); 
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo na Nuvem!", "success"); 
-            } catch (e) { 
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp)); 
-                const totalKey = `totalAcumulado_${dataExameInput.value}`; localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("Salvo Local (Offline)", "warning"); 
-            }
-            isDataModified = true; 
-        }
-        
         async function finalizarLaudo() {
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
@@ -626,7 +809,7 @@
         
         function gerarRelatorioMensal() {
             const [ano, mes] = mesRelatorioInput.value.split('-'); const anoNum = parseInt(ano), mesNum = parseInt(mes);
-            const totals = { hbj: { valor: 0, qtd: 0 }, mobilemed: { valor: 0, qtd: 0 }, 'sagrada-familia': { valor: 0, qtd: 0 }, radcloud: { valor: 0, qtd: 0 }, cmt: { valor: 0, qtd: 0 }, clinimage: { valor: 0, qtd: 0 }, vx: { valor: 0, qtd: 0 }, 'santa-casa-pg': { valor: 0, qtd: 0 }, 'hu-pg': { valor: 0, qtd: 0 } };
+            const totals = {}; servicos.forEach(s => totals[s.id] = { valor: 0, qtd: 0 });
             let totalGeralValor = 0, totalGeralQtd = 0; const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
             const tbody = document.getElementById('relatorio-body'); tbody.innerHTML = '';
             for(let d = 1; d <= ultimoDia; d++) {
@@ -794,15 +977,16 @@
             }
         }
 
-        // ====== EVENT LISTENERS (Destrava os cliques no visualizador) ====== //
+        // ====== EVENT LISTENERS ====== //
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', function() { abrirTab(this, this.dataset.tab); });
         });
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', function() { setGraphView(this.dataset.view); });
         });
-        document.getElementById('btn-sincronizar').addEventListener('click', salvarDadosFirebase);
+        document.getElementById('btn-sincronizar').addEventListener('click', sincronizarDados);
         document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
+        document.getElementById('btn-recuperar-backup').addEventListener('click', recuperarBackupEmergencia);
         document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
         document.getElementById('btn-reset-current').addEventListener('click', resetCurrentTimer);
         document.getElementById('btn-finalizar-laudo').addEventListener('click', finalizarLaudo);
