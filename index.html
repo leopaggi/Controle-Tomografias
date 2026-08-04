@@ -15,7 +15,12 @@
         header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         h1 { color: var(--primary); margin-bottom: 5px; font-size: 1.5rem; }
         .sync-status { padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
-        .sync-success { background: #d4edda; color: #155724; } .sync-error { background: #f8d7da; color: #721c24; } .sync-loading { background: #d1ecf1; color: #0c5460; } .sync-warning { background: #fff3cd; color: #856404; } .sync-offline { background: #e2e3e5; color: #383d41; }
+        .sync-success { background: #d4edda; color: #155724; } 
+        .sync-error { background: #f8d7da; color: #721c24; } 
+        .sync-loading { background: #d1ecf1; color: #0c5460; } 
+        .sync-warning { background: #fff3cd; color: #856404; } 
+        .sync-offline { background: #e2e3e5; color: #383d41; }
+        .sync-pending { background: #fff3cd; color: #856404; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
         .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; border: 1px solid #ddd; border-bottom: none; }
         .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -125,7 +130,7 @@
     <div class="container">
         <header>
             <h1>Controle de Tomografia</h1>
-            <div id="sync-status" class="sync-status sync-loading">Iniciando...</div>
+            <div id="sync-status" class="sync-status sync-loading">🔄 Carregando...</div>
         </header>
         <div class="tabs">
             <button class="tab active" data-tab="controle">🏠 Controle Diário</button>
@@ -287,8 +292,15 @@
             messagingSenderId: "808856695285", 
             appId: "1:808856695285:web:9787b8beba32e3fde7f0bc" 
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        
+        let db = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch(e) {
+            console.warn('Firebase init error:', e);
+            db = null;
+        }
 
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
@@ -335,7 +347,16 @@
         function formatTime(s) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = s % 60; return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
         function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
         function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
-        function startCurrentTimer() { if(currentInterval) clearInterval(currentInterval); currentInterval = setInterval(() => { if(isCurrentRunning) { currentSeconds++; updateCurrentDisplay(); } }, 1000); }
+        
+        function startCurrentTimer() { 
+            if(currentInterval) clearInterval(currentInterval); 
+            currentInterval = setInterval(() => { 
+                if(isCurrentRunning) { 
+                    currentSeconds++; 
+                    updateCurrentDisplay(); 
+                } 
+            }, 1000); 
+        }
         
         function togglePauseCurrentTimer() {
             isCurrentRunning = !isCurrentRunning; 
@@ -357,16 +378,76 @@
             } 
         }
         
-        function resetCurrentTimerAfterCommit() { currentSeconds = 0; updateCurrentDisplay(); if(!isCurrentRunning) { isCurrentRunning = true; document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; document.getElementById('timer-box').classList.remove('paused'); } }
-        function showNotification(msg, type = 'success') { const el = document.createElement('div'); el.className = 'temp-notification'; el.textContent = msg; const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c'); el.style.background = bgColor; document.body.appendChild(el); setTimeout(() => el.remove(), 3000); }
-        function showTimeNotification(segundos, segmentos) { const minutos = Math.floor(segundos / 60); const segResto = segundos % 60; const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`; const segmentosNomes = segmentos.map(s => s.nome).join(', '); const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`; const el = document.createElement('div'); el.className = 'temp-notification'; el.textContent = msg; document.body.appendChild(el); setTimeout(() => el.remove(), 4000); }
-        function limparSelecoesSegmentos() { const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]'); checkboxes.forEach(cb => { cb.checked = false; const label = cb.closest('.check-item'); if(label) label.style.background = 'white'; }); }
+        function resetCurrentTimerAfterCommit() { 
+            currentSeconds = 0; 
+            updateCurrentDisplay(); 
+            if(!isCurrentRunning) { 
+                isCurrentRunning = true; 
+                document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; 
+                document.getElementById('timer-box').classList.remove('paused'); 
+            } 
+        }
+        
+        function showNotification(msg, type = 'success') { 
+            const el = document.createElement('div'); 
+            el.className = 'temp-notification'; 
+            el.textContent = msg; 
+            const bgColor = type === 'success' ? '#27ae60' : (type === 'warning' ? '#f39c12' : '#e74c3c'); 
+            el.style.background = bgColor; 
+            document.body.appendChild(el); 
+            setTimeout(() => el.remove(), 3000); 
+        }
+        
+        function showTimeNotification(segundos, segmentos) { 
+            const minutos = Math.floor(segundos / 60); 
+            const segResto = segundos % 60; 
+            const segundosMsg = segundos < 60 ? `${segundos} segundos` : `${minutos} minuto${minutos !== 1 ? 's' : ''}${segResto > 0 ? ` e ${segResto} segundo${segResto !== 1 ? 's' : ''}` : ''}`; 
+            const segmentosNomes = segmentos.map(s => s.nome).join(', '); 
+            const msg = `✅ Laudo finalizado em ${segundosMsg}! (${segmentosNomes})`; 
+            const el = document.createElement('div'); 
+            el.className = 'temp-notification'; 
+            el.textContent = msg; 
+            document.body.appendChild(el); 
+            setTimeout(() => el.remove(), 4000); 
+        }
+        
+        function limparSelecoesSegmentos() { 
+            const checkboxes = document.querySelectorAll('#timer-segmentos-container input[type="checkbox"]'); 
+            checkboxes.forEach(cb => { 
+                cb.checked = false; 
+                const label = cb.closest('.check-item'); 
+                if(label) label.style.background = 'white'; 
+            }); 
+        }
 
         // ============================================================
-        // 🛡️ SISTEMA DE SINCRONIZAÇÃO SEGURA COM MERGE
+        // 🛡️ FUNÇÕES DE STATUS E SINCRONIZAÇÃO CORRIGIDAS
         // ============================================================
 
-        // 1. BACKUP DE EMERGÊNCIA
+        function atualizarStatus(mensagem, tipo) {
+            const statusEl = document.getElementById('sync-status');
+            if (!statusEl) return;
+            
+            statusEl.textContent = mensagem;
+            statusEl.className = 'sync-status';
+            
+            if (tipo === 'success') {
+                statusEl.classList.add('sync-success');
+            } else if (tipo === 'loading') {
+                statusEl.classList.add('sync-loading');
+            } else if (tipo === 'error') {
+                statusEl.classList.add('sync-error');
+            } else if (tipo === 'warning') {
+                statusEl.classList.add('sync-warning');
+            } else if (tipo === 'offline') {
+                statusEl.classList.add('sync-offline');
+            } else if (tipo === 'pending') {
+                statusEl.classList.add('sync-pending');
+            }
+            
+            console.log(`📊 STATUS: ${mensagem} (${tipo})`);
+        }
+
         function fazerBackupEmergencia() {
             try {
                 const backup = {
@@ -384,13 +465,9 @@
                     const toRemove = keys.sort().slice(0, keys.length - 10);
                     toRemove.forEach(k => localStorage.removeItem(k));
                 }
-                console.log('✅ Backup de emergência criado');
-            } catch(e) {
-                console.error('❌ Erro no backup de emergência:', e);
-            }
+            } catch(e) { console.error('Erro no backup:', e); }
         }
 
-        // 2. MERGE INTELIGENTE (SOMA, NUNCA SUBSTITUI)
         function mergeDados(dadosLocal, dadosNuvem) {
             const resultado = {
                 exames: JSON.parse(JSON.stringify(dadosLocal.exames || {})),
@@ -398,7 +475,6 @@
                 pagamentos: JSON.parse(JSON.stringify(dadosLocal.pagamentos || {}))
             };
             
-            // MERGE DE EXAMES
             Object.keys(dadosNuvem.exames || {}).forEach(data => {
                 if (!resultado.exames[data]) {
                     resultado.exames[data] = JSON.parse(JSON.stringify(dadosNuvem.exames[data]));
@@ -418,7 +494,6 @@
                 }
             });
             
-            // MERGE DE TEMPOS
             Object.keys(dadosNuvem.tempos || {}).forEach(data => {
                 if (!resultado.tempos[data]) {
                     resultado.tempos[data] = JSON.parse(JSON.stringify(dadosNuvem.tempos[data]));
@@ -434,7 +509,6 @@
                 }
             });
             
-            // MERGE DE PAGAMENTOS
             Object.keys(dadosNuvem.pagamentos || {}).forEach(mes => {
                 if (!resultado.pagamentos[mes]) {
                     resultado.pagamentos[mes] = JSON.parse(JSON.stringify(dadosNuvem.pagamentos[mes]));
@@ -450,10 +524,147 @@
             return resultado;
         }
 
-        // 3. FUNÇÃO PRINCIPAL DE SINCRONIZAÇÃO
-        async function sincronizarDados() {
+        function carregarDadosFirebase() {
             try {
-                atualizarStatus("Sincronizando...", "loading");
+                atualizarStatus("🔄 Carregando dados...", "loading");
+                
+                const local = localStorage.getItem('examesTomografia');
+                if (local) {
+                    try {
+                        const parsed = JSON.parse(local);
+                        dadosApp.exames = parsed.exames || parsed || {};
+                        dadosApp.tempos = parsed.tempos || {};
+                        dadosApp.pagamentos = parsed.pagamentos || {};
+                        console.log('📁 Dados locais carregados');
+                    } catch(e) {
+                        console.error('Erro ao parsear dados locais:', e);
+                    }
+                }
+                
+                if (!dadosApp.exames) dadosApp.exames = {};
+                if (!dadosApp.tempos) dadosApp.tempos = {};
+                if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                const savedTotal = localStorage.getItem(totalKey);
+                totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
+                updateTotalDisplay();
+                
+                criarLegenda();
+                criarTabela();
+                popularTimerConfig();
+                atualizarResumoEmpresas();
+                atualizarGraficos();
+                startCurrentTimer();
+                atualizarListaBackups();
+                iniciarBackupAutomatico();
+                
+                if (db) {
+                    atualizarStatus("🔄 Verificando nuvem...", "loading");
+                    verificarSincronizacao();
+                } else {
+                    atualizarStatus("📁 Offline (Firebase indisponível)", "offline");
+                    showNotification("⚠️ Firebase não disponível. Dados apenas locais.", "error");
+                }
+                
+            } catch (e) {
+                console.error('Erro ao carregar:', e);
+                atualizarStatus("❌ Erro ao carregar dados", "error");
+            }
+        }
+
+        async function verificarSincronizacao() {
+            try {
+                if (!db) {
+                    atualizarStatus("📁 Offline", "offline");
+                    return;
+                }
+                
+                const doc = await db.collection('controles').doc('examesTomografia').get();
+                
+                if (doc.exists) {
+                    const dadosNuvem = doc.data();
+                    
+                    const dadosLocaisStr = JSON.stringify(dadosApp);
+                    const dadosNuvemStr = JSON.stringify(dadosNuvem);
+                    
+                    if (dadosLocaisStr === dadosNuvemStr) {
+                        atualizarStatus("✅ Sincronizado", "success");
+                        console.log('✅ Dados sincronizados com a nuvem');
+                        return;
+                    }
+                    
+                    atualizarStatus("🔄 Sincronizando dados...", "loading");
+                    console.log('🔄 Dados diferentes, fazendo merge...');
+                    
+                    const dadosMergeados = mergeDados(dadosApp, dadosNuvem);
+                    dadosApp = dadosMergeados;
+                    
+                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                    
+                    criarTabela();
+                    atualizarResumoEmpresas();
+                    atualizarGraficos();
+                    
+                    atualizarStatus("✅ Sincronizado", "success");
+                    showNotification("🔄 Dados sincronizados da nuvem!", "success");
+                    
+                } else {
+                    atualizarStatus("🔄 Criando dados na nuvem...", "loading");
+                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                    atualizarStatus("✅ Sincronizado", "success");
+                    console.log('✅ Dados criados na nuvem');
+                }
+                
+            } catch (e) {
+                console.error('❌ Erro na sincronização:', e);
+                atualizarStatus("📁 Offline - Falha na conexão", "offline");
+                showNotification("⚠️ Falha na sincronização. Dados apenas locais.", "error");
+            }
+        }
+
+        async function salvarDadosFirebase() {
+            try {
+                fazerBackupEmergencia();
+                
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                console.log('📁 Dados salvos localmente');
+                
+                if (db) {
+                    atualizarStatus("🔄 Salvando na nuvem...", "loading");
+                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                    atualizarStatus("✅ Salvo na nuvem!", "success");
+                    console.log('✅ Dados salvos na nuvem');
+                    showNotification("✅ Dados salvos na nuvem!", "success");
+                } else {
+                    atualizarStatus("📁 Salvo localmente", "offline");
+                    showNotification("⚠️ Offline. Dados salvos apenas localmente.", "error");
+                }
+                return true;
+                
+            } catch (e) {
+                console.error('❌ Erro ao salvar:', e);
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                atualizarStatus("📁 Salvo localmente", "offline");
+                showNotification("⚠️ Falha na nuvem. Dados salvos localmente.", "error");
+                return false;
+            }
+        }
+
+        async function sincronizarDados() {
+            if (!db) {
+                atualizarStatus("📁 Offline - Firebase indisponível", "offline");
+                showNotification("⚠️ Firebase não disponível.", "error");
+                return;
+            }
+            
+            try {
+                atualizarStatus("🔄 Sincronizando manualmente...", "loading");
                 fazerBackupEmergencia();
                 
                 const doc = await db.collection('controles').doc('examesTomografia').get();
@@ -476,106 +687,17 @@
                     gerarRelatorioMensal();
                 }
                 
-                atualizarStatus("✅ Sincronizado!", "success");
-                showNotification("🔄 Dados sincronizados com sucesso!", "success");
-                return true;
+                atualizarStatus("✅ Sincronizado manualmente!", "success");
+                showNotification("✅ Sincronização manual concluída!", "success");
+                console.log('✅ Sincronização manual concluída');
+                
             } catch (e) {
-                console.error("❌ Erro na sincronização:", e);
-                atualizarStatus("⚠️ Offline (salvo local)", "warning");
-                showNotification("⚠️ Falha na sincronização. Dados salvos localmente.", "error");
-                return false;
+                console.error('❌ Erro na sincronização manual:', e);
+                atualizarStatus("❌ Falha na sincronização", "error");
+                showNotification("❌ Falha na sincronização manual.", "error");
             }
         }
 
-        // 4. CARREGAR DADOS INICIAL (com merge)
-        async function carregarDadosFirebase() {
-            try {
-                atualizarStatus("Carregando...", "loading");
-                
-                // 1. CARREGA DADOS LOCAIS
-                const local = localStorage.getItem('examesTomografia');
-                if (local) {
-                    const parsed = JSON.parse(local);
-                    dadosApp.exames = parsed.exames || parsed || {};
-                    dadosApp.tempos = parsed.tempos || {};
-                    dadosApp.pagamentos = parsed.pagamentos || {};
-                }
-                
-                if (!dadosApp.exames) dadosApp.exames = {};
-                if (!dadosApp.tempos) dadosApp.tempos = {};
-                if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                const savedTotal = localStorage.getItem(totalKey);
-                totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
-                updateTotalDisplay();
-                
-                // 2. DESENHA A TELA
-                criarLegenda();
-                criarTabela();
-                popularTimerConfig();
-                atualizarResumoEmpresas();
-                atualizarGraficos();
-                startCurrentTimer();
-                atualizarListaBackups();
-                iniciarBackupAutomatico();
-                
-                // 3. TENTA SINCRONIZAR COM A NUVEM (merge)
-                try {
-                    const doc = await db.collection('controles').doc('examesTomografia').get();
-                    if (doc.exists) {
-                        const dadosNuvem = doc.data();
-                        const dadosMergeados = mergeDados(dadosApp, dadosNuvem);
-                        dadosApp = dadosMergeados;
-                        
-                        localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                        await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                        
-                        criarTabela();
-                        atualizarResumoEmpresas();
-                        atualizarGraficos();
-                        
-                        atualizarStatus("✅ Sincronizado!", "success");
-                        showNotification("🔄 Dados sincronizados da nuvem!", "success");
-                    } else {
-                        await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                        atualizarStatus("✅ Pronto!", "success");
-                    }
-                } catch (e) {
-                    console.warn("⚠️ Firebase offline, usando dados locais:", e);
-                    atualizarStatus("📁 Modo Offline", "warning");
-                }
-                
-            } catch (e) {
-                console.error("❌ Erro ao carregar:", e);
-                atualizarStatus("❌ Erro ao carregar", "error");
-            }
-        }
-
-        // 5. FUNÇÃO DE SALVAR (com merge)
-        async function salvarDadosFirebase() {
-            try {
-                fazerBackupEmergencia();
-                
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                
-                await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                
-                atualizarStatus("✅ Salvo!", "success");
-                return true;
-            } catch (e) {
-                console.warn("⚠️ Erro ao salvar na nuvem:", e);
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("📁 Salvo localmente", "warning");
-                return false;
-            }
-        }
-
-        // 6. RECUPERAR BACKUP DE EMERGÊNCIA
         function recuperarBackupEmergencia() {
             const keys = Object.keys(localStorage).filter(k => k.startsWith('backup_emergencia_'));
             if (keys.length === 0) {
@@ -608,7 +730,7 @@
         }
 
         // ============================================================
-        // FUNÇÕES EXISTENTES (mantidas)
+        // FUNÇÕES DO SISTEMA (mantidas)
         // ============================================================
 
         function atualizarResumoEmpresas() {
@@ -873,8 +995,6 @@
             salvarDadosFirebase(); gerarRelatorioMensal();
         }
 
-        function atualizarStatus(m, t) { syncStatus.textContent = m; syncStatus.className = `sync-status sync-${t}`; }
-        
         function downloadRelatorioExcel() {
             const [ano, mes] = mesRelatorioInput.value.split('-'); const anoNum = parseInt(ano), mesNum = parseInt(mes);
             const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
@@ -906,7 +1026,6 @@
                 backups.unshift(novoBackup); 
                 if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
                 localStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); atualizarListaBackups();
-                showNotification("💾 Backup automático salvo!", "success");
             } catch (e) { console.error("Erro ao salvar backup:", e); }
         }
 
@@ -1027,7 +1146,12 @@
             if (btn && btn.dataset.id) restaurarBackupAutomatico(parseInt(btn.dataset.id));
         });
 
+        // INICIALIZAÇÃO
         document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
+        
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            carregarDadosFirebase();
+        }
     </script>
 </body>
 </html>
