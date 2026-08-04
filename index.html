@@ -20,7 +20,6 @@
         .sync-loading { background: #d1ecf1; color: #0c5460; } 
         .sync-warning { background: #fff3cd; color: #856404; } 
         .sync-offline { background: #e2e3e5; color: #383d41; }
-        .sync-pending { background: #fff3cd; color: #856404; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
         .tab { padding: 10px 20px; background: #f8f9fa; border: none; border-radius: 5px 5px 0 0; margin-right: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s; font-size: 0.9rem; border: 1px solid #ddd; border-bottom: none; }
         .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -154,7 +153,6 @@
                 <div class="acoes-rapidas">
                     <button id="btn-sincronizar" class="btn-pequeno btn-save">💾 Sincronizar</button>
                     <button id="btn-zerar-dia" class="btn-pequeno btn-reset">🗑️ Zerar Dia</button>
-                    <button id="btn-recuperar-backup" class="btn-pequeno btn-action">🆘 Recuperar Backup</button>
                 </div>
             </div>
             <div class="workflow-container">
@@ -273,8 +271,8 @@
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div>
-                        <h3 style="font-size: 1rem; color: var(--primary);">⏱️ Backups Automáticos (A cada 5 min)</h3>
-                        <small style="color: #888; font-size: 0.75rem;">O sistema salva automaticamente os últimos 20 backups, mas somente se houver edições.</small>
+                        <h3 style="font-size: 1rem; color: var(--primary);">⏱️ Backups Automáticos</h3>
+                        <small style="color: #888; font-size: 0.75rem;">O sistema salva automaticamente os últimos 20 backups</small>
                     </div>
                     <button id="btn-limpar-historico" class="btn-pequeno btn-reset">🗑️ Limpar Histórico</button>
                 </div>
@@ -297,8 +295,9 @@
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
+            console.log('✅ Firebase inicializado');
         } catch(e) {
-            console.warn('Firebase init error:', e);
+            console.warn('❌ Firebase init error:', e);
             db = null;
         }
 
@@ -333,8 +332,7 @@
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
         let chartSegmentos = null, chartCustoBeneficio = null, chartProjecao = null;
         let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
-        const BACKUP_INTERVAL = 5 * 60 * 1000, MAX_BACKUPS = 20, BACKUP_KEY = 'historico_backups_tomografia';
-        let isDataModified = false;
+        const BACKUP_KEY = 'historico_backups_tomografia';
 
         const dataExameInput = document.getElementById('data-exame');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
@@ -367,14 +365,14 @@
         }
         
         function resetCurrentTimer() {
-            if(confirm('Reiniciar cronômetro do laudo atual? O tempo atual será perdido.')) { 
+            if(confirm('Reiniciar cronômetro do laudo atual?')) { 
                 currentSeconds = 0; updateCurrentDisplay(); 
                 if(!isCurrentRunning) { 
                     isCurrentRunning = true; 
                     document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; 
                     document.getElementById('timer-box').classList.remove('paused'); 
                 } 
-                showNotification('⏱️ Cronômetro do laudo reiniciado!', 'warning'); 
+                showNotification('⏱️ Cronômetro reiniciado!', 'warning'); 
             } 
         }
         
@@ -421,9 +419,10 @@
         }
 
         // ============================================================
-        // 🛡️ FUNÇÕES DE STATUS E SINCRONIZAÇÃO CORRIGIDAS
+        // 🛡️ FUNÇÕES SIMPLES E ROBUSTAS
         // ============================================================
 
+        // ATUALIZA STATUS
         function atualizarStatus(mensagem, tipo) {
             const statusEl = document.getElementById('sync-status');
             if (!statusEl) return;
@@ -431,103 +430,19 @@
             statusEl.textContent = mensagem;
             statusEl.className = 'sync-status';
             
-            if (tipo === 'success') {
-                statusEl.classList.add('sync-success');
-            } else if (tipo === 'loading') {
-                statusEl.classList.add('sync-loading');
-            } else if (tipo === 'error') {
-                statusEl.classList.add('sync-error');
-            } else if (tipo === 'warning') {
-                statusEl.classList.add('sync-warning');
-            } else if (tipo === 'offline') {
-                statusEl.classList.add('sync-offline');
-            } else if (tipo === 'pending') {
-                statusEl.classList.add('sync-pending');
-            }
+            if (tipo === 'success') statusEl.classList.add('sync-success');
+            else if (tipo === 'loading') statusEl.classList.add('sync-loading');
+            else if (tipo === 'error') statusEl.classList.add('sync-error');
+            else if (tipo === 'warning') statusEl.classList.add('sync-warning');
+            else if (tipo === 'offline') statusEl.classList.add('sync-offline');
             
             console.log(`📊 STATUS: ${mensagem} (${tipo})`);
         }
 
-        function fazerBackupEmergencia() {
-            try {
-                const backup = {
-                    timestamp: Date.now(),
-                    data: new Date().toISOString(),
-                    dados: JSON.parse(JSON.stringify(dadosApp)),
-                    totalSegundos: totalSeconds,
-                    dataAtual: dataExameInput.value
-                };
-                const key = 'backup_emergencia_' + Date.now();
-                localStorage.setItem(key, JSON.stringify(backup));
-                
-                const keys = Object.keys(localStorage).filter(k => k.startsWith('backup_emergencia_'));
-                if (keys.length > 10) {
-                    const toRemove = keys.sort().slice(0, keys.length - 10);
-                    toRemove.forEach(k => localStorage.removeItem(k));
-                }
-            } catch(e) { console.error('Erro no backup:', e); }
-        }
-
-        function mergeDados(dadosLocal, dadosNuvem) {
-            const resultado = {
-                exames: JSON.parse(JSON.stringify(dadosLocal.exames || {})),
-                tempos: JSON.parse(JSON.stringify(dadosLocal.tempos || {})),
-                pagamentos: JSON.parse(JSON.stringify(dadosLocal.pagamentos || {}))
-            };
-            
-            Object.keys(dadosNuvem.exames || {}).forEach(data => {
-                if (!resultado.exames[data]) {
-                    resultado.exames[data] = JSON.parse(JSON.stringify(dadosNuvem.exames[data]));
-                } else {
-                    Object.keys(dadosNuvem.exames[data]).forEach(segmento => {
-                        if (!resultado.exames[data][segmento]) {
-                            resultado.exames[data][segmento] = {};
-                        }
-                        Object.keys(dadosNuvem.exames[data][segmento]).forEach(empresa => {
-                            const valorNuvem = dadosNuvem.exames[data][segmento][empresa] || 0;
-                            const valorLocal = resultado.exames[data][segmento][empresa] || 0;
-                            if (valorNuvem > 0) {
-                                resultado.exames[data][segmento][empresa] = valorLocal + valorNuvem;
-                            }
-                        });
-                    });
-                }
-            });
-            
-            Object.keys(dadosNuvem.tempos || {}).forEach(data => {
-                if (!resultado.tempos[data]) {
-                    resultado.tempos[data] = JSON.parse(JSON.stringify(dadosNuvem.tempos[data]));
-                } else {
-                    Object.keys(dadosNuvem.tempos[data]).forEach(key => {
-                        if (!resultado.tempos[data][key]) {
-                            resultado.tempos[data][key] = [];
-                        }
-                        if (Array.isArray(dadosNuvem.tempos[data][key])) {
-                            resultado.tempos[data][key].push(...dadosNuvem.tempos[data][key]);
-                        }
-                    });
-                }
-            });
-            
-            Object.keys(dadosNuvem.pagamentos || {}).forEach(mes => {
-                if (!resultado.pagamentos[mes]) {
-                    resultado.pagamentos[mes] = JSON.parse(JSON.stringify(dadosNuvem.pagamentos[mes]));
-                } else {
-                    Object.keys(dadosNuvem.pagamentos[mes]).forEach(empresa => {
-                        if (dadosNuvem.pagamentos[mes][empresa] === true) {
-                            resultado.pagamentos[mes][empresa] = true;
-                        }
-                    });
-                }
-            });
-            
-            return resultado;
-        }
-
+        // FUNÇÃO PRINCIPAL DE CARREGAMENTO
         function carregarDadosFirebase() {
             try {
-                atualizarStatus("🔄 Carregando dados...", "loading");
-                
+                // Carrega dados locais
                 const local = localStorage.getItem('examesTomografia');
                 if (local) {
                     try {
@@ -550,6 +465,7 @@
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
                 
+                // Desenha a tela
                 criarLegenda();
                 criarTabela();
                 popularTimerConfig();
@@ -559,60 +475,112 @@
                 atualizarListaBackups();
                 iniciarBackupAutomatico();
                 
+                // Tenta sincronizar com Firebase
                 if (db) {
-                    atualizarStatus("🔄 Verificando nuvem...", "loading");
-                    verificarSincronizacao();
+                    atualizarStatus("🔄 Sincronizando com nuvem...", "loading");
+                    sincronizarComNuvem();
                 } else {
                     atualizarStatus("📁 Offline (Firebase indisponível)", "offline");
-                    showNotification("⚠️ Firebase não disponível. Dados apenas locais.", "error");
                 }
                 
             } catch (e) {
-                console.error('Erro ao carregar:', e);
-                atualizarStatus("❌ Erro ao carregar dados", "error");
+                console.error('❌ Erro ao carregar:', e);
+                atualizarStatus("❌ Erro ao carregar", "error");
             }
         }
 
-        async function verificarSincronizacao() {
+        // SINCRONIZA COM A NUVEM (SIMPLES)
+        async function sincronizarComNuvem() {
             try {
                 if (!db) {
                     atualizarStatus("📁 Offline", "offline");
                     return;
                 }
                 
-                const doc = await db.collection('controles').doc('examesTomografia').get();
+                // Tenta buscar da nuvem
+                const docRef = db.collection('controles').doc('examesTomografia');
+                const doc = await docRef.get();
                 
                 if (doc.exists) {
                     const dadosNuvem = doc.data();
                     
+                    // Compara se os dados são iguais
                     const dadosLocaisStr = JSON.stringify(dadosApp);
                     const dadosNuvemStr = JSON.stringify(dadosNuvem);
                     
                     if (dadosLocaisStr === dadosNuvemStr) {
                         atualizarStatus("✅ Sincronizado", "success");
-                        console.log('✅ Dados sincronizados com a nuvem');
+                        console.log('✅ Dados já estão sincronizados');
                         return;
                     }
                     
-                    atualizarStatus("🔄 Sincronizando dados...", "loading");
+                    // Dados diferentes - faz merge (SOMA)
                     console.log('🔄 Dados diferentes, fazendo merge...');
                     
-                    const dadosMergeados = mergeDados(dadosApp, dadosNuvem);
-                    dadosApp = dadosMergeados;
+                    // Soma os exames
+                    Object.keys(dadosNuvem.exames || {}).forEach(data => {
+                        if (!dadosApp.exames[data]) {
+                            dadosApp.exames[data] = JSON.parse(JSON.stringify(dadosNuvem.exames[data]));
+                        } else {
+                            Object.keys(dadosNuvem.exames[data]).forEach(segmento => {
+                                if (!dadosApp.exames[data][segmento]) {
+                                    dadosApp.exames[data][segmento] = {};
+                                }
+                                Object.keys(dadosNuvem.exames[data][segmento]).forEach(empresa => {
+                                    const valorNuvem = dadosNuvem.exames[data][segmento][empresa] || 0;
+                                    const valorLocal = dadosApp.exames[data][segmento][empresa] || 0;
+                                    if (valorNuvem > 0) {
+                                        dadosApp.exames[data][segmento][empresa] = valorLocal + valorNuvem;
+                                    }
+                                });
+                            });
+                        }
+                    });
                     
-                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                    // Soma os tempos
+                    Object.keys(dadosNuvem.tempos || {}).forEach(data => {
+                        if (!dadosApp.tempos[data]) {
+                            dadosApp.tempos[data] = JSON.parse(JSON.stringify(dadosNuvem.tempos[data]));
+                        } else {
+                            Object.keys(dadosNuvem.tempos[data]).forEach(key => {
+                                if (!dadosApp.tempos[data][key]) {
+                                    dadosApp.tempos[data][key] = [];
+                                }
+                                if (Array.isArray(dadosNuvem.tempos[data][key])) {
+                                    dadosApp.tempos[data][key].push(...dadosNuvem.tempos[data][key]);
+                                }
+                            });
+                        }
+                    });
                     
+                    // Soma os pagamentos
+                    Object.keys(dadosNuvem.pagamentos || {}).forEach(mes => {
+                        if (!dadosApp.pagamentos[mes]) {
+                            dadosApp.pagamentos[mes] = JSON.parse(JSON.stringify(dadosNuvem.pagamentos[mes]));
+                        } else {
+                            Object.keys(dadosNuvem.pagamentos[mes]).forEach(empresa => {
+                                if (dadosNuvem.pagamentos[mes][empresa] === true) {
+                                    dadosApp.pagamentos[mes][empresa] = true;
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Salva o merge
+                    await salvarDadosFirebase();
+                    
+                    // Atualiza a tela
                     criarTabela();
                     atualizarResumoEmpresas();
                     atualizarGraficos();
                     
                     atualizarStatus("✅ Sincronizado", "success");
-                    showNotification("🔄 Dados sincronizados da nuvem!", "success");
+                    showNotification("🔄 Dados sincronizados com a nuvem!", "success");
                     
                 } else {
-                    atualizarStatus("🔄 Criando dados na nuvem...", "loading");
-                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
+                    // Não existe na nuvem - cria
+                    console.log('📤 Criando dados na nuvem...');
+                    await docRef.set(dadosApp);
                     atualizarStatus("✅ Sincronizado", "success");
                     console.log('✅ Dados criados na nuvem');
                 }
@@ -624,29 +592,28 @@
             }
         }
 
+        // SALVAR DADOS (SIMPLES)
         async function salvarDadosFirebase() {
             try {
-                fazerBackupEmergencia();
-                
+                // Salva local sempre
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
                 localStorage.setItem(totalKey, totalSeconds.toString());
                 console.log('📁 Dados salvos localmente');
                 
+                // Tenta salvar na nuvem
                 if (db) {
-                    atualizarStatus("🔄 Salvando na nuvem...", "loading");
                     await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                    atualizarStatus("✅ Salvo na nuvem!", "success");
                     console.log('✅ Dados salvos na nuvem');
-                    showNotification("✅ Dados salvos na nuvem!", "success");
+                    atualizarStatus("✅ Salvo na nuvem!", "success");
                 } else {
                     atualizarStatus("📁 Salvo localmente", "offline");
-                    showNotification("⚠️ Offline. Dados salvos apenas localmente.", "error");
                 }
                 return true;
                 
             } catch (e) {
                 console.error('❌ Erro ao salvar:', e);
+                // Garante que salvou local
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
                 localStorage.setItem(totalKey, totalSeconds.toString());
@@ -656,6 +623,7 @@
             }
         }
 
+        // SINCRONIZAR MANUAL (botão)
         async function sincronizarDados() {
             if (!db) {
                 atualizarStatus("📁 Offline - Firebase indisponível", "offline");
@@ -663,70 +631,7 @@
                 return;
             }
             
-            try {
-                atualizarStatus("🔄 Sincronizando manualmente...", "loading");
-                fazerBackupEmergencia();
-                
-                const doc = await db.collection('controles').doc('examesTomografia').get();
-                const dadosNuvem = doc.exists ? doc.data() : { exames: {}, tempos: {}, pagamentos: {} };
-                
-                if (!dadosNuvem.exames) dadosNuvem.exames = {};
-                if (!dadosNuvem.tempos) dadosNuvem.tempos = {};
-                if (!dadosNuvem.pagamentos) dadosNuvem.pagamentos = {};
-                
-                const dadosMergeados = mergeDados(dadosApp, dadosNuvem);
-                dadosApp = dadosMergeados;
-                
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                
-                criarTabela();
-                atualizarResumoEmpresas();
-                atualizarGraficos();
-                if (document.getElementById('relatorio').classList.contains('active')) {
-                    gerarRelatorioMensal();
-                }
-                
-                atualizarStatus("✅ Sincronizado manualmente!", "success");
-                showNotification("✅ Sincronização manual concluída!", "success");
-                console.log('✅ Sincronização manual concluída');
-                
-            } catch (e) {
-                console.error('❌ Erro na sincronização manual:', e);
-                atualizarStatus("❌ Falha na sincronização", "error");
-                showNotification("❌ Falha na sincronização manual.", "error");
-            }
-        }
-
-        function recuperarBackupEmergencia() {
-            const keys = Object.keys(localStorage).filter(k => k.startsWith('backup_emergencia_'));
-            if (keys.length === 0) {
-                showNotification("❌ Nenhum backup de emergência encontrado!", "error");
-                return;
-            }
-            
-            const ultimoKey = keys.sort().pop();
-            try {
-                const backup = JSON.parse(localStorage.getItem(ultimoKey));
-                const confirmar = confirm(
-                    `⚠️ Recuperar backup de ${new Date(backup.data).toLocaleString()}?\n\n` +
-                    `Isso irá restaurar os dados daquele momento.\n` +
-                    `Os dados atuais serão perdidos!`
-                );
-                
-                if (confirmar) {
-                    dadosApp = backup.dados;
-                    totalSeconds = backup.totalSegundos || 0;
-                    updateTotalDisplay();
-                    salvarDadosFirebase();
-                    criarTabela();
-                    atualizarResumoEmpresas();
-                    atualizarGraficos();
-                    showNotification("✅ Backup recuperado com sucesso!", "success");
-                }
-            } catch(e) {
-                showNotification("❌ Erro ao recuperar backup!", "error");
-            }
+            await sincronizarComNuvem();
         }
 
         // ============================================================
@@ -1015,24 +920,32 @@
 
         function iniciarBackupAutomatico() {
             setInterval(() => {
-                if (isDataModified) { criarBackupAutomatico(); isDataModified = false; }
-            }, BACKUP_INTERVAL);
+                criarBackupAutomatico();
+            }, 5 * 60 * 1000);
         }
 
         function criarBackupAutomatico() {
             try {
-                let backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); const agora = new Date();
-                const novoBackup = { id: agora.getTime(), data: agora.toLocaleString('pt-BR'), conteudo: { ...dadosApp }, timerDia: totalSeconds, dataReferencia: dataExameInput.value };
+                let backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); 
+                const agora = new Date();
+                const novoBackup = { 
+                    id: agora.getTime(), 
+                    data: agora.toLocaleString('pt-BR'), 
+                    conteudo: { ...dadosApp }, 
+                    timerDia: totalSeconds, 
+                    dataReferencia: dataExameInput.value 
+                };
                 backups.unshift(novoBackup); 
-                if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
-                localStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); atualizarListaBackups();
+                if (backups.length > 20) backups = backups.slice(0, 20);
+                localStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); 
+                atualizarListaBackups();
             } catch (e) { console.error("Erro ao salvar backup:", e); }
         }
 
         function atualizarListaBackups() {
             const lista = document.getElementById('lista-backups-automaticos'); if (!lista) return;
             const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
-            if (backups.length === 0) { lista.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Nenhum backup automático gerado ainda. Edite algo e aguarde 5 minutos.</div>'; return; }
+            if (backups.length === 0) { lista.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Nenhum backup automático gerado ainda.</div>'; return; }
             lista.innerHTML = backups.map(b => `
                 <div class="backup-history-item">
                     <div>
@@ -1045,52 +958,91 @@
         }
 
         async function restaurarBackupAutomatico(id) {
-            if (!confirm("Restaurar este backup automático? Os dados atuais serão substituídos por esta versão.")) return;
-            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); const backup = backups.find(b => b.id === id);
+            if (!confirm("Restaurar este backup automático?")) return;
+            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); 
+            const backup = backups.find(b => b.id === id);
             if (backup) {
                 dadosApp = backup.conteudo || { exames: {}, tempos: {}, pagamentos: {} };
-                if (!dadosApp.exames) dadosApp.exames = {}; if (!dadosApp.tempos) dadosApp.tempos = {}; if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                totalSeconds = backup.timerDia || 0; updateTotalDisplay();
-                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+                if (!dadosApp.exames) dadosApp.exames = {}; 
+                if (!dadosApp.tempos) dadosApp.tempos = {}; 
+                if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
+                totalSeconds = backup.timerDia || 0; 
+                updateTotalDisplay();
+                await salvarDadosFirebase(); 
+                criarTabela(); 
+                atualizarResumoEmpresas(); 
+                atualizarGraficos();
                 if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
                 showNotification("✅ Backup automático restaurado!", "success");
             }
         }
 
         function limparHistoricoBackups() {
-            if (confirm("Limpar todo o histórico de backups automáticos locais?")) { localStorage.removeItem(BACKUP_KEY); atualizarListaBackups(); showNotification("Histórico limpo!", "warning"); }
+            if (confirm("Limpar todo o histórico de backups automáticos?")) { 
+                localStorage.removeItem(BACKUP_KEY); 
+                atualizarListaBackups(); 
+                showNotification("Histórico limpo!", "warning"); 
+            }
         }
 
-        function baixarBackupCompleto() { const backup = { ...dadosApp }; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); }
+        function baixarBackupCompleto() { 
+            const backup = { ...dadosApp }; 
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); 
+            a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; 
+            a.click(); 
+        }
         
         function restaurarBackup() {
-            const file = document.getElementById('upload-backup').files[0]; if(!file) return; const reader = new FileReader();
+            const file = document.getElementById('upload-backup').files[0]; 
+            if(!file) return; 
+            const reader = new FileReader();
             reader.onload = async (e) => {
                 try { 
                     const json = JSON.parse(e.target.result); 
                     dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
-                    await salvarDadosFirebase(); criarLegenda(); criarTabela(); atualizarGraficos(); 
+                    await salvarDadosFirebase(); 
+                    criarLegenda(); 
+                    criarTabela(); 
+                    atualizarGraficos(); 
                     if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
                     showNotification("✅ Backup restaurado!", "success");
-                } catch(err) { showNotification("❌ Erro ao restaurar", "error"); }
-            }; reader.readAsText(file);
+                } catch(err) { 
+                    showNotification("❌ Erro ao restaurar", "error"); 
+                }
+            }; 
+            reader.readAsText(file);
         }
         
         async function limparDia() { 
             if(confirm("Zerar exames do dia?")) { 
-                const data = dataExameInput.value; dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
-                totalSeconds = 0; currentSeconds = 0; updateTotalDisplay(); updateCurrentDisplay();
-                const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, '0');
-                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); 
-                showNotification("🗑️ Dia zerado! Cronômetros resetados.", "warning");
+                const data = dataExameInput.value; 
+                dadosApp.exames[data] = {}; 
+                dadosApp.tempos[data] = {}; 
+                totalSeconds = 0; 
+                currentSeconds = 0; 
+                updateTotalDisplay(); 
+                updateCurrentDisplay();
+                const totalKey = `totalAcumulado_${data}`; 
+                localStorage.setItem(totalKey, '0');
+                await salvarDadosFirebase(); 
+                criarTabela(); 
+                atualizarResumoEmpresas(); 
+                atualizarGraficos(); 
+                showNotification("🗑️ Dia zerado!", "warning");
             } 
         }
         
         async function limparTodosDados() {
             if(confirm("⚠️ APAGAR TODOS os dados?")) {
-                dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; totalSeconds = 0; currentSeconds = 0;
-                updateTotalDisplay(); updateCurrentDisplay();
-                await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
+                dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; 
+                totalSeconds = 0; 
+                currentSeconds = 0;
+                updateTotalDisplay(); 
+                updateCurrentDisplay();
+                await salvarDadosFirebase(); 
+                criarTabela(); 
+                atualizarGraficos();
                 if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
                 showNotification("⚠️ Todos os dados apagados!", "error");
             }
@@ -1105,7 +1057,6 @@
         });
         document.getElementById('btn-sincronizar').addEventListener('click', sincronizarDados);
         document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
-        document.getElementById('btn-recuperar-backup').addEventListener('click', recuperarBackupEmergencia);
         document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
         document.getElementById('btn-reset-current').addEventListener('click', resetCurrentTimer);
         document.getElementById('btn-finalizar-laudo').addEventListener('click', finalizarLaudo);
@@ -1119,14 +1070,19 @@
         document.getElementById('data-exame').addEventListener('change', function() { 
             const novaData = this.value;
             if(novaData !== dataAnterior) {
-                if(confirm(`⚠️ Mudar a data para ${novaData} irá ZERAR os cronômetros para iniciar um novo dia.\n\nO tempo do dia ${dataAnterior} será salvo separadamente.\n\nDeseja continuar?`)) {
+                if(confirm(`⚠️ Mudar a data para ${novaData} irá ZERAR os cronômetros para iniciar um novo dia. Deseja continuar?`)) {
                     totalSeconds = 0; currentSeconds = 0; isCurrentRunning = true;
                     updateTotalDisplay(); updateCurrentDisplay();
-                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; document.getElementById('timer-box').classList.remove('paused');
-                    const totalKey = `totalAcumulado_${novaData}`; const savedTotal = localStorage.getItem(totalKey);
+                    document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; 
+                    document.getElementById('timer-box').classList.remove('paused');
+                    const totalKey = `totalAcumulado_${novaData}`; 
+                    const savedTotal = localStorage.getItem(totalKey);
                     if(savedTotal) { totalSeconds = parseInt(savedTotal); updateTotalDisplay(); }
-                    dataAnterior = novaData; criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
-                    showNotification(`📅 Data alterada para ${novaData}! Cronômetros zerados.`, "warning");
+                    dataAnterior = novaData; 
+                    criarTabela(); 
+                    atualizarResumoEmpresas(); 
+                    atualizarGraficos();
+                    showNotification(`📅 Data alterada para ${novaData}!`, "warning");
                 } else { this.value = dataAnterior; }
             }
         });
@@ -1146,9 +1102,7 @@
             if (btn && btn.dataset.id) restaurarBackupAutomatico(parseInt(btn.dataset.id));
         });
 
-        // INICIALIZAÇÃO
         document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
-        
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
             carregarDadosFirebase();
         }
