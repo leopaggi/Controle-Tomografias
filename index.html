@@ -153,6 +153,7 @@
                 <div class="acoes-rapidas">
                     <button id="btn-sincronizar" class="btn-pequeno btn-save">💾 Sincronizar</button>
                     <button id="btn-zerar-dia" class="btn-pequeno btn-reset">🗑️ Zerar Dia</button>
+                    <button id="btn-reparar" class="btn-pequeno btn-action" style="background: #ff6b6b;">🔧 Reparar Dados</button>
                 </div>
             </div>
             <div class="workflow-container">
@@ -282,6 +283,9 @@
     </div>
 
     <script>
+        // ============================================
+        // CONFIGURAÇÃO DO FIREBASE
+        // ============================================
         const firebaseConfig = { 
             apiKey: "AIzaSyBOndKeP6hA2OJuGEYyIBgoS09RMFCyZqo", 
             authDomain: "controle-tomografias-leonardo.firebaseapp.com", 
@@ -301,6 +305,9 @@
             db = null;
         }
 
+        // ============================================
+        // DADOS DO SISTEMA
+        // ============================================
         const valoresSegmentos = {
             'cranio': { nome: 'CRÂNIO', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
             'face-atm': { nome: 'FACE/ATM', valores: { 'hbj': 25, 'mobilemed': 25, 'sagrada-familia': 25, 'radcloud': 25, 'cmt': 17, 'clinimage': 25, 'vx': 22, 'santa-casa-pg': 25, 'hu-pg': 40 }},
@@ -342,6 +349,9 @@
         dataExameInput.value = hojeStr; dataAnterior = hojeStr;
         mesRelatorioInput.value = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,'0')}`;
 
+        // ============================================
+        // FUNÇÕES UTILITÁRIAS
+        // ============================================
         function formatTime(s) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = s % 60; return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
         function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
         function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
@@ -418,39 +428,119 @@
             }); 
         }
 
-        // ============================================================
-        // 🛡️ FUNÇÕES SIMPLES E ROBUSTAS
-        // ============================================================
-
-        // ATUALIZA STATUS
         function atualizarStatus(mensagem, tipo) {
             const statusEl = document.getElementById('sync-status');
             if (!statusEl) return;
-            
             statusEl.textContent = mensagem;
             statusEl.className = 'sync-status';
-            
             if (tipo === 'success') statusEl.classList.add('sync-success');
             else if (tipo === 'loading') statusEl.classList.add('sync-loading');
             else if (tipo === 'error') statusEl.classList.add('sync-error');
             else if (tipo === 'warning') statusEl.classList.add('sync-warning');
             else if (tipo === 'offline') statusEl.classList.add('sync-offline');
-            
             console.log(`📊 STATUS: ${mensagem} (${tipo})`);
         }
 
-        // FUNÇÃO PRINCIPAL DE CARREGAMENTO
-        function carregarDadosFirebase() {
+        // ============================================
+        // FUNÇÃO DE SALVAR - DEFINITIVA (salva por mês)
+        // ============================================
+        async function salvarDadosFirebase() {
             try {
-                // Carrega dados locais
+                // 1. SALVA LOCAL (sempre)
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                console.log('📁 Dados salvos localmente');
+                
+                // 2. TENTA SALVAR NA NUVEM (separado por mês)
+                if (!db) {
+                    atualizarStatus("📁 Salvo localmente", "offline");
+                    return true;
+                }
+                
+                atualizarStatus("🔄 Salvando na nuvem...", "loading");
+                
+                const exames = dadosApp.exames || {};
+                const tempos = dadosApp.tempos || {};
+                const pagamentos = dadosApp.pagamentos || {};
+                
+                // Organiza por mês
+                const dadosPorMes = {};
+                Object.keys(exames).forEach(data => {
+                    const mes = data.substring(0, 7);
+                    if (!dadosPorMes[mes]) dadosPorMes[mes] = {};
+                    dadosPorMes[mes][data] = exames[data];
+                });
+                
+                // Salva cada mês separadamente
+                const meses = Object.keys(dadosPorMes);
+                let salvos = 0;
+                
+                for (const mes of meses) {
+                    const docId = `examesTomografia_${mes}`;
+                    const dadosMes = {
+                        exames: dadosPorMes[mes],
+                        tempos: {},
+                        pagamentos: pagamentos
+                    };
+                    
+                    // Pega os tempos desse mês
+                    Object.keys(tempos).forEach(data => {
+                        if (data.startsWith(mes)) {
+                            dadosMes.tempos[data] = tempos[data];
+                        }
+                    });
+                    
+                    try {
+                        await db.collection('controles').doc(docId).set(dadosMes);
+                        salvos++;
+                        console.log(`✅ Mês ${mes} salvo (${salvos}/${meses.length})`);
+                    } catch(e) {
+                        console.log(`⚠️ Erro ao salvar ${mes}:`, e.message);
+                    }
+                }
+                
+                // Atualiza documento principal com índice
+                try {
+                    await db.collection('controles').doc('examesTomografia').set({
+                        ultimaAtualizacao: new Date().toISOString(),
+                        mesesDisponiveis: meses,
+                        totalDias: Object.keys(exames).length
+                    });
+                    console.log('✅ Documento principal atualizado');
+                } catch(e) {
+                    console.log('⚠️ Erro no documento principal:', e.message);
+                }
+                
+                atualizarStatus("✅ Salvo na nuvem!", "success");
+                showNotification("✅ Dados salvos na nuvem!", "success");
+                return true;
+                
+            } catch (e) {
+                console.error('❌ Erro ao salvar:', e);
+                atualizarStatus("📁 Salvo localmente", "offline");
+                showNotification("⚠️ Falha na nuvem. Dados salvos localmente.", "error");
+                return false;
+            }
+        }
+
+        // ============================================
+        // FUNÇÃO DE CARREGAR - DEFINITIVA
+        // ============================================
+        async function carregarDados() {
+            try {
+                atualizarStatus("🔄 Carregando dados...", "loading");
+                
+                // 1. CARREGA DADOS LOCAIS
                 const local = localStorage.getItem('examesTomografia');
+                let dadosLocais = null;
                 if (local) {
                     try {
-                        const parsed = JSON.parse(local);
-                        dadosApp.exames = parsed.exames || parsed || {};
-                        dadosApp.tempos = parsed.tempos || {};
-                        dadosApp.pagamentos = parsed.pagamentos || {};
-                        console.log('📁 Dados locais carregados');
+                        dadosLocais = JSON.parse(local);
+                        dadosApp.exames = dadosLocais.exames || {};
+                        dadosApp.tempos = dadosLocais.tempos || {};
+                        dadosApp.pagamentos = dadosLocais.pagamentos || {};
+                        console.log('📁 Dados locais carregados:', Object.keys(dadosApp.exames).length, 'dias');
                     } catch(e) {
                         console.error('Erro ao parsear dados locais:', e);
                     }
@@ -465,7 +555,86 @@
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
                 
-                // Desenha a tela
+                // 2. TENTA CARREGAR DA NUVEM (SE HOUVER DADOS NOVOS)
+                if (db) {
+                    try {
+                        atualizarStatus("🔄 Buscando dados da nuvem...", "loading");
+                        
+                        // Busca o documento principal para saber quais meses existem
+                        const docPrincipal = await db.collection('controles').doc('examesTomografia').get();
+                        
+                        if (docPrincipal.exists) {
+                            const dadosPrincipal = docPrincipal.data();
+                            const meses = dadosPrincipal.mesesDisponiveis || [];
+                            
+                            if (meses.length > 0) {
+                                let dadosNuvem = { exames: {}, tempos: {}, pagamentos: {} };
+                                let totalDiasNuvem = 0;
+                                
+                                // Busca cada mês
+                                for (const mes of meses) {
+                                    try {
+                                        const docMes = await db.collection('controles').doc(`examesTomografia_${mes}`).get();
+                                        if (docMes.exists) {
+                                            const dadosMes = docMes.data();
+                                            Object.assign(dadosNuvem.exames, dadosMes.exames || {});
+                                            Object.assign(dadosNuvem.tempos, dadosMes.tempos || {});
+                                            if (dadosMes.pagamentos) {
+                                                Object.assign(dadosNuvem.pagamentos, dadosMes.pagamentos);
+                                            }
+                                            totalDiasNuvem += Object.keys(dadosMes.exames || {}).length;
+                                        }
+                                    } catch(e) {
+                                        console.log(`⚠️ Erro ao buscar mês ${mes}:`, e.message);
+                                    }
+                                }
+                                
+                                console.log('☁️ Dados da nuvem:', totalDiasNuvem, 'dias');
+                                
+                                // MERGE: Se a nuvem tem dados que o local não tem, adiciona
+                                let dadosModificados = false;
+                                Object.keys(dadosNuvem.exames).forEach(data => {
+                                    if (!dadosApp.exames[data]) {
+                                        dadosApp.exames[data] = dadosNuvem.exames[data];
+                                        dadosModificados = true;
+                                    }
+                                });
+                                
+                                Object.keys(dadosNuvem.tempos).forEach(data => {
+                                    if (!dadosApp.tempos[data]) {
+                                        dadosApp.tempos[data] = dadosNuvem.tempos[data];
+                                        dadosModificados = true;
+                                    }
+                                });
+                                
+                                Object.keys(dadosNuvem.pagamentos).forEach(mes => {
+                                    if (!dadosApp.pagamentos[mes]) {
+                                        dadosApp.pagamentos[mes] = dadosNuvem.pagamentos[mes];
+                                        dadosModificados = true;
+                                    }
+                                });
+                                
+                                if (dadosModificados) {
+                                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                                    console.log('✅ Dados da nuvem mesclados com os locais');
+                                }
+                            }
+                        } else {
+                            // Não existe na nuvem, cria
+                            await salvarDadosFirebase();
+                        }
+                        
+                        atualizarStatus("✅ Sincronizado", "success");
+                        
+                    } catch(e) {
+                        console.log('⚠️ Erro ao buscar da nuvem:', e.message);
+                        atualizarStatus("📁 Modo offline", "offline");
+                    }
+                } else {
+                    atualizarStatus("📁 Modo offline", "offline");
+                }
+                
+                // 3. ATUALIZA A TELA
                 criarLegenda();
                 criarTabela();
                 popularTimerConfig();
@@ -475,169 +644,46 @@
                 atualizarListaBackups();
                 iniciarBackupAutomatico();
                 
-                // Tenta sincronizar com Firebase
-                if (db) {
-                    atualizarStatus("🔄 Sincronizando com nuvem...", "loading");
-                    sincronizarComNuvem();
-                } else {
-                    atualizarStatus("📁 Offline (Firebase indisponível)", "offline");
-                }
-                
             } catch (e) {
                 console.error('❌ Erro ao carregar:', e);
                 atualizarStatus("❌ Erro ao carregar", "error");
             }
         }
 
-        // SINCRONIZA COM A NUVEM (SIMPLES)
-        async function sincronizarComNuvem() {
-            try {
-                if (!db) {
-                    atualizarStatus("📁 Offline", "offline");
-                    return;
-                }
-                
-                // Tenta buscar da nuvem
-                const docRef = db.collection('controles').doc('examesTomografia');
-                const doc = await docRef.get();
-                
-                if (doc.exists) {
-                    const dadosNuvem = doc.data();
-                    
-                    // Compara se os dados são iguais
-                    const dadosLocaisStr = JSON.stringify(dadosApp);
-                    const dadosNuvemStr = JSON.stringify(dadosNuvem);
-                    
-                    if (dadosLocaisStr === dadosNuvemStr) {
-                        atualizarStatus("✅ Sincronizado", "success");
-                        console.log('✅ Dados já estão sincronizados');
-                        return;
-                    }
-                    
-                    // Dados diferentes - faz merge (SOMA)
-                    console.log('🔄 Dados diferentes, fazendo merge...');
-                    
-                    // Soma os exames
-                    Object.keys(dadosNuvem.exames || {}).forEach(data => {
-                        if (!dadosApp.exames[data]) {
-                            dadosApp.exames[data] = JSON.parse(JSON.stringify(dadosNuvem.exames[data]));
-                        } else {
-                            Object.keys(dadosNuvem.exames[data]).forEach(segmento => {
-                                if (!dadosApp.exames[data][segmento]) {
-                                    dadosApp.exames[data][segmento] = {};
-                                }
-                                Object.keys(dadosNuvem.exames[data][segmento]).forEach(empresa => {
-                                    const valorNuvem = dadosNuvem.exames[data][segmento][empresa] || 0;
-                                    const valorLocal = dadosApp.exames[data][segmento][empresa] || 0;
-                                    if (valorNuvem > 0) {
-                                        dadosApp.exames[data][segmento][empresa] = valorLocal + valorNuvem;
-                                    }
-                                });
-                            });
-                        }
-                    });
-                    
-                    // Soma os tempos
-                    Object.keys(dadosNuvem.tempos || {}).forEach(data => {
-                        if (!dadosApp.tempos[data]) {
-                            dadosApp.tempos[data] = JSON.parse(JSON.stringify(dadosNuvem.tempos[data]));
-                        } else {
-                            Object.keys(dadosNuvem.tempos[data]).forEach(key => {
-                                if (!dadosApp.tempos[data][key]) {
-                                    dadosApp.tempos[data][key] = [];
-                                }
-                                if (Array.isArray(dadosNuvem.tempos[data][key])) {
-                                    dadosApp.tempos[data][key].push(...dadosNuvem.tempos[data][key]);
-                                }
-                            });
-                        }
-                    });
-                    
-                    // Soma os pagamentos
-                    Object.keys(dadosNuvem.pagamentos || {}).forEach(mes => {
-                        if (!dadosApp.pagamentos[mes]) {
-                            dadosApp.pagamentos[mes] = JSON.parse(JSON.stringify(dadosNuvem.pagamentos[mes]));
-                        } else {
-                            Object.keys(dadosNuvem.pagamentos[mes]).forEach(empresa => {
-                                if (dadosNuvem.pagamentos[mes][empresa] === true) {
-                                    dadosApp.pagamentos[mes][empresa] = true;
-                                }
-                            });
-                        }
-                    });
-                    
-                    // Salva o merge
-                    await salvarDadosFirebase();
+        // ============================================
+        // FUNÇÃO DE REPARO (botão de emergência)
+        // ============================================
+        function repararDados() {
+            console.log('🔧 INICIANDO REPARO...');
+            
+            // 1. Tenta recuperar do localStorage
+            const local = localStorage.getItem('examesTomografia');
+            if (local) {
+                try {
+                    const dados = JSON.parse(local);
+                    dadosApp.exames = dados.exames || {};
+                    dadosApp.tempos = dados.tempos || {};
+                    dadosApp.pagamentos = dados.pagamentos || {};
+                    console.log('✅ Dados recuperados do localStorage:', Object.keys(dadosApp.exames).length, 'dias');
                     
                     // Atualiza a tela
                     criarTabela();
                     atualizarResumoEmpresas();
                     atualizarGraficos();
                     
-                    atualizarStatus("✅ Sincronizado", "success");
-                    showNotification("🔄 Dados sincronizados com a nuvem!", "success");
-                    
-                } else {
-                    // Não existe na nuvem - cria
-                    console.log('📤 Criando dados na nuvem...');
-                    await docRef.set(dadosApp);
-                    atualizarStatus("✅ Sincronizado", "success");
-                    console.log('✅ Dados criados na nuvem');
+                    showNotification('✅ Dados recuperados do localStorage!', 'success');
+                } catch(e) {
+                    console.error('❌ Erro ao recuperar:', e);
+                    showNotification('❌ Erro ao recuperar dados!', 'error');
                 }
-                
-            } catch (e) {
-                console.error('❌ Erro na sincronização:', e);
-                atualizarStatus("📁 Offline - Falha na conexão", "offline");
-                showNotification("⚠️ Falha na sincronização. Dados apenas locais.", "error");
+            } else {
+                showNotification('❌ Nenhum dado local encontrado!', 'error');
             }
         }
 
-        // SALVAR DADOS (SIMPLES)
-        async function salvarDadosFirebase() {
-            try {
-                // Salva local sempre
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                console.log('📁 Dados salvos localmente');
-                
-                // Tenta salvar na nuvem
-                if (db) {
-                    await db.collection('controles').doc('examesTomografia').set(dadosApp);
-                    console.log('✅ Dados salvos na nuvem');
-                    atualizarStatus("✅ Salvo na nuvem!", "success");
-                } else {
-                    atualizarStatus("📁 Salvo localmente", "offline");
-                }
-                return true;
-                
-            } catch (e) {
-                console.error('❌ Erro ao salvar:', e);
-                // Garante que salvou local
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                atualizarStatus("📁 Salvo localmente", "offline");
-                showNotification("⚠️ Falha na nuvem. Dados salvos localmente.", "error");
-                return false;
-            }
-        }
-
-        // SINCRONIZAR MANUAL (botão)
-        async function sincronizarDados() {
-            if (!db) {
-                atualizarStatus("📁 Offline - Firebase indisponível", "offline");
-                showNotification("⚠️ Firebase não disponível.", "error");
-                return;
-            }
-            
-            await sincronizarComNuvem();
-        }
-
-        // ============================================================
+        // ============================================
         // FUNÇÕES DO SISTEMA (mantidas)
-        // ============================================================
-
+        // ============================================
         function atualizarResumoEmpresas() {
             const data = dataExameInput.value; const totals = {}; let totalGeralExames = 0, totalGeralValor = 0;
             servicos.forEach(s => { totals[s.id] = { valor: 0, qtd: 0 }; });
@@ -1048,15 +1094,18 @@
             }
         }
 
-        // ====== EVENT LISTENERS ====== //
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', function() { abrirTab(this, this.dataset.tab); });
         });
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', function() { setGraphView(this.dataset.view); });
         });
-        document.getElementById('btn-sincronizar').addEventListener('click', sincronizarDados);
+        document.getElementById('btn-sincronizar').addEventListener('click', salvarDadosFirebase);
         document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
+        document.getElementById('btn-reparar').addEventListener('click', repararDados);
         document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
         document.getElementById('btn-reset-current').addEventListener('click', resetCurrentTimer);
         document.getElementById('btn-finalizar-laudo').addEventListener('click', finalizarLaudo);
@@ -1102,9 +1151,12 @@
             if (btn && btn.dataset.id) restaurarBackupAutomatico(parseInt(btn.dataset.id));
         });
 
-        document.addEventListener('DOMContentLoaded', carregarDadosFirebase);
+        // ============================================
+        // INICIALIZAÇÃO
+        // ============================================
+        document.addEventListener('DOMContentLoaded', carregarDados);
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            carregarDadosFirebase();
+            carregarDados();
         }
     </script>
 </body>
