@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* ===== TODOS OS ESTILOS EXISTENTES ===== */
         :root { --primary: #2c3e50; --secondary: #3498db; --success: #27ae60; --warning: #f39c12; --danger: #e74c3c; --info: #17a2b8; --dark: #34495e; --light-bg: #f5f7fa; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--light-bg); color: #333; line-height: 1.6; padding: 20px; }
@@ -123,6 +124,81 @@
         .backup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 800px) { .backup-grid { grid-template-columns: 1fr; } }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* ===== NOVO ESTILO DO LOG DE ÚLTIMOS EXAMES ===== */
+        .log-container {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+        .log-container h3 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .log-container h3 small {
+            font-size: 0.7rem;
+            color: #888;
+            font-weight: normal;
+        }
+        .log-tabela {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .log-tabela th {
+            background-color: var(--primary);
+            color: white;
+            padding: 6px 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+        .log-tabela td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .log-tabela tr:hover {
+            background-color: #f5f7fa;
+        }
+        .log-tabela .tipo-timer {
+            color: var(--success);
+            font-weight: bold;
+        }
+        .log-tabela .tipo-manual {
+            color: var(--warning);
+            font-weight: bold;
+        }
+        .log-tabela .empresa-tag {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: white;
+        }
+        .log-tabela .segmentos-tag {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            background: #e8f4f8;
+            color: #2c3e50;
+            margin: 1px 2px;
+        }
+        .log-vazio {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+            font-style: italic;
+        }
+        .log-horario {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -139,6 +215,7 @@
         </div>
         
         <div id="controle" class="tab-content active">
+            <!-- ===== TODO O CONTEÚDO EXISTENTE ===== -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
@@ -197,6 +274,15 @@
                     <tbody id="exams-body"></tbody>
                 </table>
             </div>
+
+            <!-- ===== NOVO LOG DE ÚLTIMOS EXAMES ===== -->
+            <div class="log-container">
+                <h3>📋 Últimos 10 Laudos <small>(últimos exames registrados)</small></h3>
+                <div id="log-lista">
+                    <div class="log-vazio">Nenhum laudo registrado ainda. Comece a laudar!</div>
+                </div>
+            </div>
+
             <div class="dashboard-grid">
                 <div class="chart-box">
                     <h3>Tempo Médio por Segmento</h3>
@@ -219,6 +305,7 @@
             </div>
         </div>
 
+        <!-- ===== RELATÓRIO, PROJEÇÃO E BACKUP (MANTIDOS) ===== -->
         <div id="relatorio" class="tab-content">
             <div class="relatorio-header">
                 <div class="filtro-mes">
@@ -341,6 +428,9 @@
         let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
         const BACKUP_KEY = 'historico_backups_tomografia';
 
+        // ===== NOVO: HISTÓRICO DE LAUDOS =====
+        let historicoLaudos = [];
+
         const dataExameInput = document.getElementById('data-exame');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
         const syncStatus = document.getElementById('sync-status');
@@ -353,6 +443,14 @@
         // FUNÇÕES UTILITÁRIAS
         // ============================================
         function formatTime(s) { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const sec = s % 60; return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
+        function formatTimeShort(s) { 
+            if (s < 60) return `${s}s`;
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            if (m < 60) return `${m}m${sec > 0 ? ` ${sec}s` : ''}`;
+            const h = Math.floor(m / 60);
+            return `${h}h ${m % 60}m`;
+        }
         function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
         function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
         
@@ -442,17 +540,118 @@
         }
 
         // ============================================
-        // FUNÇÃO DE SALVAR - DEFINITIVA (salva por mês)
+        // NOVA FUNÇÃO: ADICIONAR AO LOG
+        // ============================================
+        function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef) {
+            const agora = new Date();
+            const horario = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const data = dataRef || dataExameInput.value;
+            
+            const entrada = {
+                data: data,
+                horario: horario,
+                timestamp: agora.getTime(),
+                empresa: empresaNome,
+                segmentos: segmentosNomes,
+                tempo: tempoSegundos,
+                tempoFormatado: formatTimeShort(tempoSegundos),
+                tipo: tipo // 'cronometro' ou 'manual'
+            };
+            
+            historicoLaudos.unshift(entrada);
+            
+            // Mantém só os últimos 50
+            if (historicoLaudos.length > 50) {
+                historicoLaudos = historicoLaudos.slice(0, 50);
+            }
+            
+            // Salva no localStorage
+            try {
+                localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos));
+            } catch(e) {}
+            
+            atualizarLog();
+        }
+
+        // ============================================
+        // FUNÇÃO: ATUALIZAR VISUAL DO LOG
+        // ============================================
+        function atualizarLog() {
+            const container = document.getElementById('log-lista');
+            if (!container) return;
+            
+            // Tenta carregar do localStorage se estiver vazio
+            if (historicoLaudos.length === 0) {
+                try {
+                    const saved = localStorage.getItem('historicoLaudos');
+                    if (saved) {
+                        historicoLaudos = JSON.parse(saved);
+                    }
+                } catch(e) {}
+            }
+            
+            if (historicoLaudos.length === 0) {
+                container.innerHTML = '<div class="log-vazio">Nenhum laudo registrado ainda. Comece a laudar!</div>';
+                return;
+            }
+            
+            // Pega os últimos 10
+            const ultimos = historicoLaudos.slice(0, 10);
+            
+            let html = `
+                <table class="log-tabela">
+                    <thead>
+                        <tr>
+                            <th style="width:80px;">Horário</th>
+                            <th style="width:120px;">Empresa</th>
+                            <th>Segmento(s)</th>
+                            <th style="width:80px;">Tempo</th>
+                            <th style="width:70px;">Tipo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            ultimos.forEach(item => {
+                const empresaServico = servicos.find(s => s.nome === item.empresa);
+                const corEmpresa = empresaServico ? empresaServico.color : '#666';
+                
+                const segmentosHtml = item.segmentos.map(seg => 
+                    `<span class="segmentos-tag">${seg}</span>`
+                ).join(' ');
+                
+                const tipoClass = item.tipo === 'cronometro' ? 'tipo-timer' : 'tipo-manual';
+                const tipoLabel = item.tipo === 'cronometro' ? '⏱️ Timer' : '✋ Manual';
+                
+                html += `
+                    <tr>
+                        <td class="log-horario">${item.horario}</td>
+                        <td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td>
+                        <td>${segmentosHtml}</td>
+                        <td><strong>${item.tempoFormatado}</strong></td>
+                        <td><span class="${tipoClass}">${tipoLabel}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        // ============================================
+        // FUNÇÃO DE SALVAR (com log)
         // ============================================
         async function salvarDadosFirebase() {
             try {
-                // 1. SALVA LOCAL (sempre)
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
                 localStorage.setItem(totalKey, totalSeconds.toString());
                 console.log('📁 Dados salvos localmente');
                 
-                // 2. TENTA SALVAR NA NUVEM (separado por mês)
                 if (!db) {
                     atualizarStatus("📁 Salvo localmente", "offline");
                     return true;
@@ -464,7 +663,6 @@
                 const tempos = dadosApp.tempos || {};
                 const pagamentos = dadosApp.pagamentos || {};
                 
-                // Organiza por mês
                 const dadosPorMes = {};
                 Object.keys(exames).forEach(data => {
                     const mes = data.substring(0, 7);
@@ -472,7 +670,6 @@
                     dadosPorMes[mes][data] = exames[data];
                 });
                 
-                // Salva cada mês separadamente
                 const meses = Object.keys(dadosPorMes);
                 let salvos = 0;
                 
@@ -484,7 +681,6 @@
                         pagamentos: pagamentos
                     };
                     
-                    // Pega os tempos desse mês
                     Object.keys(tempos).forEach(data => {
                         if (data.startsWith(mes)) {
                             dadosMes.tempos[data] = tempos[data];
@@ -500,7 +696,6 @@
                     }
                 }
                 
-                // Atualiza documento principal com índice
                 try {
                     await db.collection('controles').doc('examesTomografia').set({
                         ultimaAtualizacao: new Date().toISOString(),
@@ -525,13 +720,20 @@
         }
 
         // ============================================
-        // FUNÇÃO DE CARREGAR - DEFINITIVA
+        // FUNÇÃO DE CARREGAR (com log)
         // ============================================
         async function carregarDados() {
             try {
                 atualizarStatus("🔄 Carregando dados...", "loading");
                 
-                // 1. CARREGA DADOS LOCAIS
+                // Carrega histórico do localStorage
+                try {
+                    const savedLog = localStorage.getItem('historicoLaudos');
+                    if (savedLog) {
+                        historicoLaudos = JSON.parse(savedLog);
+                    }
+                } catch(e) {}
+                
                 const local = localStorage.getItem('examesTomografia');
                 let dadosLocais = null;
                 if (local) {
@@ -555,12 +757,10 @@
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
                 
-                // 2. TENTA CARREGAR DA NUVEM (SE HOUVER DADOS NOVOS)
                 if (db) {
                     try {
                         atualizarStatus("🔄 Buscando dados da nuvem...", "loading");
                         
-                        // Busca o documento principal para saber quais meses existem
                         const docPrincipal = await db.collection('controles').doc('examesTomografia').get();
                         
                         if (docPrincipal.exists) {
@@ -571,7 +771,6 @@
                                 let dadosNuvem = { exames: {}, tempos: {}, pagamentos: {} };
                                 let totalDiasNuvem = 0;
                                 
-                                // Busca cada mês
                                 for (const mes of meses) {
                                     try {
                                         const docMes = await db.collection('controles').doc(`examesTomografia_${mes}`).get();
@@ -591,7 +790,6 @@
                                 
                                 console.log('☁️ Dados da nuvem:', totalDiasNuvem, 'dias');
                                 
-                                // MERGE: Se a nuvem tem dados que o local não tem, adiciona
                                 let dadosModificados = false;
                                 Object.keys(dadosNuvem.exames).forEach(data => {
                                     if (!dadosApp.exames[data]) {
@@ -620,7 +818,6 @@
                                 }
                             }
                         } else {
-                            // Não existe na nuvem, cria
                             await salvarDadosFirebase();
                         }
                         
@@ -634,12 +831,12 @@
                     atualizarStatus("📁 Modo offline", "offline");
                 }
                 
-                // 3. ATUALIZA A TELA
                 criarLegenda();
                 criarTabela();
                 popularTimerConfig();
                 atualizarResumoEmpresas();
                 atualizarGraficos();
+                atualizarLog();
                 startCurrentTimer();
                 atualizarListaBackups();
                 iniciarBackupAutomatico();
@@ -651,12 +848,11 @@
         }
 
         // ============================================
-        // FUNÇÃO DE REPARO (botão de emergência)
+        // FUNÇÃO DE REPARO
         // ============================================
         function repararDados() {
             console.log('🔧 INICIANDO REPARO...');
             
-            // 1. Tenta recuperar do localStorage
             const local = localStorage.getItem('examesTomografia');
             if (local) {
                 try {
@@ -666,7 +862,6 @@
                     dadosApp.pagamentos = dados.pagamentos || {};
                     console.log('✅ Dados recuperados do localStorage:', Object.keys(dadosApp.exames).length, 'dias');
                     
-                    // Atualiza a tela
                     criarTabela();
                     atualizarResumoEmpresas();
                     atualizarGraficos();
@@ -682,7 +877,7 @@
         }
 
         // ============================================
-        // FUNÇÕES DO SISTEMA (mantidas)
+        // FUNÇÕES DO SISTEMA (MODIFICADAS PARA GERAR LOG)
         // ============================================
         function atualizarResumoEmpresas() {
             const data = dataExameInput.value; const totals = {}; let totalGeralExames = 0, totalGeralValor = 0;
@@ -712,6 +907,11 @@
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
             const tempoGasto = currentSeconds;
             const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome }));
+            
+            // ADICIONA AO LOG (cronômetro)
+            const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
+            adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data);
+            
             showTimeNotification(tempoGasto, segmentosSelecionados);
             if(tempoGasto > 0) { totalSeconds += tempoGasto; updateTotalDisplay(); const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, totalSeconds.toString()); }
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
@@ -727,6 +927,29 @@
             limparSelecoesSegmentos(); resetCurrentTimerAfterCommit(); await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
         }
 
+        // ===== MODIFICADO: alterarContador agora gera log para manuais =====
+        async function alterarContador(seg, serv, delta) {
+            const data = dataExameInput.value; 
+            if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
+            if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+            const atual = dadosApp.exames[data][seg][serv] || 0; 
+            const novo = Math.max(0, atual + delta);
+            dadosApp.exames[data][seg][serv] = novo;
+            
+            // Se adicionou (+1) e não é decremento, registra no log como manual
+            if (delta > 0 && novo > 0) {
+                const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
+                const segmentoNome = valoresSegmentos[seg]?.nome || seg;
+                adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data);
+            }
+            
+            criarTabela(); 
+            await salvarDadosFirebase();
+        }
+
+        // ============================================
+        // DEMAIS FUNÇÕES (MANTIDAS)
+        // ============================================
         function criarLegenda() {
             const grid = document.getElementById('legenda-grid'); if (!grid) return; grid.innerHTML = '';
             Object.values(valoresSegmentos).forEach(seg => {
@@ -763,12 +986,6 @@
                 tbody.appendChild(tr);
             });
             atualizarResumoEmpresas();
-        }
-        
-        async function alterarContador(seg, serv, delta) {
-            const data = dataExameInput.value; if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
-            const atual = dadosApp.exames[data][seg][serv] || 0; dadosApp.exames[data][seg][serv] = Math.max(0, atual + delta);
-            criarTabela(); await salvarDadosFirebase();
         }
         
         function getDateRange(view) {
