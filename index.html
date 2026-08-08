@@ -125,7 +125,7 @@
         @media (max-width: 800px) { .backup-grid { grid-template-columns: 1fr; } }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* ===== NOVO ESTILO DO LOG DE ÚLTIMOS EXAMES ===== */
+        /* ===== ESTILO DO LOG DE ÚLTIMOS EXAMES (ATUALIZADO) ===== */
         .log-container {
             margin-top: 30px;
             padding-top: 20px;
@@ -199,6 +199,12 @@
             font-size: 0.7rem;
             color: #666;
         }
+        .log-data {
+            font-weight: bold;
+            font-size: 0.7rem;
+            color: var(--primary);
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -215,7 +221,6 @@
         </div>
         
         <div id="controle" class="tab-content active">
-            <!-- ===== TODO O CONTEÚDO EXISTENTE ===== -->
             <div class="legenda-container">
                 <h2>Valores por Segmento (R$)</h2>
                 <div class="legenda-grid" id="legenda-grid"></div>
@@ -275,7 +280,7 @@
                 </table>
             </div>
 
-            <!-- ===== NOVO LOG DE ÚLTIMOS EXAMES ===== -->
+            <!-- ===== LOG DE ÚLTIMOS EXAMES (ATUALIZADO COM DATA) ===== -->
             <div class="log-container">
                 <h3>📋 Últimos 10 Laudos <small>(últimos exames registrados)</small></h3>
                 <div id="log-lista">
@@ -428,7 +433,7 @@
         let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
         const BACKUP_KEY = 'historico_backups_tomografia';
 
-        // ===== NOVO: HISTÓRICO DE LAUDOS =====
+        // ===== HISTÓRICO DE LAUDOS =====
         let historicoLaudos = [];
 
         const dataExameInput = document.getElementById('data-exame');
@@ -450,6 +455,14 @@
             if (m < 60) return `${m}m${sec > 0 ? ` ${sec}s` : ''}`;
             const h = Math.floor(m / 60);
             return `${h}h ${m % 60}m`;
+        }
+        function formatarData(dataStr) {
+            if (!dataStr) return '-';
+            const partes = dataStr.split('-');
+            if (partes.length === 3) {
+                return `${partes[2]}/${partes[1]}/${partes[0].slice(2)}`;
+            }
+            return dataStr;
         }
         function updateTotalDisplay() { document.getElementById('total-timer-display').textContent = formatTime(totalSeconds); }
         function updateCurrentDisplay() { document.getElementById('current-timer-display').textContent = formatTime(currentSeconds); }
@@ -540,7 +553,7 @@
         }
 
         // ============================================
-        // NOVA FUNÇÃO: ADICIONAR AO LOG
+        // FUNÇÃO: ADICIONAR AO LOG (COM DATA)
         // ============================================
         function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef) {
             const agora = new Date();
@@ -549,6 +562,7 @@
             
             const entrada = {
                 data: data,
+                dataFormatada: formatarData(data),
                 horario: horario,
                 timestamp: agora.getTime(),
                 empresa: empresaNome,
@@ -574,7 +588,7 @@
         }
 
         // ============================================
-        // FUNÇÃO: ATUALIZAR VISUAL DO LOG
+        // FUNÇÃO: ATUALIZAR VISUAL DO LOG (COM DATA)
         // ============================================
         function atualizarLog() {
             const container = document.getElementById('log-lista');
@@ -602,10 +616,11 @@
                 <table class="log-tabela">
                     <thead>
                         <tr>
-                            <th style="width:80px;">Horário</th>
+                            <th style="width:85px;">📅 Data</th>
+                            <th style="width:70px;">⏰ Hora</th>
                             <th style="width:120px;">Empresa</th>
                             <th>Segmento(s)</th>
-                            <th style="width:80px;">Tempo</th>
+                            <th style="width:75px;">Tempo</th>
                             <th style="width:70px;">Tipo</th>
                         </tr>
                     </thead>
@@ -625,6 +640,7 @@
                 
                 html += `
                     <tr>
+                        <td class="log-data">${item.dataFormatada || formatarData(item.data)}</td>
                         <td class="log-horario">${item.horario}</td>
                         <td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td>
                         <td>${segmentosHtml}</td>
@@ -643,7 +659,7 @@
         }
 
         // ============================================
-        // FUNÇÃO DE SALVAR (com log)
+        // FUNÇÃO DE SALVAR
         // ============================================
         async function salvarDadosFirebase() {
             try {
@@ -720,7 +736,7 @@
         }
 
         // ============================================
-        // FUNÇÃO DE CARREGAR (com log)
+        // FUNÇÃO DE CARREGAR
         // ============================================
         async function carregarDados() {
             try {
@@ -908,7 +924,7 @@
             const tempoGasto = currentSeconds;
             const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome }));
             
-            // ADICIONA AO LOG (cronômetro)
+            // ADICIONA AO LOG (cronômetro) com data
             const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
             adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data);
             
@@ -927,7 +943,7 @@
             limparSelecoesSegmentos(); resetCurrentTimerAfterCommit(); await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
         }
 
-        // ===== MODIFICADO: alterarContador agora gera log para manuais =====
+        // ===== MODIFICADO: alterarContador agora gera log para manuais com data =====
         async function alterarContador(seg, serv, delta) {
             const data = dataExameInput.value; 
             if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
@@ -936,7 +952,7 @@
             const novo = Math.max(0, atual + delta);
             dadosApp.exames[data][seg][serv] = novo;
             
-            // Se adicionou (+1) e não é decremento, registra no log como manual
+            // Se adicionou (+1) e não é decremento, registra no log como manual com data
             if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
