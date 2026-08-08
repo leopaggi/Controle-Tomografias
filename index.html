@@ -109,6 +109,8 @@
         .btn-save { background-color: var(--success); color: white; }
         .btn-reset { background-color: var(--danger); color: white; }
         .btn-action { background-color: var(--warning); color: white; }
+        .btn-edit-small { background-color: var(--secondary); color: white; padding: 2px 6px; font-size: 0.65rem; border-radius: 3px; border: none; cursor: pointer; }
+        .btn-delete-small { background-color: var(--danger); color: white; padding: 2px 6px; font-size: 0.65rem; border-radius: 3px; border: none; cursor: pointer; }
         .projecao-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px; }
         .projecao-card { background: #f8f9fa; padding: 8px; border-radius: 5px; text-align: center; border-top: 3px solid #ccc; font-size: 0.7rem; }
         .projecao-card strong { display: block; font-size: 1rem; color: var(--primary); }
@@ -125,7 +127,7 @@
         @media (max-width: 800px) { .backup-grid { grid-template-columns: 1fr; } }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* ===== ESTILO DO LOG DE ÚLTIMOS EXAMES (ATUALIZADO) ===== */
+        /* ===== ESTILO DO LOG DE ÚLTIMOS EXAMES ===== */
         .log-container {
             margin-top: 30px;
             padding-top: 20px;
@@ -159,6 +161,7 @@
         .log-tabela td {
             padding: 5px 10px;
             border-bottom: 1px solid #eee;
+            vertical-align: middle;
         }
         .log-tabela tr:hover {
             background-color: #f5f7fa;
@@ -204,6 +207,76 @@
             font-size: 0.7rem;
             color: var(--primary);
             white-space: nowrap;
+        }
+        .log-actions {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal-box h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        .modal-box .form-group {
+            margin-bottom: 12px;
+        }
+        .modal-box .form-group label {
+            display: block;
+            font-weight: bold;
+            font-size: 0.8rem;
+            color: #495057;
+            margin-bottom: 4px;
+        }
+        .modal-box .form-group select,
+        .modal-box .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.85rem;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: flex-end;
+        }
+        .modal-actions .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .modal-actions .btn-cancel:hover {
+            background: #5a6268;
         }
     </style>
 </head>
@@ -280,7 +353,7 @@
                 </table>
             </div>
 
-            <!-- ===== LOG DE ÚLTIMOS EXAMES (ATUALIZADO COM DATA) ===== -->
+            <!-- ===== LOG DE ÚLTIMOS EXAMES COM AÇÕES ===== -->
             <div class="log-container">
                 <h3>📋 Últimos 10 Laudos <small>(últimos exames registrados)</small></h3>
                 <div id="log-lista">
@@ -310,7 +383,7 @@
             </div>
         </div>
 
-        <!-- ===== RELATÓRIO, PROJEÇÃO E BACKUP (MANTIDOS) ===== -->
+        <!-- ===== RELATÓRIO, PROJEÇÃO E BACKUP ===== -->
         <div id="relatorio" class="tab-content">
             <div class="relatorio-header">
                 <div class="filtro-mes">
@@ -371,6 +444,47 @@
                 </div>
                 <div id="lista-backups-automaticos" style="border: 1px solid #ddd; border-radius: 8px; max-height: 400px; overflow-y: auto;"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL PARA EDIÇÃO DO LOG ===== -->
+    <div class="modal-overlay" id="modal-editar-log">
+        <div class="modal-box">
+            <h3>✏️ Editar Laudo</h3>
+            <form id="form-editar-log">
+                <div class="form-group">
+                    <label for="edit-log-data">📅 Data</label>
+                    <input type="date" id="edit-log-data">
+                </div>
+                <div class="form-group">
+                    <label for="edit-log-horario">⏰ Horário</label>
+                    <input type="time" id="edit-log-horario">
+                </div>
+                <div class="form-group">
+                    <label for="edit-log-empresa">🏢 Empresa</label>
+                    <select id="edit-log-empresa"></select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-log-segmentos">🎯 Segmentos</label>
+                    <input type="text" id="edit-log-segmentos" placeholder="Ex: CRÂNIO, TORAX" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:0.85rem;">
+                    <small style="color:#666;font-size:0.7rem;">Separe os segmentos por vírgula</small>
+                </div>
+                <div class="form-group">
+                    <label for="edit-log-tempo">⏱️ Tempo (segundos)</label>
+                    <input type="number" id="edit-log-tempo" min="0" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:0.85rem;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-log-tipo">📌 Tipo</label>
+                    <select id="edit-log-tipo">
+                        <option value="cronometro">⏱️ Timer</option>
+                        <option value="manual">✋ Manual</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="fecharModalEdicaoLog()">Cancelar</button>
+                    <button type="submit" class="btn-save">💾 Salvar</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -435,6 +549,9 @@
 
         // ===== HISTÓRICO DE LAUDOS =====
         let historicoLaudos = [];
+
+        // ===== VARIÁVEIS PARA EDIÇÃO DO LOG =====
+        let logEditandoIndex = null;
 
         const dataExameInput = document.getElementById('data-exame');
         const mesRelatorioInput = document.getElementById('mes-relatorio');
@@ -553,8 +670,10 @@
         }
 
         // ============================================
-        // FUNÇÃO: ADICIONAR AO LOG (COM DATA)
+        // FUNÇÕES DO LOG COM EDIÇÃO/EXCLUSÃO
         // ============================================
+        
+        // Função para adicionar ao log
         function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef) {
             const agora = new Date();
             const horario = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -587,9 +706,7 @@
             atualizarLog();
         }
 
-        // ============================================
-        // FUNÇÃO: ATUALIZAR VISUAL DO LOG (COM DATA)
-        // ============================================
+        // Função para atualizar visual do log com botões de ação
         function atualizarLog() {
             const container = document.getElementById('log-lista');
             if (!container) return;
@@ -616,18 +733,19 @@
                 <table class="log-tabela">
                     <thead>
                         <tr>
-                            <th style="width:85px;">📅 Data</th>
-                            <th style="width:70px;">⏰ Hora</th>
+                            <th style="width:80px;">📅 Data</th>
+                            <th style="width:65px;">⏰ Hora</th>
                             <th style="width:120px;">Empresa</th>
                             <th>Segmento(s)</th>
-                            <th style="width:75px;">Tempo</th>
-                            <th style="width:70px;">Tipo</th>
+                            <th style="width:70px;">Tempo</th>
+                            <th style="width:65px;">Tipo</th>
+                            <th style="width:75px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
             
-            ultimos.forEach(item => {
+            ultimos.forEach((item, index) => {
                 const empresaServico = servicos.find(s => s.nome === item.empresa);
                 const corEmpresa = empresaServico ? empresaServico.color : '#666';
                 
@@ -638,6 +756,9 @@
                 const tipoClass = item.tipo === 'cronometro' ? 'tipo-timer' : 'tipo-manual';
                 const tipoLabel = item.tipo === 'cronometro' ? '⏱️ Timer' : '✋ Manual';
                 
+                // Índice real no array historicoLaudos
+                const realIndex = historicoLaudos.indexOf(item);
+                
                 html += `
                     <tr>
                         <td class="log-data">${item.dataFormatada || formatarData(item.data)}</td>
@@ -646,6 +767,12 @@
                         <td>${segmentosHtml}</td>
                         <td><strong>${item.tempoFormatado}</strong></td>
                         <td><span class="${tipoClass}">${tipoLabel}</span></td>
+                        <td>
+                            <div class="log-actions">
+                                <button class="btn-edit-small" onclick="editarLog(${realIndex})">✏️</button>
+                                <button class="btn-delete-small" onclick="excluirLog(${realIndex})">🗑️</button>
+                            </div>
+                        </td>
                     </tr>
                 `;
             });
@@ -656,6 +783,128 @@
             `;
             
             container.innerHTML = html;
+        }
+
+        // ===== FUNÇÃO PARA EDITAR LOG =====
+        function editarLog(index) {
+            if (index < 0 || index >= historicoLaudos.length) return;
+            
+            const item = historicoLaudos[index];
+            logEditandoIndex = index;
+            
+            // Preencher o modal com os dados atuais
+            document.getElementById('edit-log-data').value = item.data || '';
+            document.getElementById('edit-log-horario').value = item.horario || '00:00';
+            document.getElementById('edit-log-empresa').value = item.empresa || '';
+            document.getElementById('edit-log-segmentos').value = item.segmentos ? item.segmentos.join(', ') : '';
+            document.getElementById('edit-log-tempo').value = item.tempo || 0;
+            document.getElementById('edit-log-tipo').value = item.tipo || 'cronometro';
+            
+            // Abrir modal
+            document.getElementById('modal-editar-log').classList.add('active');
+        }
+
+        // ===== FUNÇÃO PARA EXCLUIR LOG =====
+        function excluirLog(index) {
+            if (index < 0 || index >= historicoLaudos.length) return;
+            
+            if (!confirm(`Tem certeza que deseja excluir este registro?\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) {
+                return;
+            }
+            
+            historicoLaudos.splice(index, 1);
+            
+            // Salvar no localStorage
+            try {
+                localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos));
+            } catch(e) {}
+            
+            atualizarLog();
+            showNotification('🗑️ Registro excluído com sucesso!', 'warning');
+        }
+
+        // ===== FECHAR MODAL =====
+        function fecharModalEdicaoLog() {
+            document.getElementById('modal-editar-log').classList.remove('active');
+            logEditandoIndex = null;
+        }
+
+        // ===== SALVAR EDIÇÃO DO LOG =====
+        document.getElementById('form-editar-log').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (logEditandoIndex === null || logEditandoIndex < 0 || logEditandoIndex >= historicoLaudos.length) {
+                showNotification('❌ Erro: registro não encontrado!', 'error');
+                fecharModalEdicaoLog();
+                return;
+            }
+            
+            const data = document.getElementById('edit-log-data').value;
+            const horario = document.getElementById('edit-log-horario').value;
+            const empresa = document.getElementById('edit-log-empresa').value;
+            const segmentosRaw = document.getElementById('edit-log-segmentos').value;
+            const tempo = parseInt(document.getElementById('edit-log-tempo').value) || 0;
+            const tipo = document.getElementById('edit-log-tipo').value;
+            
+            if (!data || !empresa || !segmentosRaw.trim()) {
+                showNotification('❌ Preencha todos os campos obrigatórios!', 'error');
+                return;
+            }
+            
+            const segmentos = segmentosRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (segmentos.length === 0) {
+                showNotification('❌ Informe pelo menos um segmento!', 'error');
+                return;
+            }
+            
+            // Atualizar o registro
+            historicoLaudos[logEditandoIndex] = {
+                data: data,
+                dataFormatada: formatarData(data),
+                horario: horario,
+                timestamp: new Date(data + 'T' + horario + ':00').getTime(),
+                empresa: empresa,
+                segmentos: segmentos,
+                tempo: tempo,
+                tempoFormatado: formatTimeShort(tempo),
+                tipo: tipo
+            };
+            
+            // Salvar no localStorage
+            try {
+                localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos));
+            } catch(e) {}
+            
+            atualizarLog();
+            fecharModalEdicaoLog();
+            showNotification('✅ Registro atualizado com sucesso!', 'success');
+        });
+
+        // ===== FECHAR MODAL COM ESC =====
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                fecharModalEdicaoLog();
+            }
+        });
+
+        // ===== CLICK FORA DO MODAL =====
+        document.getElementById('modal-editar-log').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalEdicaoLog();
+            }
+        });
+
+        // ===== POPULAR SELECT DE EMPRESAS NO MODAL =====
+        function popularSelectEmpresasModal() {
+            const select = document.getElementById('edit-log-empresa');
+            select.innerHTML = '';
+            servicos.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.nome;
+                option.textContent = s.nome;
+                select.appendChild(option);
+            });
         }
 
         // ============================================
@@ -847,6 +1096,7 @@
                     atualizarStatus("📁 Modo offline", "offline");
                 }
                 
+                popularSelectEmpresasModal();
                 criarLegenda();
                 criarTabela();
                 popularTimerConfig();
@@ -893,7 +1143,7 @@
         }
 
         // ============================================
-        // FUNÇÕES DO SISTEMA (MODIFICADAS PARA GERAR LOG)
+        // FUNÇÕES DO SISTEMA
         // ============================================
         function atualizarResumoEmpresas() {
             const data = dataExameInput.value; const totals = {}; let totalGeralExames = 0, totalGeralValor = 0;
@@ -924,7 +1174,6 @@
             const tempoGasto = currentSeconds;
             const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome }));
             
-            // ADICIONA AO LOG (cronômetro) com data
             const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
             adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data);
             
@@ -943,7 +1192,6 @@
             limparSelecoesSegmentos(); resetCurrentTimerAfterCommit(); await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
         }
 
-        // ===== MODIFICADO: alterarContador agora gera log para manuais com data =====
         async function alterarContador(seg, serv, delta) {
             const data = dataExameInput.value; 
             if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
@@ -952,7 +1200,6 @@
             const novo = Math.max(0, atual + delta);
             dadosApp.exames[data][seg][serv] = novo;
             
-            // Se adicionou (+1) e não é decremento, registra no log como manual com data
             if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
