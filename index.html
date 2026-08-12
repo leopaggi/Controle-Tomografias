@@ -8,7 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* ===== TODOS OS ESTILOS EXISTENTES ===== */
         :root { --primary: #2c3e50; --secondary: #3498db; --success: #27ae60; --warning: #f39c12; --danger: #e74c3c; --info: #17a2b8; --dark: #34495e; --light-bg: #f5f7fa; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--light-bg); color: #333; line-height: 1.6; padding: 20px; }
@@ -673,7 +672,6 @@
         // FUNÇÕES DO LOG COM EDIÇÃO/EXCLUSÃO
         // ============================================
         
-        // Função para adicionar ao log
         function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef) {
             const agora = new Date();
             const horario = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -688,17 +686,15 @@
                 segmentos: segmentosNomes,
                 tempo: tempoSegundos,
                 tempoFormatado: formatTimeShort(tempoSegundos),
-                tipo: tipo // 'cronometro' ou 'manual'
+                tipo: tipo
             };
             
             historicoLaudos.unshift(entrada);
             
-            // Mantém só os últimos 50
             if (historicoLaudos.length > 50) {
                 historicoLaudos = historicoLaudos.slice(0, 50);
             }
             
-            // Salva no localStorage
             try {
                 localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos));
             } catch(e) {}
@@ -706,12 +702,10 @@
             atualizarLog();
         }
 
-        // Função para atualizar visual do log com botões de ação
         function atualizarLog() {
             const container = document.getElementById('log-lista');
             if (!container) return;
             
-            // Tenta carregar do localStorage se estiver vazio
             if (historicoLaudos.length === 0) {
                 try {
                     const saved = localStorage.getItem('historicoLaudos');
@@ -726,7 +720,6 @@
                 return;
             }
             
-            // Pega os últimos 10
             const ultimos = historicoLaudos.slice(0, 10);
             
             let html = `
@@ -756,7 +749,6 @@
                 const tipoClass = item.tipo === 'cronometro' ? 'tipo-timer' : 'tipo-manual';
                 const tipoLabel = item.tipo === 'cronometro' ? '⏱️ Timer' : '✋ Manual';
                 
-                // Índice real no array historicoLaudos
                 const realIndex = historicoLaudos.indexOf(item);
                 
                 html += `
@@ -785,14 +777,12 @@
             container.innerHTML = html;
         }
 
-        // ===== FUNÇÃO PARA EDITAR LOG =====
         function editarLog(index) {
             if (index < 0 || index >= historicoLaudos.length) return;
             
             const item = historicoLaudos[index];
             logEditandoIndex = index;
             
-            // Preencher o modal com os dados atuais
             document.getElementById('edit-log-data').value = item.data || '';
             document.getElementById('edit-log-horario').value = item.horario || '00:00';
             document.getElementById('edit-log-empresa').value = item.empresa || '';
@@ -800,11 +790,9 @@
             document.getElementById('edit-log-tempo').value = item.tempo || 0;
             document.getElementById('edit-log-tipo').value = item.tipo || 'cronometro';
             
-            // Abrir modal
             document.getElementById('modal-editar-log').classList.add('active');
         }
 
-        // ===== FUNÇÃO PARA EXCLUIR LOG =====
         function excluirLog(index) {
             if (index < 0 || index >= historicoLaudos.length) return;
             
@@ -814,7 +802,6 @@
             
             historicoLaudos.splice(index, 1);
             
-            // Salvar no localStorage
             try {
                 localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos));
             } catch(e) {}
@@ -823,13 +810,11 @@
             showNotification('🗑️ Registro excluído com sucesso!', 'warning');
         }
 
-        // ===== FECHAR MODAL =====
         function fecharModalEdicaoLog() {
             document.getElementById('modal-editar-log').classList.remove('active');
             logEditandoIndex = null;
         }
 
-        // ===== SALVAR EDIÇÃO DO LOG =====
         document.getElementById('form-editar-log').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -858,7 +843,6 @@
                 return;
             }
             
-            // Atualizar o registro
             historicoLaudos[logEditandoIndex] = {
                 data: data,
                 dataFormatada: formatarData(data),
@@ -871,7 +855,6 @@
                 tipo: tipo
             };
             
-            // Salvar no localStorage
             try {
                 localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos));
             } catch(e) {}
@@ -881,21 +864,18 @@
             showNotification('✅ Registro atualizado com sucesso!', 'success');
         });
 
-        // ===== FECHAR MODAL COM ESC =====
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 fecharModalEdicaoLog();
             }
         });
 
-        // ===== CLICK FORA DO MODAL =====
         document.getElementById('modal-editar-log').addEventListener('click', function(e) {
             if (e.target === this) {
                 fecharModalEdicaoLog();
             }
         });
 
-        // ===== POPULAR SELECT DE EMPRESAS NO MODAL =====
         function popularSelectEmpresasModal() {
             const select = document.getElementById('edit-log-empresa');
             select.innerHTML = '';
@@ -908,7 +888,7 @@
         }
 
         // ============================================
-        // FUNÇÃO DE SALVAR
+        // FUNÇÃO DE SALVAR (completa)
         // ============================================
         async function salvarDadosFirebase() {
             try {
@@ -985,13 +965,78 @@
         }
 
         // ============================================
+        // 🆕 SALVAMENTO AUTOMÁTICO SILENCIOSO (NOVO)
+        // ============================================
+        function iniciarSalvamentoAutomatico() {
+            setInterval(() => {
+                // Só salva se houver dados
+                if (dadosApp && Object.keys(dadosApp.exames || {}).length > 0) {
+                    salvarDadosFirebaseSilencioso();
+                }
+            }, 15000); // 15 segundos
+        }
+
+        async function salvarDadosFirebaseSilencioso() {
+            try {
+                // Salva local sempre
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+                
+                // Tenta salvar na nuvem (sem notificação)
+                if (db) {
+                    const exames = dadosApp.exames || {};
+                    const tempos = dadosApp.tempos || {};
+                    const pagamentos = dadosApp.pagamentos || {};
+                    
+                    const dadosPorMes = {};
+                    Object.keys(exames).forEach(data => {
+                        const mes = data.substring(0, 7);
+                        if (!dadosPorMes[mes]) dadosPorMes[mes] = {};
+                        dadosPorMes[mes][data] = exames[data];
+                    });
+                    
+                    const meses = Object.keys(dadosPorMes);
+                    
+                    for (const mes of meses) {
+                        const docId = `examesTomografia_${mes}`;
+                        const dadosMes = {
+                            exames: dadosPorMes[mes],
+                            tempos: {},
+                            pagamentos: pagamentos
+                        };
+                        
+                        Object.keys(tempos).forEach(data => {
+                            if (data.startsWith(mes)) {
+                                dadosMes.tempos[data] = tempos[data];
+                            }
+                        });
+                        
+                        await db.collection('controles').doc(docId).set(dadosMes);
+                    }
+                    
+                    await db.collection('controles').doc('examesTomografia').set({
+                        ultimaAtualizacao: new Date().toISOString(),
+                        mesesDisponiveis: meses,
+                        totalDias: Object.keys(exames).length
+                    });
+                    
+                    // Só mostra no console (não notifica)
+                    console.log('💾 Auto-save realizado');
+                }
+            } catch(e) {
+                // Silencia o erro para não incomodar
+                console.log('⚠️ Auto-save falhou, dados estão seguros localmente');
+            }
+        }
+
+        // ============================================
         // FUNÇÃO DE CARREGAR
         // ============================================
         async function carregarDados() {
             try {
                 atualizarStatus("🔄 Carregando dados...", "loading");
                 
-                // Carrega histórico do localStorage
                 try {
                     const savedLog = localStorage.getItem('historicoLaudos');
                     if (savedLog) {
@@ -1106,6 +1151,9 @@
                 startCurrentTimer();
                 atualizarListaBackups();
                 iniciarBackupAutomatico();
+                
+                // 🆕 INICIA O SALVAMENTO AUTOMÁTICO
+                iniciarSalvamentoAutomatico();
                 
             } catch (e) {
                 console.error('❌ Erro ao carregar:', e);
