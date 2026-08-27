@@ -126,7 +126,6 @@
         @media (max-width: 800px) { .backup-grid { grid-template-columns: 1fr; } }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* ===== ESTILO DO LOG DE ÚLTIMOS EXAMES ===== */
         .log-container {
             margin-top: 30px;
             padding-top: 20px;
@@ -213,7 +212,6 @@
             flex-wrap: wrap;
         }
 
-        /* ===== MODAL ===== */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -352,7 +350,6 @@
                 </table>
             </div>
 
-            <!-- ===== LOG DE ÚLTIMOS EXAMES COM AÇÕES ===== -->
             <div class="log-container">
                 <h3>📋 Últimos 10 Laudos <small>(últimos exames registrados)</small></h3>
                 <div id="log-lista">
@@ -382,7 +379,6 @@
             </div>
         </div>
 
-        <!-- ===== RELATÓRIO, PROJEÇÃO E BACKUP ===== -->
         <div id="relatorio" class="tab-content">
             <div class="relatorio-header">
                 <div class="filtro-mes">
@@ -446,7 +442,6 @@
         </div>
     </div>
 
-    <!-- ===== MODAL PARA EDIÇÃO DO LOG ===== -->
     <div class="modal-overlay" id="modal-editar-log">
         <div class="modal-box">
             <h3>✏️ Editar Laudo</h3>
@@ -546,10 +541,7 @@
         let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
         const BACKUP_KEY = 'historico_backups_tomografia';
 
-        // ===== HISTÓRICO DE LAUDOS =====
         let historicoLaudos = [];
-
-        // ===== VARIÁVEIS PARA EDIÇÃO DO LOG =====
         let logEditandoIndex = null;
 
         const dataExameInput = document.getElementById('data-exame');
@@ -888,26 +880,30 @@
         }
 
         // ============================================
-        // FUNÇÃO DE SALVAR (completa)
+        // FUNÇÃO DE SALVAR (completa) - CORRIGIDA
         // ============================================
         async function salvarDadosFirebase() {
             try {
+                // 1. SEMPRE SALVA LOCAL PRIMEIRO
                 localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
                 localStorage.setItem(totalKey, totalSeconds.toString());
                 console.log('📁 Dados salvos localmente');
                 
+                // 2. VERIFICA SE O FIREBASE ESTÁ DISPONÍVEL
                 if (!db) {
                     atualizarStatus("📁 Salvo localmente", "offline");
-                    return true;
+                    return false;
                 }
                 
                 atualizarStatus("🔄 Salvando na nuvem...", "loading");
                 
+                // 3. PREPARA OS DADOS
                 const exames = dadosApp.exames || {};
                 const tempos = dadosApp.tempos || {};
                 const pagamentos = dadosApp.pagamentos || {};
                 
+                // 4. AGRUPA POR MÊS
                 const dadosPorMes = {};
                 Object.keys(exames).forEach(data => {
                     const mes = data.substring(0, 7);
@@ -916,8 +912,8 @@
                 });
                 
                 const meses = Object.keys(dadosPorMes);
-                let salvos = 0;
                 
+                // 5. SALVA CADA MÊS
                 for (const mes of meses) {
                     const docId = `examesTomografia_${mes}`;
                     const dadosMes = {
@@ -934,13 +930,13 @@
                     
                     try {
                         await db.collection('controles').doc(docId).set(dadosMes);
-                        salvos++;
-                        console.log(`✅ Mês ${mes} salvo (${salvos}/${meses.length})`);
+                        console.log(`✅ Mês ${mes} salvo`);
                     } catch(e) {
                         console.log(`⚠️ Erro ao salvar ${mes}:`, e.message);
                     }
                 }
                 
+                // 6. ATUALIZA DOCUMENTO PRINCIPAL
                 try {
                     await db.collection('controles').doc('examesTomografia').set({
                         ultimaAtualizacao: new Date().toISOString(),
@@ -953,81 +949,69 @@
                 }
                 
                 atualizarStatus("✅ Salvo na nuvem!", "success");
-                showNotification("✅ Dados salvos na nuvem!", "success");
                 return true;
                 
             } catch (e) {
                 console.error('❌ Erro ao salvar:', e);
                 atualizarStatus("📁 Salvo localmente", "offline");
-                showNotification("⚠️ Falha na nuvem. Dados salvos localmente.", "error");
                 return false;
             }
         }
 
         // ============================================
-        // 🆕 SALVAMENTO AUTOMÁTICO SILENCIOSO (NOVO)
+        // FUNÇÃO DE SALVAR SILENCIOSA (em background)
+        // ============================================
+        async function salvarDadosFirebaseSilencioso() {
+            try {
+                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                
+                if (!db) return;
+                
+                const exames = dadosApp.exames || {};
+                const tempos = dadosApp.tempos || {};
+                const pagamentos = dadosApp.pagamentos || {};
+                
+                const dadosPorMes = {};
+                Object.keys(exames).forEach(data => {
+                    const mes = data.substring(0, 7);
+                    if (!dadosPorMes[mes]) dadosPorMes[mes] = {};
+                    dadosPorMes[mes][data] = exames[data];
+                });
+                
+                const meses = Object.keys(dadosPorMes);
+                
+                for (const mes of meses) {
+                    const docId = `examesTomografia_${mes}`;
+                    const dadosMes = {
+                        exames: dadosPorMes[mes],
+                        tempos: {},
+                        pagamentos: pagamentos
+                    };
+                    
+                    Object.keys(tempos).forEach(data => {
+                        if (data.startsWith(mes)) {
+                            dadosMes.tempos[data] = tempos[data];
+                        }
+                    });
+                    
+                    await db.collection('controles').doc(docId).set(dadosMes);
+                }
+                
+                console.log('💾 Auto-save silencioso realizado');
+            } catch(e) {
+                // Silencia o erro
+            }
+        }
+
+        // ============================================
+        // SALVAMENTO AUTOMÁTICO
         // ============================================
         function iniciarSalvamentoAutomatico() {
             setInterval(() => {
-                // Só salva se houver dados
                 if (dadosApp && Object.keys(dadosApp.exames || {}).length > 0) {
                     salvarDadosFirebaseSilencioso();
                 }
-            }, 15000); // 15 segundos
-        }
-
-        async function salvarDadosFirebaseSilencioso() {
-            try {
-                // Salva local sempre
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
-                
-                // Tenta salvar na nuvem (sem notificação)
-                if (db) {
-                    const exames = dadosApp.exames || {};
-                    const tempos = dadosApp.tempos || {};
-                    const pagamentos = dadosApp.pagamentos || {};
-                    
-                    const dadosPorMes = {};
-                    Object.keys(exames).forEach(data => {
-                        const mes = data.substring(0, 7);
-                        if (!dadosPorMes[mes]) dadosPorMes[mes] = {};
-                        dadosPorMes[mes][data] = exames[data];
-                    });
-                    
-                    const meses = Object.keys(dadosPorMes);
-                    
-                    for (const mes of meses) {
-                        const docId = `examesTomografia_${mes}`;
-                        const dadosMes = {
-                            exames: dadosPorMes[mes],
-                            tempos: {},
-                            pagamentos: pagamentos
-                        };
-                        
-                        Object.keys(tempos).forEach(data => {
-                            if (data.startsWith(mes)) {
-                                dadosMes.tempos[data] = tempos[data];
-                            }
-                        });
-                        
-                        await db.collection('controles').doc(docId).set(dadosMes);
-                    }
-                    
-                    await db.collection('controles').doc('examesTomografia').set({
-                        ultimaAtualizacao: new Date().toISOString(),
-                        mesesDisponiveis: meses,
-                        totalDias: Object.keys(exames).length
-                    });
-                    
-                    // Só mostra no console (não notifica)
-                    console.log('💾 Auto-save realizado');
-                }
-            } catch(e) {
-                // Silencia o erro para não incomodar
-                console.log('⚠️ Auto-save falhou, dados estão seguros localmente');
-            }
+            }, 15000);
         }
 
         // ============================================
@@ -1151,8 +1135,6 @@
                 startCurrentTimer();
                 atualizarListaBackups();
                 iniciarBackupAutomatico();
-                
-                // 🆕 INICIA O SALVAMENTO AUTOMÁTICO
                 iniciarSalvamentoAutomatico();
                 
             } catch (e) {
@@ -1213,33 +1195,80 @@
             document.getElementById('total-valor-dia').textContent = `R$ ${totalGeralValor.toFixed(2)}`;
         }
 
+        // ============================================
+        // FUNÇÃO FINALIZAR LAUDO - CORRIGIDA
+        // ============================================
         async function finalizarLaudo() {
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
             const data = dataExameInput.value;
+            
             if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
-            const tempoGasto = currentSeconds;
-            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome }));
             
+            const tempoGasto = currentSeconds;
+            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ 
+                nome: valoresSegmentos[cb.value].nome,
+                chave: cb.value 
+            }));
+            
+            // 1. ADICIONA AO LOG (imediato)
             const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
             adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data);
             
-            showTimeNotification(tempoGasto, segmentosSelecionados);
-            if(tempoGasto > 0) { totalSeconds += tempoGasto; updateTotalDisplay(); const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, totalSeconds.toString()); }
+            // 2. ATUALIZA OS DADOS PRINCIPAIS
+            if(tempoGasto > 0) {
+                totalSeconds += tempoGasto;
+                updateTotalDisplay();
+                const totalKey = `totalAcumulado_${data}`;
+                localStorage.setItem(totalKey, totalSeconds.toString());
+            }
+            
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
+            
             const tempoDividido = tempoGasto / checkboxes.length;
+            
             checkboxes.forEach(cb => {
                 const seg = cb.value;
-                if (tempoDividido > 0) { const key = `${servico}_${seg}`; if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = []; dadosApp.tempos[data][key].push(tempoDividido); }
+                if (tempoDividido > 0) {
+                    const key = `${servico}_${seg}`;
+                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
+                    dadosApp.tempos[data][key].push(tempoDividido);
+                }
                 if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
                 const atual = dadosApp.exames[data][seg][servico] || 0;
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
-            limparSelecoesSegmentos(); resetCurrentTimerAfterCommit(); await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+            
+            // 3. LIMPA O FORMULÁRIO
+            limparSelecoesSegmentos();
+            resetCurrentTimerAfterCommit();
+            
+            // 4. SALVA E SÓ DEPOIS ATUALIZA A TELA (ORDEM CORRETA!)
+            showNotification("🔄 Salvando...", "warning");
+            
+            const salvou = await salvarDadosFirebase();
+            
+            if (salvou) {
+                // 5. SÓ ATUALIZA A TELA DEPOIS QUE SALVOU
+                criarTabela();
+                atualizarResumoEmpresas();
+                atualizarGraficos();
+                atualizarLog();
+                showNotification(`✅ Laudo finalizado! (${segmentosSelecionados.map(s => s.nome).join(', ')})`, "success");
+            } else {
+                showNotification("⚠️ Laudo salvo LOCALMENTE. Sincronize depois.", "warning");
+                criarTabela();
+                atualizarResumoEmpresas();
+                atualizarGraficos();
+                atualizarLog();
+            }
         }
 
+        // ============================================
+        // FUNÇÃO ALTERAR CONTADOR - CORRIGIDA
+        // ============================================
         async function alterarContador(seg, serv, delta) {
             const data = dataExameInput.value; 
             if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
@@ -1248,14 +1277,20 @@
             const novo = Math.max(0, atual + delta);
             dadosApp.exames[data][seg][serv] = novo;
             
+            // Adiciona ao log APENAS se for incremento
             if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
                 adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data);
             }
             
-            criarTabela(); 
-            await salvarDadosFirebase();
+            // ATUALIZA A TELA IMEDIATAMENTE (feedback visual)
+            criarTabela();
+            atualizarResumoEmpresas();
+            atualizarLog();
+            
+            // SALVA EM BACKGROUND (não bloqueia a UI)
+            salvarDadosFirebaseSilencioso();
         }
 
         // ============================================
