@@ -525,6 +525,11 @@
         ];
 
         let dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
+        // Controla se algo mudou desde o último auto-save silencioso.
+        // Sem isso, o auto-save reescrevia TODOS os meses no Firestore a
+        // cada 15s mesmo sem mudança nenhuma — com muitos meses de dados
+        // isso sozinho já estourava a cota diária de escritas do Firestore.
+        let dadosSujos = false;
         let chartSegmentos = null, chartCustoBeneficio = null, chartProjecao = null;
         let currentView = 'day', totalSeconds = 0, currentSeconds = 0, currentInterval = null, isCurrentRunning = true, dataAnterior = '';
         const BACKUP_KEY = 'historico_backups_tomografia';
@@ -827,6 +832,7 @@
                     
                     await db.collection('controles').doc(docId).set(dadosMes);
                 }
+                dadosSujos = false;
                 console.log('💾 Auto-save silencioso realizado');
             } catch(e) {
                 // 💡 NOVO: não engole mais o erro
@@ -840,7 +846,9 @@
 
         function iniciarSalvamentoAutomatico() {
             setInterval(() => {
-                if (dadosApp && Object.keys(dadosApp.exames || {}).length > 0) salvarDadosFirebaseSilencioso();
+                // Só grava na nuvem se algo mudou de fato desde o último save —
+                // evita reescrever todos os meses sem necessidade a cada 15s.
+                if (dadosSujos && dadosApp && Object.keys(dadosApp.exames || {}).length > 0) salvarDadosFirebaseSilencioso();
             }, 15000);
         }
 
@@ -1020,6 +1028,7 @@
                 const atual = dadosApp.exames[data][seg][servico] || 0;
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
+            dadosSujos = true;
             
             limparSelecoesSegmentos();
             resetCurrentTimerAfterCommit();
@@ -1038,6 +1047,7 @@
             const atual = dadosApp.exames[data][seg][serv] || 0; 
             const novo = Math.max(0, atual + delta);
             dadosApp.exames[data][seg][serv] = novo;
+            dadosSujos = true;
             if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
@@ -1260,6 +1270,7 @@
         function togglePagamentoUnificado(empresaId, mesAno) {
             if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
             dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
+            dadosSujos = true;
             salvarDadosFirebase(); gerarRelatorioMensal();
         }
 
@@ -1351,6 +1362,7 @@
                 if (!dadosApp.tempos) dadosApp.tempos = {}; 
                 if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
                 totalSeconds = backup.timerDia || 0; 
+                dadosSujos = true;
                 updateTotalDisplay();
                 await salvarDadosFirebase(); 
                 criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
@@ -1381,6 +1393,7 @@
                 try { 
                     const json = JSON.parse(e.target.result); 
                     dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
+                    dadosSujos = true;
                     await salvarDadosFirebase(); 
                     criarLegenda(); criarTabela(); atualizarGraficos(); 
                     if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
@@ -1394,6 +1407,7 @@
             if(confirm("Zerar exames do dia?")) { 
                 const data = dataExameInput.value; 
                 dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
+                dadosSujos = true;
                 totalSeconds = 0; currentSeconds = 0; 
                 updateTotalDisplay(); updateCurrentDisplay();
                 const totalKey = `totalAcumulado_${data}`; idbLocalStorage.setItem(totalKey, '0');
@@ -1405,6 +1419,7 @@
         async function limparTodosDados() {
             if(confirm("⚠️ APAGAR TODOS os dados?")) {
                 dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; 
+                dadosSujos = true;
                 totalSeconds = 0; currentSeconds = 0;
                 updateTotalDisplay(); updateCurrentDisplay();
                 await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
