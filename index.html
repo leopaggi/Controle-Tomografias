@@ -761,7 +761,16 @@
         // ============================================
         // SALVAR FIREBASE (com guarda de vazio) 💡 CORRIGIDO
         // ============================================
-        async function salvarDadosFirebase() {
+        // Rastreia quais meses (AAAA-MM) mudaram desde a última gravação bem
+        // sucedida. Sem isso, salvarDadosFirebase() reescrevia TODOS os meses
+        // no Firestore a cada laudo — com 12 meses de histórico, 1 laudo virava
+        // 12 escritas quando só 1 dia realmente mudou. Isso sozinho já é
+        // suficiente pra estourar a cota do plano gratuito em pouco uso.
+        let mesesSujos = new Set();
+        function marcarMesSujo(dataStr){ if (dataStr) mesesSujos.add(dataStr.substring(0, 7)); }
+        function marcarTudoSujo(){ Object.keys(dadosApp.exames || {}).forEach(marcarMesSujo); }
+
+        async function salvarDadosFirebase(forcarTudo = false) {
             try {
                 idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
@@ -780,14 +789,20 @@
                     if (!dadosPorMes[mes]) dadosPorMes[mes] = {};
                     dadosPorMes[mes][data] = exames[data];
                 });
-                const meses = Object.keys(dadosPorMes);
+                const todosMeses = Object.keys(dadosPorMes);
+                // Só escreve os meses realmente alterados — a menos que forcarTudo
+                // seja true (botão "Sincronizar", restaurar backup, etc.) ou não
+                // haja nenhum mês marcado ainda (primeira gravação/bootstrap).
+                const mesesParaEscrever = (forcarTudo || mesesSujos.size === 0)
+                    ? todosMeses
+                    : todosMeses.filter(m => mesesSujos.has(m));
                 
-                for (const mes of meses) {
+                for (const mes of mesesParaEscrever) {
                     const docId = `examesTomografia_${mes}`;
                     const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
                     
-                    // 💡 NOVO: guarda contra save vazio
+                    // 💡 guarda contra save vazio
                     if (!dadosMes.exames || Object.keys(dadosMes.exames).length === 0) {
                         console.warn(`⚠️ Pulando save vazio de ${mes}`);
                         continue;
@@ -795,6 +810,7 @@
                     
                     try {
                         await db.collection('controles').doc(docId).set(dadosMes);
+                        mesesSujos.delete(mes);
                         console.log(`✅ Mês ${mes} salvo`);
                     } catch(e) { console.log(`⚠️ Erro ao salvar ${mes}:`, e.message); }
                 }
@@ -802,7 +818,7 @@
                 try {
                     await db.collection('controles').doc('examesTomografia').set({
                         ultimaAtualizacao: new Date().toISOString(),
-                        mesesDisponiveis: meses,
+                        mesesDisponiveis: todosMeses,
                         totalDias: Object.keys(exames).length
                     });
                     console.log('✅ Documento principal atualizado');
@@ -832,23 +848,27 @@
                     dadosPorMes[mes][data] = exames[data];
                 });
                 
-                for (const mes of Object.keys(dadosPorMes)) {
+                // Só escreve os meses marcados como sujos — não todos.
+                const mesesParaEscrever = [...mesesSujos].filter(m => dadosPorMes[m]);
+                
+                for (const mes of mesesParaEscrever) {
                     const docId = `examesTomografia_${mes}`;
                     const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
                     
-                    // 💡 NOVO: guarda contra save vazio
+                    // 💡 guarda contra save vazio
                     if (!dadosMes.exames || Object.keys(dadosMes.exames).length === 0) {
                         console.warn(`⚠️ Pulando save vazio de ${mes}`);
                         continue;
                     }
                     
                     await db.collection('controles').doc(docId).set(dadosMes);
+                    mesesSujos.delete(mes);
                 }
                 dadosSujos = false;
-                console.log('💾 Auto-save silencioso realizado');
+                console.log('💾 Auto-save silencioso realizado (' + mesesParaEscrever.length + ' mês(es))');
             } catch(e) {
-                // 💡 NOVO: não engole mais o erro
+                // 💡 não engole mais o erro
                 console.error('❌ Auto-save silencioso falhou:', e.code || e.name, e.message);
                 if (e.name === 'QuotaExceededError') {
                     idbLocalStorage.removeItem(BACKUP_KEY);
@@ -1041,6 +1061,7 @@
                 const atual = dadosApp.exames[data][seg][servico] || 0;
                 dadosApp.exames[data][seg][servico] = atual + 1;
             });
+            marcarMesSujo(data);
             dadosSujos = true;
             
             limparSelecoesSegmentos();
@@ -1060,6 +1081,7 @@
             const atual = dadosApp.exames[data][seg][serv] || 0; 
             const novo = Math.max(0, atual + delta);
             dadosApp.exames[data][seg][serv] = novo;
+            marcarMesSujo(data);
             dadosSujos = true;
             if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
@@ -1283,6 +1305,7 @@
         function togglePagamentoUnificado(empresaId, mesAno) {
             if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
             dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
+            marcarTudoSujo(); // pagamentos sao duplicados em cada doc de mes
             dadosSujos = true;
             salvarDadosFirebase(); gerarRelatorioMensal();
         }
@@ -1375,6 +1398,7 @@
                 if (!dadosApp.tempos) dadosApp.tempos = {}; 
                 if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
                 totalSeconds = backup.timerDia || 0; 
+                marcarTudoSujo();
                 dadosSujos = true;
                 updateTotalDisplay();
                 await salvarDadosFirebase(); 
@@ -1406,6 +1430,7 @@
                 try { 
                     const json = JSON.parse(e.target.result); 
                     dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
+                    marcarTudoSujo();
                     dadosSujos = true;
                     await salvarDadosFirebase(); 
                     criarLegenda(); criarTabela(); atualizarGraficos(); 
@@ -1420,6 +1445,7 @@
             if(confirm("Zerar exames do dia?")) { 
                 const data = dataExameInput.value; 
                 dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
+                marcarMesSujo(data);
                 dadosSujos = true;
                 totalSeconds = 0; currentSeconds = 0; 
                 updateTotalDisplay(); updateCurrentDisplay();
@@ -1431,6 +1457,7 @@
         
         async function limparTodosDados() {
             if(confirm("⚠️ APAGAR TODOS os dados?")) {
+                Object.keys(dadosApp.exames || {}).forEach(marcarMesSujo); // marca ANTES de zerar
                 dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; 
                 dadosSujos = true;
                 totalSeconds = 0; currentSeconds = 0;
@@ -1450,7 +1477,7 @@
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', function() { setGraphView(this.dataset.view); });
         });
-        document.getElementById('btn-sincronizar').addEventListener('click', salvarDadosFirebase);
+        document.getElementById('btn-sincronizar').addEventListener('click', () => salvarDadosFirebase(true));
         document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
         document.getElementById('btn-reparar').addEventListener('click', repararDados);
         document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);
