@@ -379,6 +379,120 @@
             db = null;
         }
 
+
+        // ============================================
+        // ARMAZENAMENTO LOCAL — IndexedDB em vez de localStorage
+        // ============================================
+        // localStorage tem uma cota fixa (~5MB) COMPARTILHADA por todo o
+        // domínio (ex: leopaggi.github.io) entre este app e qualquer outro
+        // projeto hospedado no mesmo lugar. IndexedDB tem cota muito maior
+        // e um banco próprio por app (nome abaixo), sem essa colisão.
+        //
+        // idbLocalStorage tem a MESMA forma de uso do localStorage
+        // (getItem/setItem/removeItem), mas por baixo grava no IndexedDB.
+        // Para o resto do código poder continuar chamando de forma síncrona
+        // (sem "await" em toda linha), mantemos um cache em memória:
+        // getItem lê do cache (instantâneo); setItem/removeItem atualizam o
+        // cache na hora E gravam no IndexedDB em segundo plano.
+        const TOMO_IDB_NAME = 'tomografia_idb';
+        const TOMO_IDB_STORE = 'kv';
+        const TOMO_MIGRATION_FLAG = '__migrated_tomo_to_idb_v1__';
+        let _tomoIdbDb = null;
+        let _tomoCache = {};
+        let _tomoStorageReady = false;
+
+        function tomoOpenIdb(){
+          return new Promise((resolve, reject) => {
+            if (_tomoIdbDb) { resolve(_tomoIdbDb); return; }
+            if (typeof indexedDB === 'undefined') { reject(new Error('IndexedDB indisponível.')); return; }
+            const req = indexedDB.open(TOMO_IDB_NAME, 1);
+            req.onupgradeneeded = () => {
+              const dbi = req.result;
+              if (!dbi.objectStoreNames.contains(TOMO_IDB_STORE)) dbi.createObjectStore(TOMO_IDB_STORE);
+            };
+            req.onsuccess = () => { _tomoIdbDb = req.result; resolve(_tomoIdbDb); };
+            req.onerror = () => reject(req.error || new Error('Falha ao abrir IndexedDB.'));
+          });
+        }
+        function tomoIdbGetAll(dbi){
+          return new Promise((resolve, reject) => {
+            const tx = dbi.transaction(TOMO_IDB_STORE, 'readonly');
+            const store = tx.objectStore(TOMO_IDB_STORE);
+            const out = {};
+            const reqKeys = store.getAllKeys();
+            const reqVals = store.getAll();
+            let keys, vals;
+            reqKeys.onsuccess = () => { keys = reqKeys.result; tryDone(); };
+            reqVals.onsuccess = () => { vals = reqVals.result; tryDone(); };
+            reqKeys.onerror = () => reject(reqKeys.error);
+            reqVals.onerror = () => reject(reqVals.error);
+            function tryDone(){
+              if (keys === undefined || vals === undefined) return;
+              keys.forEach((k, i) => { out[k] = vals[i]; });
+              resolve(out);
+            }
+          });
+        }
+        function tomoIdbPut(dbi, key, value){
+          return new Promise((resolve, reject) => {
+            const tx = dbi.transaction(TOMO_IDB_STORE, 'readwrite');
+            tx.objectStore(TOMO_IDB_STORE).put(value, key);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        }
+        function tomoIdbDelete(dbi, key){
+          return new Promise((resolve, reject) => {
+            const tx = dbi.transaction(TOMO_IDB_STORE, 'readwrite');
+            tx.objectStore(TOMO_IDB_STORE).delete(key);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        }
+
+        // Migração automática (uma única vez): copia o que já estava salvo
+        // no localStorage deste app pro IndexedDB, e libera esse espaço do
+        // localStorage — devolvendo-o pro pote compartilhado do domínio,
+        // bom pra outros projetos seus no mesmo GitHub Pages.
+        async function tomoInitStorage(){
+          if (_tomoStorageReady) return;
+          try{
+            const dbi = await tomoOpenIdb();
+            if (!window.localStorage.getItem(TOMO_MIGRATION_FLAG)) {
+              const toMigrate = [];
+              for (let i = 0; i < window.localStorage.length; i++) {
+                const k = window.localStorage.key(i);
+                if (!k || k === TOMO_MIGRATION_FLAG) continue;
+                toMigrate.push([k, window.localStorage.getItem(k)]);
+              }
+              for (const [k, v] of toMigrate) { await tomoIdbPut(dbi, k, v); }
+              toMigrate.forEach(([k]) => window.localStorage.removeItem(k));
+              window.localStorage.setItem(TOMO_MIGRATION_FLAG, '1');
+              if (toMigrate.length) console.info(`[Tomografia] Migradas ${toMigrate.length} chave(s) para IndexedDB.`);
+            }
+            _tomoCache = await tomoIdbGetAll(dbi);
+            _tomoStorageReady = true;
+          }catch(e){
+            console.warn('[Tomografia] Não foi possível iniciar IndexedDB; usando localStorage como reserva.', e);
+          }
+        }
+
+        const idbLocalStorage = {
+          getItem(key){
+            if (_tomoStorageReady) return (key in _tomoCache) ? _tomoCache[key] : null;
+            // Reserva, caso o IndexedDB ainda não tenha terminado de iniciar.
+            return window.localStorage.getItem(key);
+          },
+          setItem(key, value){
+            _tomoCache[key] = value;
+            if (_tomoIdbDb) { tomoIdbPut(_tomoIdbDb, key, value).catch(e => console.warn('[Tomografia] Falha ao gravar no IndexedDB:', e)); }
+          },
+          removeItem(key){
+            delete _tomoCache[key];
+            if (_tomoIdbDb) { tomoIdbDelete(_tomoIdbDb, key).catch(e => console.warn('[Tomografia] Falha ao remover no IndexedDB:', e)); }
+          }
+        };
+
         // ============================================
         // DADOS DO SISTEMA
         // ============================================
@@ -528,7 +642,7 @@
             };
             historicoLaudos.unshift(entrada);
             if (historicoLaudos.length > 50) historicoLaudos = historicoLaudos.slice(0, 50);
-            try { localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
+            try { idbLocalStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
             atualizarLog();
         }
 
@@ -537,7 +651,7 @@
             if (!container) return;
             if (historicoLaudos.length === 0) {
                 try {
-                    const saved = localStorage.getItem('historicoLaudos');
+                    const saved = idbLocalStorage.getItem('historicoLaudos');
                     if (saved) historicoLaudos = JSON.parse(saved);
                 } catch(e) {}
             }
@@ -577,7 +691,7 @@
             if (index < 0 || index >= historicoLaudos.length) return;
             if (!confirm(`Excluir este registro?\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
             historicoLaudos.splice(index, 1);
-            try { localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
+            try { idbLocalStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
             atualizarLog();
             showNotification('🗑️ Registro excluído!', 'warning');
         }
@@ -608,7 +722,7 @@
                 empresa: empresa, segmentos: segmentos, tempo: tempo,
                 tempoFormatado: formatTimeShort(tempo), tipo: tipo
             };
-            try { localStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
+            try { idbLocalStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
             atualizarLog(); fecharModalEdicaoLog();
             showNotification('✅ Registro atualizado!', 'success');
         });
@@ -631,9 +745,9 @@
         // ============================================
         async function salvarDadosFirebase() {
             try {
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
+                idbLocalStorage.setItem(totalKey, totalSeconds.toString());
                 console.log('📁 Dados salvos localmente');
                 
                 if (!db) { atualizarStatus("📁 Salvo localmente", "offline"); return false; }
@@ -687,7 +801,7 @@
 
         async function salvarDadosFirebaseSilencioso() {
             try {
-                localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                 if (!db) return;
                 
                 const exames = dadosApp.exames || {};
@@ -718,7 +832,7 @@
                 // 💡 NOVO: não engole mais o erro
                 console.error('❌ Auto-save silencioso falhou:', e.code || e.name, e.message);
                 if (e.name === 'QuotaExceededError') {
-                    localStorage.removeItem(BACKUP_KEY);
+                    idbLocalStorage.removeItem(BACKUP_KEY);
                     console.warn('💡 localStorage cheio — backups automáticos limpos');
                 }
             }
@@ -735,14 +849,15 @@
         // ============================================
         async function carregarDados() {
             try {
+                await tomoInitStorage();
                 atualizarStatus("🔄 Carregando dados...", "loading");
                 
                 try {
-                    const savedLog = localStorage.getItem('historicoLaudos');
+                    const savedLog = idbLocalStorage.getItem('historicoLaudos');
                     if (savedLog) historicoLaudos = JSON.parse(savedLog);
                 } catch(e) {}
                 
-                const local = localStorage.getItem('examesTomografia');
+                const local = idbLocalStorage.getItem('examesTomografia');
                 let dadosLocais = null;
                 if (local) {
                     try {
@@ -759,7 +874,7 @@
                 if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
                 
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                const savedTotal = localStorage.getItem(totalKey);
+                const savedTotal = idbLocalStorage.getItem(totalKey);
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
                 
@@ -798,7 +913,7 @@
                                     if (!dadosApp.pagamentos[mes]) { dadosApp.pagamentos[mes] = dadosNuvem.pagamentos[mes]; dadosModificados = true; }
                                 });
                                 if (dadosModificados) {
-                                    localStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
+                                    idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
                                     console.log('✅ Dados da nuvem mesclados');
                                 }
                             }
@@ -812,10 +927,10 @@
                 
                 // 💡 NOVO: limpa backups gigantes no boot
                 try {
-                    const backupsRaw = localStorage.getItem(BACKUP_KEY);
+                    const backupsRaw = idbLocalStorage.getItem(BACKUP_KEY);
                     if (backupsRaw && backupsRaw.length > (LIMITE_BACKUP_KB * 1024)) {
                         console.warn('⚠️ Backups automáticos grandes, limpando...');
-                        localStorage.removeItem(BACKUP_KEY);
+                        idbLocalStorage.removeItem(BACKUP_KEY);
                     }
                 } catch(e) {}
                 
@@ -838,7 +953,7 @@
 
         function repararDados() {
             console.log('🔧 REPARO...');
-            const local = localStorage.getItem('examesTomografia');
+            const local = idbLocalStorage.getItem('examesTomografia');
             if (local) {
                 try {
                     const dados = JSON.parse(local);
@@ -889,7 +1004,7 @@
                 totalSeconds += tempoGasto;
                 updateTotalDisplay();
                 const totalKey = `totalAcumulado_${data}`;
-                localStorage.setItem(totalKey, totalSeconds.toString());
+                idbLocalStorage.setItem(totalKey, totalSeconds.toString());
             }
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
@@ -1175,7 +1290,7 @@
 
         function criarBackupAutomatico() {
             try {
-                let backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); 
+                let backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]'); 
                 const agora = new Date();
                 // 💡 Só últimos 30 dias de dados
                 const dadosRecentes = { exames: {}, tempos: {}, pagamentos: dadosApp.pagamentos || {} };
@@ -1193,20 +1308,20 @@
                 backups.unshift(novoBackup); 
                 // 💡 Só 3 backups
                 if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
-                localStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); 
+                idbLocalStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); 
                 atualizarListaBackups();
             } catch (e) { 
                 console.error("Erro ao salvar backup:", e);
                 if (e.name === 'QuotaExceededError') {
                     console.warn('🗑️ Quota excedida — limpando backups antigos');
                     try {
-                        localStorage.removeItem(BACKUP_KEY);
+                        idbLocalStorage.removeItem(BACKUP_KEY);
                         const emergencial = [{
                             id: Date.now(), data: new Date().toLocaleString('pt-BR'),
                             conteudo: { exames: {}, tempos: {}, pagamentos: dadosApp.pagamentos || {} },
                             timerDia: totalSeconds, dataReferencia: dataExameInput.value
                         }];
-                        localStorage.setItem(BACKUP_KEY, JSON.stringify(emergencial));
+                        idbLocalStorage.setItem(BACKUP_KEY, JSON.stringify(emergencial));
                     } catch(e2) { console.error('❌ Falha no backup emergencial:', e2); }
                 }
             }
@@ -1214,7 +1329,7 @@
 
         function atualizarListaBackups() {
             const lista = document.getElementById('lista-backups-automaticos'); if (!lista) return;
-            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+            const backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]');
             if (backups.length === 0) { lista.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">Nenhum backup automático gerado ainda.</div>'; return; }
             lista.innerHTML = backups.map(b => `
                 <div class="backup-history-item">
@@ -1228,7 +1343,7 @@
 
         async function restaurarBackupAutomatico(id) {
             if (!confirm("Restaurar este backup automático?")) return;
-            const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); 
+            const backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]'); 
             const backup = backups.find(b => b.id === id);
             if (backup) {
                 dadosApp = backup.conteudo || { exames: {}, tempos: {}, pagamentos: {} };
@@ -1246,7 +1361,7 @@
 
         function limparHistoricoBackups() {
             if (confirm("Limpar todo o histórico de backups automáticos?")) { 
-                localStorage.removeItem(BACKUP_KEY); atualizarListaBackups(); showNotification("Histórico limpo!", "warning"); 
+                idbLocalStorage.removeItem(BACKUP_KEY); atualizarListaBackups(); showNotification("Histórico limpo!", "warning"); 
             }
         }
 
@@ -1281,7 +1396,7 @@
                 dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
                 totalSeconds = 0; currentSeconds = 0; 
                 updateTotalDisplay(); updateCurrentDisplay();
-                const totalKey = `totalAcumulado_${data}`; localStorage.setItem(totalKey, '0');
+                const totalKey = `totalAcumulado_${data}`; idbLocalStorage.setItem(totalKey, '0');
                 await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); 
                 showNotification("🗑️ Dia zerado!", "warning");
             } 
@@ -1329,7 +1444,7 @@
                     document.getElementById('btn-pause-current').textContent = '⏸ Pausar'; 
                     document.getElementById('timer-box').classList.remove('paused');
                     const totalKey = `totalAcumulado_${novaData}`; 
-                    const savedTotal = localStorage.getItem(totalKey);
+                    const savedTotal = idbLocalStorage.getItem(totalKey);
                     if(savedTotal) { totalSeconds = parseInt(savedTotal); updateTotalDisplay(); }
                     dataAnterior = novaData; 
                     criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
