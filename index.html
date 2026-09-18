@@ -459,10 +459,23 @@
           try{
             const dbi = await tomoOpenIdb();
             if (!window.localStorage.getItem(TOMO_MIGRATION_FLAG)) {
+              // Importante: o localStorage é COMPARTILHADO por todo o domínio
+              // (leopaggi.github.io), entre este app e qualquer outro projeto
+              // seu hospedado ali (ex: o Atlas). Migrar "tudo que encontrar"
+              // roubaria chaves de outros projetos para dentro do banco desta
+              // Tomografia. Por isso migramos só o que é conhecidamente nosso:
+              // nome exato ou prefixo específico deste app.
+              const TOMO_OWN_KEYS = new Set(['examesTomografia', 'historicoLaudos', 'historico_backups_tomografia']);
+              const TOMO_OWN_PREFIXES = ['totalAcumulado_'];
+              function pertenceATomografia(k){
+                if (TOMO_OWN_KEYS.has(k)) return true;
+                return TOMO_OWN_PREFIXES.some(p => k.indexOf(p) === 0);
+              }
               const toMigrate = [];
               for (let i = 0; i < window.localStorage.length; i++) {
                 const k = window.localStorage.key(i);
                 if (!k || k === TOMO_MIGRATION_FLAG) continue;
+                if (!pertenceATomografia(k)) continue;
                 toMigrate.push([k, window.localStorage.getItem(k)]);
               }
               for (const [k, v] of toMigrate) { await tomoIdbPut(dbi, k, v); }
