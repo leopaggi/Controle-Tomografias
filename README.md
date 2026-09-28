@@ -36,9 +36,15 @@ Radiológico como referência de como isso é tratado lá.
 - **Armazenamento local** — IndexedDB (banco `tomografia_idb`), não
   `localStorage`. Ver `AI.md` pra entender por quê.
 - **Sincronização** — Firebase Firestore (projeto
-  `controle-tomografias-leonardo`). Um documento por mês
-  (`examesTomografia_AAAA-MM`), mais um documento principal
-  (`examesTomografia`) com metadados (quais meses existem, total de dias).
+  `controle-tomografias-leonardo`). Fonte autoritativa: um documento por DIA
+  (`controles_dias/AAAA-MM-DD`), atualizado por incrementos atômicos
+  idempotentes (ledger em `controles_operacoes/{operationId}`) — funciona
+  corretamente com dois ou mais computadores usando o app ao mesmo tempo.
+  Pagamentos ficam em `controles_pagamentos/AAAA-MM`, por serviço. A
+  coleção mensal antiga (`examesTomografia_AAAA-MM` + documento principal
+  `examesTomografia`) continua recebendo escrita (compatibilidade), mas não
+  é mais a fonte da verdade. Ver `AI.md` para os detalhes da arquitetura
+  multi-PC, fila offline e ferramentas de migração/auditoria (aba Backup).
 
 ## Funcionalidades principais
 
@@ -49,6 +55,13 @@ Radiológico como referência de como isso é tratado lá.
 - Projeção de ganhos em 24h baseada na média do mês
 - Backup automático (a cada 5 min, últimos 3, só 30 dias de dados) e
   backup manual (baixar/restaurar JSON)
+
+## Testes
+
+`node tests/run-all.js` — roda a suíte local (Node puro, sem dependências).
+Carrega o `<script>` real de `index.html` num sandbox com IndexedDB/Firestore
+mockados e exercita idempotência, fila offline, migração, auditoria e
+histórico cross-PC. Ver `AI.md` para o porquê da arquitetura testada.
 
 ## Histórico relevante
 

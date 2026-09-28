@@ -157,6 +157,7 @@
         <header>
             <h1>Controle de Tomografia</h1>
             <div id="sync-status" class="sync-status sync-loading">🔄 Carregando...</div>
+            <div id="fila-status" class="sync-status sync-offline" style="display:none; margin-top:6px;"></div>
         </header>
         <div class="tabs">
             <button class="tab active" data-tab="controle">🏠 Controle Diário</button>
@@ -314,6 +315,29 @@
                 </div>
                 <div id="lista-backups-automaticos" style="border: 1px solid #ddd; border-radius: 8px; max-height: 400px; overflow-y: auto;"></div>
             </div>
+            <hr style="margin: 30px 0; border: 0; border-top: 2px solid #eee;">
+            <div>
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 1rem; color: var(--primary);">🔁 Migração de Dados Legados (manual)</h3>
+                    <small style="color: #888; font-size: 0.75rem;">Copia dias dos documentos mensais antigos (controles/examesTomografia_AAAA-MM) para os documentos diários novos (controles_dias/AAAA-MM-DD). Nunca roda sozinha; nunca sobrescreve um dia diário já existente; pode ser reexecutada com segurança.</small>
+                </div>
+                <div class="acoes-rapidas" style="margin-bottom:10px;">
+                    <button id="btn-migracao-preview" class="btn-pequeno" style="background: var(--secondary); color:white;">🔎 Pré-visualizar (dry-run)</button>
+                    <button id="btn-migracao-executar" class="btn-pequeno btn-action">▶️ Executar migração</button>
+                </div>
+                <div id="migracao-resultado" style="font-size:0.75rem; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:10px; white-space:pre-wrap; max-height:300px; overflow-y:auto;">Nenhuma migração executada ainda.</div>
+            </div>
+            <hr style="margin: 30px 0; border: 0; border-top: 2px solid #eee;">
+            <div>
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 1rem; color: var(--primary);">🔍 Auditoria (somente leitura)</h3>
+                    <small style="color: #888; font-size: 0.75rem;">Compara dados locais, documentos diários, legado mensal e fila pendente. Nunca altera nada.</small>
+                </div>
+                <div class="acoes-rapidas" style="margin-bottom:10px;">
+                    <button id="btn-auditoria-executar" class="btn-pequeno" style="background: var(--info); color:white;">🔍 Rodar auditoria</button>
+                </div>
+                <div id="auditoria-resultado" style="font-size:0.75rem; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:10px; white-space:pre-wrap; max-height:300px; overflow-y:auto;">Nenhuma auditoria executada ainda.</div>
+            </div>
         </div>
     </div>
 
@@ -400,6 +424,20 @@
         let _tomoIdbDb = null;
         let _tomoCache = {};
         let _tomoStorageReady = false;
+        // Modo explícito de persistência local: 'memory' até concluir a
+        // inicialização, depois 'indexeddb' ou 'localstorage' (fallback real).
+        // Se ambos falharem, permanece 'memory' e nenhuma mensagem de sucesso
+        // local pode ser exibida.
+        let _tomoStorageMode = 'memory';
+        let _tomoInitPromise = null;
+        // Escritas que acontecerem durante a inicialização: guardadas aqui e
+        // reaplicadas após carregar o IndexedDB, para o conteúdo carregado não
+        // apagar o que o usuário já digitou.
+        let _tomoPendingWrites = {};
+        // Resultado da última persistência local (para distinguir "offline com
+        // local OK" de "falha local"). Compatível com os retornos booleanos
+        // existentes de salvarDadosFirebase().
+        let _tomoLastLocalOk = true;
 
         function tomoOpenIdb(){
           return new Promise((resolve, reject) => {
@@ -454,55 +492,176 @@
         // no localStorage deste app pro IndexedDB, e libera esse espaço do
         // localStorage — devolvendo-o pro pote compartilhado do domínio,
         // bom pra outros projetos seus no mesmo GitHub Pages.
+        // Fallback REAL: se o IndexedDB falhar, o app continua em modo
+        // 'localstorage' (emergencial, sujeito à cota compartilhada do
+        // domínio). Se ambos falharem, fica em 'memory' e nenhuma mensagem
+        // de sucesso local pode ser exibida.
+        function tomoLocalSafeGet(key){
+          try { return window.localStorage.getItem(key); }
+          catch(e) { return null; }
+        }
+        function tomoLocalSafeSet(key, value){
+          window.localStorage.setItem(key, value);
+        }
+        function tomoLocalSafeRemove(key){
+          window.localStorage.removeItem(key);
+        }
         async function tomoInitStorage(){
           if (_tomoStorageReady) return;
-          try{
-            const dbi = await tomoOpenIdb();
-            if (!window.localStorage.getItem(TOMO_MIGRATION_FLAG)) {
-              // Importante: o localStorage é COMPARTILHADO por todo o domínio
-              // (leopaggi.github.io), entre este app e qualquer outro projeto
-              // seu hospedado ali (ex: o Atlas). Migrar "tudo que encontrar"
-              // roubaria chaves de outros projetos para dentro do banco desta
-              // Tomografia. Por isso migramos só o que é conhecidamente nosso:
-              // nome exato ou prefixo específico deste app.
-              const TOMO_OWN_KEYS = new Set(['examesTomografia', 'historicoLaudos', 'historico_backups_tomografia']);
-              const TOMO_OWN_PREFIXES = ['totalAcumulado_'];
-              function pertenceATomografia(k){
-                if (TOMO_OWN_KEYS.has(k)) return true;
-                return TOMO_OWN_PREFIXES.some(p => k.indexOf(p) === 0);
+          if (_tomoInitPromise) return _tomoInitPromise;
+          _tomoInitPromise = (async () => {
+            try{
+              const dbi = await tomoOpenIdb();
+              let flag = null;
+              try { flag = window.localStorage.getItem(TOMO_MIGRATION_FLAG); }
+              catch(e) { flag = '1'; }
+              if (!flag) {
+                // Importante: o localStorage é COMPARTILHADO por todo o domínio
+                // (leopaggi.github.io), entre este app e qualquer outro projeto
+                // seu hospedado ali (ex: o Atlas). Migrar "tudo que encontrar"
+                // roubaria chaves de outros projetos para dentro do banco desta
+                // Tomografia. Por isso migramos só o que é conhecidamente nosso:
+                // nome exato ou prefixo específico deste app.
+                const TOMO_OWN_KEYS = new Set(['examesTomografia', 'historicoLaudos', 'historico_backups_tomografia']);
+                const TOMO_OWN_PREFIXES = ['totalAcumulado_'];
+                function pertenceATomografia(k){
+                  if (TOMO_OWN_KEYS.has(k)) return true;
+                  return TOMO_OWN_PREFIXES.some(p => k.indexOf(p) === 0);
+                }
+                const toMigrate = [];
+                try {
+                  for (let i = 0; i < window.localStorage.length; i++) {
+                    const k = window.localStorage.key(i);
+                    if (!k || k === TOMO_MIGRATION_FLAG) continue;
+                    if (!pertenceATomografia(k)) continue;
+                    toMigrate.push([k, window.localStorage.getItem(k)]);
+                  }
+                } catch(e) { console.warn('[Tomografia] Falha ao varrer localStorage na migração:', e); }
+                for (const [k, v] of toMigrate) { await tomoIdbPut(dbi, k, v); }
+                try {
+                  toMigrate.forEach(([k]) => window.localStorage.removeItem(k));
+                  window.localStorage.setItem(TOMO_MIGRATION_FLAG, '1');
+                } catch(e) { console.warn('[Tomografia] Falha ao limpar flag de migração:', e); }
+                if (toMigrate.length) console.info(`[Tomografia] Migradas ${toMigrate.length} chave(s) para IndexedDB.`);
               }
-              const toMigrate = [];
-              for (let i = 0; i < window.localStorage.length; i++) {
-                const k = window.localStorage.key(i);
-                if (!k || k === TOMO_MIGRATION_FLAG) continue;
-                if (!pertenceATomografia(k)) continue;
-                toMigrate.push([k, window.localStorage.getItem(k)]);
+              _tomoCache = await tomoIdbGetAll(dbi);
+              // Reaplica escritas que chegaram durante a inicialização, para o
+              // conteúdo carregado não apagar o que o usuário já digitou.
+              const pendentes = _tomoPendingWrites;
+              _tomoPendingWrites = {};
+              for (const k of Object.keys(pendentes)) {
+                const op = pendentes[k];
+                if (op && op.deleted) {
+                  delete _tomoCache[k];
+                  try { await tomoIdbDelete(dbi, k); } catch(e) { console.warn('[Tomografia] Falha ao reaplicar remoção:', e); }
+                } else if (op) {
+                  _tomoCache[k] = op.value;
+                  try { await tomoIdbPut(dbi, k, op.value); } catch(e) { console.warn('[Tomografia] Falha ao reaplicar escrita:', e); }
+                }
               }
-              for (const [k, v] of toMigrate) { await tomoIdbPut(dbi, k, v); }
-              toMigrate.forEach(([k]) => window.localStorage.removeItem(k));
-              window.localStorage.setItem(TOMO_MIGRATION_FLAG, '1');
-              if (toMigrate.length) console.info(`[Tomografia] Migradas ${toMigrate.length} chave(s) para IndexedDB.`);
+              _tomoStorageMode = 'indexeddb';
+              _tomoStorageReady = true;
+            }catch(e){
+              // IndexedDB indisponível ou falhou: fallback REAL para localStorage.
+              _tomoStorageMode = 'localstorage';
+              try {
+                for (const k of Object.keys(_tomoPendingWrites)) {
+                  const op = _tomoPendingWrites[k];
+                  if (op && op.deleted) { try { tomoLocalSafeRemove(k); } catch(e2) {} delete _tomoCache[k]; }
+                  else if (op) { try { tomoLocalSafeSet(k, op.value); } catch(e2) {} _tomoCache[k] = op.value; }
+                }
+              } catch(e2) { console.warn('[Tomografia] Falha ao reaplicar pendências no fallback:', e2); }
+              _tomoPendingWrites = {};
+              _tomoStorageReady = true;
+              console.warn('[Tomografia] IndexedDB falhou; usando localStorage como reserva.', e);
+            } finally {
+              _tomoInitPromise = null;
             }
-            _tomoCache = await tomoIdbGetAll(dbi);
-            _tomoStorageReady = true;
-          }catch(e){
-            console.warn('[Tomografia] Não foi possível iniciar IndexedDB; usando localStorage como reserva.', e);
-          }
+          })();
+          return _tomoInitPromise;
         }
+        // Garante inicialização antes de qualquer leitura/escrita crítica.
+        // Fluxos críticos devem fazer `await tomoEnsureStorage()`.
+        function tomoEnsureStorage(){
+          if (_tomoStorageReady) return Promise.resolve();
+          return tomoInitStorage();
+        }
+        function tomoStorageMode(){ return _tomoStorageMode; }
+        function tomoIsStorageReady(){ return _tomoStorageReady; }
+        function tomoLastLocalOk(){ return _tomoLastLocalOk; }
 
         const idbLocalStorage = {
           getItem(key){
-            if (_tomoStorageReady) return (key in _tomoCache) ? _tomoCache[key] : null;
-            // Reserva, caso o IndexedDB ainda não tenha terminado de iniciar.
-            return window.localStorage.getItem(key);
+            if (_tomoStorageMode === 'localstorage' || !_tomoStorageReady) return tomoLocalSafeGet(key);
+            return (key in _tomoCache) ? _tomoCache[key] : null;
           },
           setItem(key, value){
+            // Compatibilidade síncrona: atualiza cache na hora e persiste em
+            // segundo plano. Não deve ser usada para decidir "salvo" — para
+            // isso existem setItemAsync/removeItemAsync abaixo.
             _tomoCache[key] = value;
-            if (_tomoIdbDb) { tomoIdbPut(_tomoIdbDb, key, value).catch(e => console.warn('[Tomografia] Falha ao gravar no IndexedDB:', e)); }
+            if (!_tomoStorageReady) {
+              _tomoPendingWrites[key] = { value: value };
+              try { tomoLocalSafeSet(key, value); } catch(e) { console.warn('[Tomografia] Falha no fallback localStorage:', e); }
+              return;
+            }
+            if (_tomoStorageMode === 'localstorage' || !_tomoIdbDb) {
+              try { tomoLocalSafeSet(key, value); }
+              catch(e) { console.warn('[Tomografia] Falha ao gravar no localStorage:', e); }
+              return;
+            }
+            tomoIdbPut(_tomoIdbDb, key, value).catch(e => {
+              console.warn('[Tomografia] Falha ao gravar no IndexedDB:', e);
+              try { tomoLocalSafeSet(key, value); } catch(e2) { console.warn('[Tomografia] Falha no fallback localStorage:', e2); }
+            });
           },
           removeItem(key){
             delete _tomoCache[key];
-            if (_tomoIdbDb) { tomoIdbDelete(_tomoIdbDb, key).catch(e => console.warn('[Tomografia] Falha ao remover no IndexedDB:', e)); }
+            if (!_tomoStorageReady) {
+              _tomoPendingWrites[key] = { deleted: true };
+              try { tomoLocalSafeRemove(key); } catch(e) {}
+              return;
+            }
+            if (_tomoStorageMode === 'localstorage' || !_tomoIdbDb) {
+              try { tomoLocalSafeRemove(key); } catch(e) {}
+              return;
+            }
+            tomoIdbDelete(_tomoIdbDb, key).catch(e => {
+              console.warn('[Tomografia] Falha ao remover no IndexedDB:', e);
+              try { tomoLocalSafeRemove(key); } catch(e2) {}
+            });
+          },
+          // Persistência confiável: só resolve após o backend confirmar.
+          // Rejeita se IndexedDB E localStorage falharem.
+          async setItemAsync(key, value){
+            await tomoEnsureStorage();
+            _tomoCache[key] = value;
+            if (_tomoPendingWrites[key]) delete _tomoPendingWrites[key];
+            if (_tomoStorageMode === 'indexeddb' && _tomoIdbDb) {
+              try { await tomoIdbPut(_tomoIdbDb, key, value); return true; }
+              catch(e) {
+                console.warn('[Tomografia] IndexedDB rejeitou escrita, tentando fallback:', e);
+                try { tomoLocalSafeSet(key, value); _tomoStorageMode = 'localstorage'; return true; }
+                catch(e2) { throw e2; }
+              }
+            }
+            // Modo fallback (ou sem handle IDB): localStorage é o backend real.
+            tomoLocalSafeSet(key, value);
+            return true;
+          },
+          async removeItemAsync(key){
+            await tomoEnsureStorage();
+            delete _tomoCache[key];
+            if (_tomoPendingWrites[key]) delete _tomoPendingWrites[key];
+            if (_tomoStorageMode === 'indexeddb' && _tomoIdbDb) {
+              try { await tomoIdbDelete(_tomoIdbDb, key); return true; }
+              catch(e) {
+                try { tomoLocalSafeRemove(key); _tomoStorageMode = 'localstorage'; return true; }
+                catch(e2) { throw e2; }
+              }
+            }
+            tomoLocalSafeRemove(key);
+            return true;
           }
         };
 
@@ -649,47 +808,80 @@
         // ============================================
         // LOG DE LAUDOS
         // ============================================
-        function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef) {
+        async function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef, operationId) {
             const agora = new Date();
             const horario = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const data = dataRef || dataExameInput.value;
             const entrada = {
                 data: data, dataFormatada: formatarData(data), horario: horario,
                 timestamp: agora.getTime(), empresa: empresaNome, segmentos: segmentosNomes,
-                tempo: tempoSegundos, tempoFormatado: formatTimeShort(tempoSegundos), tipo: tipo
+                tempo: tempoSegundos, tempoFormatado: formatTimeShort(tempoSegundos), tipo: tipo,
+                operationId: operationId || null, origem: tomoDeviceId()
             };
             historicoLaudos.unshift(entrada);
             if (historicoLaudos.length > 50) historicoLaudos = historicoLaudos.slice(0, 50);
-            try { idbLocalStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
+            try {
+                await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
+            } catch(e) {
+                console.error('❌ Falha ao persistir log localmente:', e && e.message);
+                atualizarLog();
+                return false;
+            }
             atualizarLog();
+            return true;
+        }
+
+        // Renderiza uma lista já pronta de eventos (local + cross-PC mesclados
+        // por montarHistoricoVisual). NUNCA usa um campo `segmento` singular —
+        // sempre deriva o(s) nome(s) do array `segmentos`, para não repetir um
+        // bug antigo que exibia "null" em registros manuais.
+        function tomoRenderizarHistorico(lista){
+            const container = document.getElementById('log-lista');
+            if (!container) return;
+            if (!lista || lista.length === 0) {
+                container.innerHTML = '<div class="log-vazio">Nenhum laudo registrado ainda. Comece a laudar!</div>';
+                return;
+            }
+            let html = `<table class="log-tabela"><thead><tr><th style="width:80px;">📅 Data</th><th style="width:65px;">⏰ Hora</th><th style="width:120px;">Empresa</th><th>Segmento(s)</th><th style="width:70px;">Tempo</th><th style="width:65px;">Tipo</th><th style="width:75px;">Ações</th></tr></thead><tbody>`;
+            lista.forEach((item) => {
+                const empresaServico = servicos.find(s => s.nome === item.empresa);
+                const corEmpresa = empresaServico ? empresaServico.color : '#666';
+                const segmentos = Array.isArray(item.segmentos) ? item.segmentos : [];
+                const segmentosHtml = segmentos.map(seg => `<span class="segmentos-tag">${seg}</span>`).join(' ');
+                const tipoClass = item.tipo === 'cronometro' ? 'tipo-timer' : 'tipo-manual';
+                const tipoLabel = item.tipo === 'cronometro' ? '⏱️ Timer' : '✋ Manual';
+                const remoto = item.origem && item.origem !== 'local' && item.origem !== tomoDeviceId();
+                const origemHtml = remoto ? ` <span class="segmentos-tag" style="background:#dfe6e9;">🖥️ outro PC</span>` : '';
+                const acoesHtml = (typeof item._localIndex === 'number')
+                    ? `<button class="btn-edit-small" onclick="editarLog(${item._localIndex})">✏️</button><button class="btn-delete-small" onclick="excluirLog(${item._localIndex})">🗑️</button>`
+                    : '';
+                html += `<tr><td class="log-data">${item.dataFormatada || formatarData(item.data)}</td><td class="log-horario">${item.horario || '-'}</td><td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td><td>${segmentosHtml}${origemHtml}</td><td><strong>${item.tempoFormatado || formatTimeShort(item.tempo || 0)}</strong></td><td><span class="${tipoClass}">${tipoLabel}</span></td><td><div class="log-actions">${acoesHtml}</div></td></tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
         }
 
         function atualizarLog() {
-            const container = document.getElementById('log-lista');
-            if (!container) return;
             if (historicoLaudos.length === 0) {
                 try {
                     const saved = idbLocalStorage.getItem('historicoLaudos');
                     if (saved) historicoLaudos = JSON.parse(saved);
                 } catch(e) {}
             }
-            if (historicoLaudos.length === 0) {
-                container.innerHTML = '<div class="log-vazio">Nenhum laudo registrado ainda. Comece a laudar!</div>';
-                return;
-            }
-            const ultimos = historicoLaudos.slice(0, 10);
-            let html = `<table class="log-tabela"><thead><tr><th style="width:80px;">📅 Data</th><th style="width:65px;">⏰ Hora</th><th style="width:120px;">Empresa</th><th>Segmento(s)</th><th style="width:70px;">Tempo</th><th style="width:65px;">Tipo</th><th style="width:75px;">Ações</th></tr></thead><tbody>`;
-            ultimos.forEach((item) => {
-                const empresaServico = servicos.find(s => s.nome === item.empresa);
-                const corEmpresa = empresaServico ? empresaServico.color : '#666';
-                const segmentosHtml = item.segmentos.map(seg => `<span class="segmentos-tag">${seg}</span>`).join(' ');
-                const tipoClass = item.tipo === 'cronometro' ? 'tipo-timer' : 'tipo-manual';
-                const tipoLabel = item.tipo === 'cronometro' ? '⏱️ Timer' : '✋ Manual';
-                const realIndex = historicoLaudos.indexOf(item);
-                html += `<tr><td class="log-data">${item.dataFormatada || formatarData(item.data)}</td><td class="log-horario">${item.horario}</td><td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td><td>${segmentosHtml}</td><td><strong>${item.tempoFormatado}</strong></td><td><span class="${tipoClass}">${tipoLabel}</span></td><td><div class="log-actions"><button class="btn-edit-small" onclick="editarLog(${realIndex})">✏️</button><button class="btn-delete-small" onclick="excluirLog(${realIndex})">🗑️</button></div></td></tr>`;
-            });
-            html += `</tbody></table>`;
-            container.innerHTML = html;
+            const lista = montarHistoricoVisual(historicoLaudos.slice(0, 10), []);
+            tomoRenderizarHistorico(lista);
+        }
+
+        // Busca eventos de laudo de outros PCs (não bloqueia a renderização
+        // local) e re-renderiza o log mesclado por operationId.
+        async function tomoAtualizarHistoricoCrossPC(){
+            if (!db) return;
+            try {
+                const eventos = await tomoBuscarLaudosCrossPC(db, 100);
+                if (!eventos.length) return;
+                const combinado = montarHistoricoVisual(historicoLaudos.slice(0, 10), eventos);
+                tomoRenderizarHistorico(combinado.slice(0, 10));
+            } catch(e) { console.warn('[Tomografia] Falha ao atualizar histórico cross-PC:', e); }
         }
 
         function editarLog(index) {
@@ -705,11 +897,18 @@
             document.getElementById('modal-editar-log').classList.add('active');
         }
 
-        function excluirLog(index) {
+        async function excluirLog(index) {
             if (index < 0 || index >= historicoLaudos.length) return;
             if (!confirm(`Excluir este registro?\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
             historicoLaudos.splice(index, 1);
-            try { idbLocalStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
+            try {
+                await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
+            } catch(e) {
+                console.error('❌ Falha ao persistir exclusão do log:', e && e.message);
+                atualizarLog();
+                showNotification('❌ Falha ao salvar localmente. Registro mantido em memória.', 'error');
+                return;
+            }
             atualizarLog();
             showNotification('🗑️ Registro excluído!', 'warning');
         }
@@ -719,7 +918,7 @@
             logEditandoIndex = null;
         }
 
-        document.getElementById('form-editar-log').addEventListener('submit', function(e) {
+        document.getElementById('form-editar-log').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (logEditandoIndex === null || logEditandoIndex < 0 || logEditandoIndex >= historicoLaudos.length) {
                 showNotification('❌ Erro: registro não encontrado!', 'error');
@@ -734,13 +933,22 @@
             if (!data || !empresa || !segmentosRaw.trim()) { showNotification('❌ Preencha todos os campos!', 'error'); return; }
             const segmentos = segmentosRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
             if (segmentos.length === 0) { showNotification('❌ Informe um segmento!', 'error'); return; }
+            const anterior = historicoLaudos[logEditandoIndex];
             historicoLaudos[logEditandoIndex] = {
                 data: data, dataFormatada: formatarData(data), horario: horario,
                 timestamp: new Date(data + 'T' + horario + ':00').getTime(),
                 empresa: empresa, segmentos: segmentos, tempo: tempo,
-                tempoFormatado: formatTimeShort(tempo), tipo: tipo
+                tempoFormatado: formatTimeShort(tempo), tipo: tipo,
+                operationId: anterior && anterior.operationId, origem: (anterior && anterior.origem) || tomoDeviceId()
             };
-            try { idbLocalStorage.setItem('historicoLaudos', JSON.stringify(historicoLaudos)); } catch(e) {}
+            try {
+                await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
+            } catch(err) {
+                console.error('❌ Falha ao persistir edição do log:', err && err.message);
+                atualizarLog(); fecharModalEdicaoLog();
+                showNotification('❌ Falha ao salvar localmente. Alteração mantida em memória.', 'error');
+                return;
+            }
             atualizarLog(); fecharModalEdicaoLog();
             showNotification('✅ Registro atualizado!', 'success');
         });
@@ -770,16 +978,97 @@
         function marcarMesSujo(dataStr){ if (dataStr) mesesSujos.add(dataStr.substring(0, 7)); }
         function marcarTudoSujo(){ Object.keys(dadosApp.exames || {}).forEach(marcarMesSujo); }
 
-        async function salvarDadosFirebase(forcarTudo = false) {
+        // ============================================
+        // SINCRONIZAÇÃO FIRESTORE — sem sucesso falso
+        // ============================================
+        // O núcleo de escrita é a função pura/testável
+        // tomoExecutarEscritasFirestore(), e o wrapper retorna resultado
+        // estruturado {ok, localOk, cloudOk, partial, ...}.
+        // Regras:
+        // - "✅ Salvo na nuvem!" SOMENTE com todas as escritas confirmadas;
+        // - mês que falhou CONTINUA em mesesSujos (retry posterior);
+        // - saves concorrentes são serializados via tomoSerieSave().
+        let _tomoPrincipalSujo = false;
+        let _tomoSaveChain = Promise.resolve();
+        function tomoSerieSave(fn){
+            const p = _tomoSaveChain.then(fn, fn);
+            _tomoSaveChain = p.catch(() => {});
+            return p;
+        }
+        // Núcleo puro de escrita: recebe um db-like e callbacks de montagem.
+        // Não toca em estado global — por isso pode ser testado isoladamente.
+        async function tomoExecutarEscritasFirestore(dbLike, mesesParaEscrever, montarDadosMes, montarPrincipal){
+            const res = {
+                ok: false, localOk: true, cloudOk: false, partial: false,
+                offline: false, attemptedMonths: mesesParaEscrever.slice(),
+                successfulMonths: [], failedMonths: [],
+                principalOk: false, principalAttempted: false, errors: []
+            };
+            if (!dbLike) { res.offline = true; res.errors.push('sem conexão com Firestore (modo offline)'); return res; }
+            for (const mes of mesesParaEscrever) {
+                try {
+                    await dbLike.collection('controles').doc(`examesTomografia_${mes}`).set(montarDadosMes(mes));
+                    res.successfulMonths.push(mes);
+                } catch(e) {
+                    res.failedMonths.push(mes);
+                    res.errors.push(`mês ${mes}: ${(e && e.message) || e}`);
+                }
+            }
+            if (montarPrincipal) {
+                res.principalAttempted = true;
+                try {
+                    await dbLike.collection('controles').doc('examesTomografia').set(montarPrincipal());
+                    res.principalOk = true;
+                } catch(e) {
+                    res.errors.push(`documento principal: ${(e && e.message) || e}`);
+                }
+            }
+            const totalMeses = res.attemptedMonths.length;
+            const mesesOk = res.successfulMonths.length;
+            const precisaPrincipal = !!montarPrincipal;
+            res.cloudOk = (mesesOk === totalMeses) && (!precisaPrincipal || res.principalOk);
+            res.partial = !res.cloudOk && (mesesOk > 0 || (precisaPrincipal && res.principalOk));
+            res.ok = res.cloudOk;
+            return res;
+        }
+        // Classificador puro do status de LEITURA da nuvem (testável).
+        function tomoClassificarLeitura(totalMeses, mesesComFalha){
+            if (totalMeses <= 0) return { tipo: 'completa', mensagem: '✅ Sincronizado', classe: 'success' };
+            if (mesesComFalha <= 0) return { tipo: 'completa', mensagem: '✅ Sincronizado', classe: 'success' };
+            if (mesesComFalha < totalMeses) return { tipo: 'parcial', mensagem: `⚠️ Sincronizado parcialmente (${mesesComFalha} de ${totalMeses} meses com falha)`, classe: 'warning' };
+            return { tipo: 'local', mensagem: '📁 Somente dados locais (falha ao ler a nuvem)', classe: 'offline' };
+        }
+
+        // Retorna resultado estruturado {ok, localOk, cloudOk, partial, ...}.
+        // Saves concorrentes (auto-save x manual x clique repetido) entram na
+        // fila de tomoSerieSave em vez de rodar em paralelo.
+        function salvarDadosFirebase(forcarTudo = false) {
+            return tomoSerieSave(() => _salvarDadosFirebaseExec(forcarTudo));
+        }
+
+        async function _salvarDadosFirebaseExec(forcarTudo = false) {
+            const res = {
+                ok: false, localOk: false, cloudOk: false, partial: false,
+                offline: false, attemptedMonths: [], successfulMonths: [],
+                failedMonths: [], principalOk: false, principalAttempted: false, errors: []
+            };
             try {
-                idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                const totalKey = `totalAcumulado_${dataExameInput.value}`;
-                idbLocalStorage.setItem(totalKey, totalSeconds.toString());
-                console.log('📁 Dados salvos localmente');
-                
-                if (!db) { atualizarStatus("📁 Salvo localmente", "offline"); return false; }
-                atualizarStatus("🔄 Salvando na nuvem...", "loading");
-                
+                await tomoEnsureStorage();
+                try {
+                    await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp));
+                    const totalKey = `totalAcumulado_${dataExameInput.value}`;
+                    await idbLocalStorage.setItemAsync(totalKey, totalSeconds.toString());
+                } catch(localErr) {
+                    _tomoLastLocalOk = false;
+                    console.error('❌ Falha ao persistir localmente:', localErr && localErr.name, localErr && localErr.message);
+                    atualizarStatus("❌ Falha ao salvar localmente", "error");
+                    res.errors.push(`local: ${(localErr && localErr.message) || localErr}`);
+                    return res;
+                }
+                _tomoLastLocalOk = true;
+                res.localOk = true;
+                console.log('📁 Dados salvos localmente (' + tomoStorageMode() + ')');
+
                 const exames = dadosApp.exames || {};
                 const tempos = dadosApp.tempos || {};
                 const pagamentos = dadosApp.pagamentos || {};
@@ -796,48 +1085,100 @@
                 const mesesParaEscrever = (forcarTudo || mesesSujos.size === 0)
                     ? todosMeses
                     : todosMeses.filter(m => mesesSujos.has(m));
-                
-                for (const mes of mesesParaEscrever) {
-                    const docId = `examesTomografia_${mes}`;
+
+                const montarDadosMes = (mes) => {
                     const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
-                    
-                    // 💡 guarda contra save vazio
+                    // Guarda contra save vazio: em vez de pular em silêncio, o
+                    // mês é registrado como falha para não fingir sincronização.
                     if (!dadosMes.exames || Object.keys(dadosMes.exames).length === 0) {
-                        console.warn(`⚠️ Pulando save vazio de ${mes}`);
-                        continue;
+                        throw new Error(`mês ${mes} vazio — pulado para não apagar a nuvem`);
                     }
-                    
-                    try {
-                        await db.collection('controles').doc(docId).set(dadosMes);
-                        mesesSujos.delete(mes);
-                        console.log(`✅ Mês ${mes} salvo`);
-                    } catch(e) { console.log(`⚠️ Erro ao salvar ${mes}:`, e.message); }
+                    return dadosMes;
+                };
+                // O documento principal só é reescrito quando há algo novo para
+                // registrar (meses escritos, forçado ou principal pendente) —
+                // evita reescrever o principal a toa em passes enfileirados.
+                const deveEscreverPrincipal = forcarTudo || mesesParaEscrever.length > 0 || _tomoPrincipalSujo;
+                const montarPrincipal = deveEscreverPrincipal ? () => ({
+                    ultimaAtualizacao: new Date().toISOString(),
+                    mesesDisponiveis: todosMeses,
+                    totalDias: Object.keys(exames).length
+                }) : null;
+
+                if (!db) {
+                    atualizarStatus("📁 Salvo localmente", "offline");
+                    res.offline = true;
+                    res.errors.push('sem conexão com Firestore (modo offline)');
+                    return res;
                 }
-                
-                try {
-                    await db.collection('controles').doc('examesTomografia').set({
-                        ultimaAtualizacao: new Date().toISOString(),
-                        mesesDisponiveis: todosMeses,
-                        totalDias: Object.keys(exames).length
-                    });
-                    console.log('✅ Documento principal atualizado');
-                } catch(e) { console.log('⚠️ Erro principal:', e.message); }
-                
-                atualizarStatus("✅ Salvo na nuvem!", "success");
-                return true;
+                atualizarStatus("🔄 Salvando na nuvem...", "loading");
+
+                const exec = await tomoExecutarEscritasFirestore(db, mesesParaEscrever, montarDadosMes, montarPrincipal);
+                res.attemptedMonths = exec.attemptedMonths;
+                res.successfulMonths = exec.successfulMonths;
+                res.failedMonths = exec.failedMonths;
+                res.principalOk = exec.principalOk;
+                res.principalAttempted = exec.principalAttempted;
+                res.errors = res.errors.concat(exec.errors);
+                res.partial = exec.partial;
+                res.cloudOk = exec.cloudOk;
+                res.ok = res.localOk && res.cloudOk;
+
+                // Só meses confirmados saem do dirty; os que falharam PERMANECEM
+                // para retry posterior. Principal idem via _tomoPrincipalSujo.
+                res.successfulMonths.forEach(m => { mesesSujos.delete(m); console.log(`✅ Mês ${m} salvo`); });
+                res.failedMonths.forEach(m => console.log(`⚠️ Erro ao salvar ${m} (mantido para retry)`));
+                if (res.principalAttempted) {
+                    if (res.principalOk) { _tomoPrincipalSujo = false; console.log('✅ Documento principal atualizado'); }
+                    else { _tomoPrincipalSujo = true; console.log('⚠️ Erro no documento principal (mantido para retry)'); }
+                }
+                // Invariante: dadosSujos reflete pendência real de nuvem.
+                dadosSujos = (mesesSujos.size > 0) || _tomoPrincipalSujo;
+
+                if (res.cloudOk) {
+                    atualizarStatus("✅ Salvo na nuvem!", "success");
+                } else if (res.partial) {
+                    atualizarStatus(`⚠️ Salvo parcialmente na nuvem (${res.failedMonths.length} mês(es) com falha)`, "warning");
+                } else if (res.offline) {
+                    atualizarStatus("📁 Salvo localmente", "offline");
+                } else {
+                    atualizarStatus("❌ Falha ao salvar na nuvem", "error");
+                }
+                return res;
             } catch (e) {
                 console.error('❌ Erro ao salvar:', e);
-                atualizarStatus("📁 Salvo localmente", "offline");
-                return false;
+                res.errors.push(`inesperado: ${(e && e.message) || e}`);
+                if (!res.localOk) {
+                    _tomoLastLocalOk = false;
+                    atualizarStatus("❌ Falha ao salvar localmente", "error");
+                } else {
+                    dadosSujos = true;
+                    atualizarStatus("❌ Falha ao salvar na nuvem", "error");
+                }
+                return res;
             }
         }
 
-        async function salvarDadosFirebaseSilencioso() {
+        // Serializado na mesma fila do save manual: nunca roda em paralelo.
+        // Mantém o contrato booleano (true = sem falha local).
+        function salvarDadosFirebaseSilencioso() {
+            return tomoSerieSave(_salvarDadosFirebaseSilenciosoExec);
+        }
+
+        async function _salvarDadosFirebaseSilenciosoExec() {
             try {
-                idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                if (!db) return;
-                
+                await tomoEnsureStorage();
+                try {
+                    await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp));
+                } catch(localErr) {
+                    _tomoLastLocalOk = false;
+                    console.error('❌ Auto-save: falha local, mantendo dadosSujos:', localErr && localErr.message);
+                    return false;
+                }
+                _tomoLastLocalOk = true;
+                if (!db) return true;
+
                 const exames = dadosApp.exames || {};
                 const tempos = dadosApp.tempos || {};
                 const pagamentos = dadosApp.pagamentos || {};
@@ -847,33 +1188,52 @@
                     if (!dadosPorMes[mes]) dadosPorMes[mes] = {};
                     dadosPorMes[mes][data] = exames[data];
                 });
-                
+                const todosMeses = Object.keys(dadosPorMes);
+
                 // Só escreve os meses marcados como sujos — não todos.
                 const mesesParaEscrever = [...mesesSujos].filter(m => dadosPorMes[m]);
-                
+
                 for (const mes of mesesParaEscrever) {
                     const docId = `examesTomografia_${mes}`;
                     const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
-                    
+
                     // 💡 guarda contra save vazio
                     if (!dadosMes.exames || Object.keys(dadosMes.exames).length === 0) {
                         console.warn(`⚠️ Pulando save vazio de ${mes}`);
                         continue;
                     }
-                    
+
                     await db.collection('controles').doc(docId).set(dadosMes);
                     mesesSujos.delete(mes);
                 }
-                dadosSujos = false;
+                // Retry do documento principal pendente de um save anterior.
+                if (_tomoPrincipalSujo) {
+                    try {
+                        await db.collection('controles').doc('examesTomografia').set({
+                            ultimaAtualizacao: new Date().toISOString(),
+                            mesesDisponiveis: todosMeses,
+                            totalDias: Object.keys(exames).length
+                        });
+                        _tomoPrincipalSujo = false;
+                        console.log('✅ Documento principal atualizado (retry auto-save)');
+                    } catch(e) {
+                        console.error('❌ Auto-save: principal ainda com falha, mantido para retry:', e && e.message);
+                    }
+                }
+                // Invariante: dadosSujos reflete pendência real de nuvem.
+                dadosSujos = (mesesSujos.size > 0) || _tomoPrincipalSujo;
                 console.log('💾 Auto-save silencioso realizado (' + mesesParaEscrever.length + ' mês(es))');
+                return true;
             } catch(e) {
                 // 💡 não engole mais o erro
                 console.error('❌ Auto-save silencioso falhou:', e.code || e.name, e.message);
                 if (e.name === 'QuotaExceededError') {
-                    idbLocalStorage.removeItem(BACKUP_KEY);
-                    console.warn('💡 localStorage cheio — backups automáticos limpos');
+                    try { await idbLocalStorage.removeItemAsync(BACKUP_KEY); }
+                    catch(e2) { try { idbLocalStorage.removeItem(BACKUP_KEY); } catch(e3) {} }
+                    console.warn('💡 Cota local cheia — backups automáticos limpos');
                 }
+                return false;
             }
         }
 
@@ -886,18 +1246,380 @@
         }
 
         // ============================================
+        // NÚCLEO MULTI-PC — documentos diários autoritativos, ledger de
+        // operações idempotente, fila offline, eventos de laudo cross-PC,
+        // migração e auditoria. Tudo abaixo é dependency-injected (recebe
+        // `dbLike` em vez de fechar sobre o `db` global) para ser 100%
+        // testável em Node sem navegador/Firestore reais.
+        // ============================================
+        function tomoNovoOperationId(){
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            return 'op_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+        }
+        const TOMO_DEVICE_ID_KEY = 'tomoDeviceId';
+        let _tomoDeviceId = null;
+        // Identifica esta instalação (PC/navegador) — usado para distinguir
+        // "este PC" de "outro PC" no histórico cross-PC. Não é PII: é só um
+        // id aleatório gerado e persistido localmente na primeira execução.
+        function tomoDeviceId(){
+            if (_tomoDeviceId) return _tomoDeviceId;
+            let id = null;
+            try { id = idbLocalStorage.getItem(TOMO_DEVICE_ID_KEY); } catch(e) {}
+            if (!id) {
+                id = tomoNovoOperationId();
+                try { idbLocalStorage.setItem(TOMO_DEVICE_ID_KEY, id); } catch(e) {}
+            }
+            _tomoDeviceId = id;
+            return id;
+        }
+        // Sentinela de incremento atômico: usa o FieldValue real do SDK
+        // quando disponível (navegador); em testes/Node (sem `firebase`
+        // carregado) cai num objeto simples que o mock de Firestore dos
+        // testes sabe interpretar como "+delta relativo ao valor atual".
+        function tomoIncrementValue(delta){
+            if (typeof firebase !== 'undefined' && firebase && firebase.firestore && firebase.firestore.FieldValue) {
+                return firebase.firestore.FieldValue.increment(delta);
+            }
+            return { __tomoIncrement: delta };
+        }
+
+        // Aplica um incremento de contador em controles_dias/{data} de forma
+        // IDEMPOTENTE via ledger em controles_operacoes/{operationId}: se a
+        // mesma operationId já foi aplicada (ex.: retry após resposta de rede
+        // perdida), a transação não reaplica o incremento. Núcleo puro/testável.
+        async function tomoAplicarIncrementoAtomico(dbLike, operationId, data, seg, serv, delta){
+            if (!dbLike) return { ok: false, offline: true, jaAplicado: false };
+            const opRef = dbLike.collection('controles_operacoes').doc(operationId);
+            const diaRef = dbLike.collection('controles_dias').doc(data);
+            try {
+                const jaAplicado = await dbLike.runTransaction(async (tx) => {
+                    const opSnap = await tx.get(opRef);
+                    if (opSnap.exists) return true;
+                    // set(..., {merge:true}) com uma chave em dot-notation cria o
+                    // documento se não existir e faz merge no campo aninhado se já
+                    // existir — evita o branch exists/not-exists (que, sob duas
+                    // transações concorrentes sobre um dia novo, poderia fazer uma
+                    // sobrescrever a outra em vez de somar).
+                    tx.set(diaRef, {
+                        data,
+                        [`exames.${seg}.${serv}`]: tomoIncrementValue(delta),
+                        ultimaAtualizacao: new Date().toISOString()
+                    }, { merge: true });
+                    tx.set(opRef, {
+                        tipo: 'contador', data, seg, serv, delta,
+                        timestamp: Date.now(), aplicadoEm: new Date().toISOString()
+                    });
+                    return false;
+                });
+                return { ok: true, jaAplicado };
+            } catch(e) {
+                return { ok: false, error: (e && e.message) || String(e) };
+            }
+        }
+
+        // Pagamentos separados por serviço: controles_pagamentos/{mesAno},
+        // atualizado por merge (nunca reescreve o mês inteiro). Idempotente
+        // pelo mesmo padrão de ledger dos contadores.
+        async function tomoAplicarPagamento(dbLike, operationId, mesAno, servicoId, pago){
+            if (!dbLike) return { ok: false, offline: true, jaAplicado: false };
+            const opRef = dbLike.collection('controles_operacoes').doc(operationId);
+            const pagRef = dbLike.collection('controles_pagamentos').doc(mesAno);
+            try {
+                const jaAplicado = await dbLike.runTransaction(async (tx) => {
+                    const opSnap = await tx.get(opRef);
+                    if (opSnap.exists) return true;
+                    tx.set(pagRef, { [servicoId]: pago, ultimaAtualizacao: new Date().toISOString() }, { merge: true });
+                    tx.set(opRef, { tipo: 'pagamento', mesAno, servicoId, pago, timestamp: Date.now() });
+                    return false;
+                });
+                return { ok: true, jaAplicado };
+            } catch(e) {
+                return { ok: false, error: (e && e.message) || String(e) };
+            }
+        }
+
+        // Evento de laudo cross-PC: controles_dias/{data}/laudos/{eventId}.
+        // eventId = operationId do laudo inteiro — .set() no mesmo id é
+        // idempotente por natureza (reaplica os mesmos dados), sem precisar
+        // de ledger próprio.
+        async function tomoGravarEventoLaudo(dbLike, eventId, data, evento){
+            if (!dbLike) return { ok: false, offline: true };
+            try {
+                await dbLike.collection('controles_dias').doc(data).collection('laudos').doc(eventId).set(evento);
+                return { ok: true };
+            } catch(e) {
+                return { ok: false, error: (e && e.message) || String(e) };
+            }
+        }
+
+        // Aplica documentos diários por cima dos dados locais: um dia com
+        // controles_dias/{dia} é AUTORITATIVO (reflete a soma de operações de
+        // todos os PCs) e substitui o dado local daquele dia; dias sem
+        // documento diário ainda ficam como estavam (fallback legado). Núcleo
+        // puro — não muta os objetos recebidos.
+        function tomoAplicarDocsDiarios(examesLocais, diasDocs){
+            const out = Object.assign({}, examesLocais || {});
+            Object.keys(diasDocs || {}).forEach(dia => { out[dia] = diasDocs[dia]; });
+            return out;
+        }
+
+        // Busca os eventos de laudo mais recentes de TODOS os dias via
+        // collectionGroup — é assim que um laudo feito em outro PC aparece
+        // no histórico local, sem depender só do IndexedDB.
+        async function tomoBuscarLaudosCrossPC(dbLike, limite){
+            if (!dbLike || !dbLike.collectionGroup) return [];
+            try {
+                let q = dbLike.collectionGroup('laudos');
+                if (q.orderBy) q = q.orderBy('timestamp', 'desc');
+                if (q.limit) q = q.limit(limite || 100);
+                const snap = await q.get();
+                const out = [];
+                snap.forEach(doc => out.push(Object.assign({ operationId: doc.id }, doc.data())));
+                return out;
+            } catch(e) {
+                console.warn('[Tomografia] Falha ao buscar histórico cross-PC:', e);
+                return [];
+            }
+        }
+
+        // Mescla o log local com eventos remotos por operationId. Núcleo puro
+        // (sem DOM) — é a função coberta pelo teste de regressão do bug do
+        // segmento nulo: NUNCA usa um campo `segmento` singular isolado sem
+        // primeiro tentar o array `segmentos`.
+        function montarHistoricoVisual(localLog, eventosRemotos){
+            const porId = new Map();
+            (localLog || []).forEach((item, idx) => {
+                const id = item.operationId || ('local:' + item.timestamp + ':' + item.empresa + ':' + idx);
+                porId.set(id, {
+                    id, data: item.data, dataFormatada: item.dataFormatada || formatarData(item.data),
+                    horario: item.horario, timestamp: item.timestamp, empresa: item.empresa,
+                    segmentos: Array.isArray(item.segmentos) ? item.segmentos.slice() : [],
+                    tempo: item.tempo, tempoFormatado: item.tempoFormatado, tipo: item.tipo,
+                    origem: item.origem || 'local', _localIndex: idx
+                });
+            });
+            (eventosRemotos || []).forEach(ev => {
+                if (!ev || !ev.operationId) return;
+                const existente = porId.get(ev.operationId);
+                const segmentos = (Array.isArray(ev.segmentos) && ev.segmentos.length)
+                    ? ev.segmentos.slice()
+                    : (ev.segmento ? [ev.segmento] : ((existente && existente.segmentos) || []));
+                porId.set(ev.operationId, {
+                    id: ev.operationId, data: ev.data, dataFormatada: formatarData(ev.data),
+                    horario: ev.horario || (existente && existente.horario),
+                    timestamp: ev.timestamp || (existente && existente.timestamp),
+                    empresa: ev.empresa || (existente && existente.empresa),
+                    segmentos, tempo: ev.tempo, tempoFormatado: ev.tempoFormatado || formatTimeShort(ev.tempo || 0),
+                    tipo: ev.tipo || (existente && existente.tipo),
+                    origem: ev.origem || 'remoto',
+                    _localIndex: existente ? existente._localIndex : undefined
+                });
+            });
+            return Array.from(porId.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        }
+
+        // ---- Fila offline de operações pendentes ----
+        // Cada item tem operationId estável: reprocessar a fila nunca
+        // duplica contagem (o ledger do lado do servidor garante isso).
+        const TOMO_QUEUE_KEY = 'tomoFilaOperacoes';
+        let _tomoFila = [];
+        let _tomoFilaCarregada = false;
+        let _tomoProcessandoFilaPromise = null;
+
+        async function tomoCarregarFila(){
+            if (_tomoFilaCarregada) return;
+            await tomoEnsureStorage();
+            try {
+                const raw = idbLocalStorage.getItem(TOMO_QUEUE_KEY);
+                _tomoFila = raw ? JSON.parse(raw) : [];
+            } catch(e) { _tomoFila = []; }
+            _tomoFilaCarregada = true;
+        }
+        async function tomoPersistirFila(){
+            try { await idbLocalStorage.setItemAsync(TOMO_QUEUE_KEY, JSON.stringify(_tomoFila)); }
+            catch(e) { console.warn('[Tomografia] Falha ao persistir fila offline:', e); }
+        }
+        async function tomoEnfileirar(op){
+            await tomoCarregarFila();
+            _tomoFila.push(Object.assign({ tentativas: 0, criadoEm: Date.now(), status: 'pendente' }, op));
+            await tomoPersistirFila();
+            tomoAtualizarBadgeFila();
+            // Não dispara tomoProcessarFila() aqui: quem chama decide quando
+            // tentar (evita duas execuções concorrentes disputando o mesmo
+            // "está processando?" logo depois de enfileirar).
+            return op.operationId;
+        }
+        function tomoStatusFila(){
+            return {
+                pendentes: _tomoFila.filter(o => o.status === 'pendente').length,
+                comErro: _tomoFila.filter(o => o.status === 'erro').length,
+                total: _tomoFila.length
+            };
+        }
+        // Processa a fila em ordem; para no primeiro item offline (preserva
+        // ordem e evita martelar retries sem rede). Itens concluídos são
+        // removidos; os demais permanecem para o próximo processamento.
+        // Chamadas concorrentes (ex.: tomoEnfileirar dispara em segundo
+        // plano e o usuário clica "Sincronizar" logo em seguida) se JUNTAM
+        // à mesma execução em andamento em vez de virar um no-op silencioso
+        // — quem chamou espera o processamento real terminar.
+        async function tomoProcessarFila(){
+            if (_tomoProcessandoFilaPromise) return _tomoProcessandoFilaPromise;
+            _tomoProcessandoFilaPromise = (async () => {
+                try {
+                    await tomoCarregarFila();
+                    if (!db) return;
+                    let mudou = false;
+                    for (const op of _tomoFila.slice()) {
+                        if (op.status === 'concluido') continue;
+                        let res;
+                        if (op.tipo === 'contador') res = await tomoAplicarIncrementoAtomico(db, op.operationId, op.data, op.seg, op.serv, op.delta);
+                        else if (op.tipo === 'pagamento') res = await tomoAplicarPagamento(db, op.operationId, op.mesAno, op.servicoId, op.pago);
+                        else if (op.tipo === 'laudo') res = await tomoGravarEventoLaudo(db, op.operationId, op.data, op.evento);
+                        else res = { ok: false, error: 'tipo de operação desconhecido: ' + op.tipo };
+                        if (res.ok) {
+                            op.status = 'concluido'; mudou = true;
+                        } else {
+                            op.tentativas = (op.tentativas || 0) + 1;
+                            op.status = res.offline ? 'pendente' : 'erro';
+                            op.ultimoErro = res.error;
+                            mudou = true;
+                            if (res.offline) break;
+                        }
+                    }
+                    _tomoFila = _tomoFila.filter(o => o.status !== 'concluido');
+                    if (mudou) await tomoPersistirFila();
+                } finally {
+                    tomoAtualizarBadgeFila();
+                }
+            })();
+            try {
+                await _tomoProcessandoFilaPromise;
+            } finally {
+                _tomoProcessandoFilaPromise = null;
+            }
+        }
+        function tomoAtualizarBadgeFila(){
+            const el = document.getElementById('fila-status');
+            if (!el) return;
+            const st = tomoStatusFila();
+            if (st.total === 0) { el.style.display = 'none'; el.textContent = ''; return; }
+            el.style.display = 'inline-block';
+            el.className = 'sync-status ' + (st.comErro > 0 ? 'sync-error' : 'sync-warning');
+            el.textContent = `⏳ ${st.pendentes} operação(ões) pendente(s)` + (st.comErro > 0 ? ` · ⚠️ ${st.comErro} com erro` : '');
+        }
+
+        // ---- Migração manual e idempotente do legado mensal para os
+        // documentos diários autoritativos ----
+        // Nunca roda sozinha (sem carregamento automático); nunca sobrescreve
+        // um dia que já exista em controles_dias — por isso reexecutar é
+        // seguro (dry-run e execução real usam a MESMA lógica de decisão).
+        async function tomoMigrarLegado(dbLike, opts){
+            const dryRun = !opts || opts.dryRun !== false;
+            const relatorio = {
+                dryRun, mesesEncontrados: [], diasAnalisados: 0,
+                criados: [], ignoradosExistentes: [], ignoradosVazios: [], erros: []
+            };
+            if (!dbLike) { relatorio.erros.push('sem conexão com Firestore'); return relatorio; }
+            try {
+                const principal = await dbLike.collection('controles').doc('examesTomografia').get();
+                const meses = (principal.exists && principal.data().mesesDisponiveis) || [];
+                relatorio.mesesEncontrados = meses.slice();
+                for (const mes of meses) {
+                    let docMes;
+                    try { docMes = await dbLike.collection('controles').doc(`examesTomografia_${mes}`).get(); }
+                    catch(e) { relatorio.erros.push(`mês ${mes}: ${(e && e.message) || e}`); continue; }
+                    if (!docMes.exists) continue;
+                    const exames = docMes.data().exames || {};
+                    for (const dataDia of Object.keys(exames)) {
+                        relatorio.diasAnalisados++;
+                        const diaExames = exames[dataDia];
+                        if (!diaExames || Object.keys(diaExames).length === 0) { relatorio.ignoradosVazios.push(dataDia); continue; }
+                        const diaRef = dbLike.collection('controles_dias').doc(dataDia);
+                        let diaSnap;
+                        try { diaSnap = await diaRef.get(); }
+                        catch(e) { relatorio.erros.push(`dia ${dataDia}: ${(e && e.message) || e}`); continue; }
+                        if (diaSnap.exists) { relatorio.ignoradosExistentes.push(dataDia); continue; }
+                        if (dryRun) { relatorio.criados.push(dataDia); continue; }
+                        try {
+                            await diaRef.set({ data: dataDia, exames: diaExames, ultimaAtualizacao: new Date().toISOString(), origem: 'migracao-legado' });
+                            relatorio.criados.push(dataDia);
+                        } catch(e) { relatorio.erros.push(`dia ${dataDia}: ${(e && e.message) || e}`); }
+                    }
+                }
+            } catch(e) { relatorio.erros.push(`documento principal: ${(e && e.message) || e}`); }
+            return relatorio;
+        }
+        function tomoFormatarRelatorioMigracao(r){
+            return [
+                `Dry-run: ${r.dryRun ? 'sim (nada foi gravado)' : 'não (execução real)'}`,
+                `Meses encontrados: ${r.mesesEncontrados.join(', ') || '(nenhum)'}`,
+                `Dias analisados: ${r.diasAnalisados}`,
+                `Criados: ${r.criados.length}${r.criados.length ? ' — ' + r.criados.slice(0, 20).join(', ') + (r.criados.length > 20 ? '...' : '') : ''}`,
+                `Ignorados (já existiam em controles_dias): ${r.ignoradosExistentes.length}`,
+                `Ignorados (dia vazio no legado): ${r.ignoradosVazios.length}`,
+                `Erros: ${r.erros.length}${r.erros.length ? ' — ' + r.erros.slice(0, 5).join(' | ') : ''}`
+            ].join('\n');
+        }
+
+        // ---- Auditoria somente-leitura ----
+        // Compara local x diário x legado mensal x fila pendente. Nunca
+        // escreve nada — só lê e reporta divergências.
+        async function tomoAuditar(dbLike, dadosLocais){
+            const relatorio = { dias: {}, filaPendente: tomoStatusFila(), geradoEm: new Date().toISOString() };
+            const dias = new Set(Object.keys((dadosLocais && dadosLocais.exames) || {}));
+            if (dbLike) {
+                try {
+                    const principal = await dbLike.collection('controles').doc('examesTomografia').get();
+                    const meses = (principal.exists && principal.data().mesesDisponiveis) || [];
+                    for (const mes of meses) {
+                        try {
+                            const docMes = await dbLike.collection('controles').doc(`examesTomografia_${mes}`).get();
+                            if (docMes.exists) Object.keys(docMes.data().exames || {}).forEach(d => dias.add(d));
+                        } catch(e) {}
+                    }
+                } catch(e) {}
+            }
+            const contarTotal = (obj) => !obj ? 0 : Object.values(obj).reduce((acc, porServ) => acc + Object.values(porServ || {}).reduce((a, b) => a + (b || 0), 0), 0);
+            for (const dia of dias) {
+                const local = ((dadosLocais && dadosLocais.exames) || {})[dia] || null;
+                let diario = null, legadoMes = null;
+                if (dbLike) {
+                    try { const s = await dbLike.collection('controles_dias').doc(dia).get(); if (s.exists) diario = s.data().exames || {}; } catch(e) {}
+                    try {
+                        const mes = dia.substring(0, 7);
+                        const s = await dbLike.collection('controles').doc(`examesTomografia_${mes}`).get();
+                        if (s.exists) legadoMes = (s.data().exames || {})[dia] || null;
+                    } catch(e) {}
+                }
+                const totais = { local: contarTotal(local), diario: diario === null ? null : contarTotal(diario), legadoMes: legadoMes === null ? null : contarTotal(legadoMes) };
+                const valores = [totais.local, totais.diario, totais.legadoMes].filter(v => v !== null);
+                const divergente = new Set(valores).size > 1;
+                relatorio.dias[dia] = { totais, divergente };
+            }
+            return relatorio;
+        }
+        function tomoFormatarRelatorioAuditoria(r){
+            const linhas = Object.keys(r.dias).sort().map(d => {
+                const x = r.dias[d];
+                return `${d}: local=${x.totais.local} diario=${x.totais.diario === null ? '-' : x.totais.diario} legadoMes=${x.totais.legadoMes === null ? '-' : x.totais.legadoMes}${x.divergente ? '  ⚠️ DIVERGENTE' : ''}`;
+            });
+            return [`Gerado em: ${r.geradoEm}`, `Fila pendente: ${r.filaPendente.pendentes} (erros: ${r.filaPendente.comErro})`, '', ...linhas].join('\n');
+        }
+
+        // ============================================
         // CARREGAR DADOS
         // ============================================
         async function carregarDados() {
             try {
                 await tomoInitStorage();
                 atualizarStatus("🔄 Carregando dados...", "loading");
-                
+
                 try {
                     const savedLog = idbLocalStorage.getItem('historicoLaudos');
                     if (savedLog) historicoLaudos = JSON.parse(savedLog);
                 } catch(e) {}
-                
+
                 const local = idbLocalStorage.getItem('examesTomografia');
                 let dadosLocais = null;
                 if (local) {
@@ -909,16 +1631,16 @@
                         console.log('📁 Dados locais carregados:', Object.keys(dadosApp.exames).length, 'dias');
                     } catch(e) { console.error('Erro ao parsear dados locais:', e); }
                 }
-                
+
                 if (!dadosApp.exames) dadosApp.exames = {};
                 if (!dadosApp.tempos) dadosApp.tempos = {};
                 if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                
+
                 const totalKey = `totalAcumulado_${dataExameInput.value}`;
                 const savedTotal = idbLocalStorage.getItem(totalKey);
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
-                
+
                 if (db) {
                     try {
                         atualizarStatus("🔄 Buscando dados da nuvem...", "loading");
@@ -929,6 +1651,7 @@
                             if (meses.length > 0) {
                                 let dadosNuvem = { exames: {}, tempos: {}, pagamentos: {} };
                                 let totalDiasNuvem = 0;
+                                let mesesComFalhaLeitura = 0;
                                 for (const mes of meses) {
                                     try {
                                         const docMes = await db.collection('controles').doc(`examesTomografia_${mes}`).get();
@@ -939,11 +1662,15 @@
                                             if (dadosMes.pagamentos) Object.assign(dadosNuvem.pagamentos, dadosMes.pagamentos);
                                             totalDiasNuvem += Object.keys(dadosMes.exames || {}).length;
                                         }
-                                    } catch(e) { console.log(`⚠️ Erro mês ${mes}:`, e.message); }
+                                    } catch(e) { mesesComFalhaLeitura++; console.log(`⚠️ Erro mês ${mes}:`, e.message); }
                                 }
                                 console.log('☁️ Dados da nuvem:', totalDiasNuvem, 'dias');
-                                
+
                                 let dadosModificados = false;
+                                // Legado: só preenche o que falta local (nunca sobrescreve
+                                // um dia já existente — proteção contra o incidente de
+                                // R$2000 documentado no AI.md). Dias com documento diário
+                                // autoritativo (abaixo) tomam precedência sobre isso.
                                 Object.keys(dadosNuvem.exames).forEach(data => {
                                     if (!dadosApp.exames[data]) { dadosApp.exames[data] = dadosNuvem.exames[data]; dadosModificados = true; }
                                 });
@@ -954,18 +1681,55 @@
                                     if (!dadosApp.pagamentos[mes]) { dadosApp.pagamentos[mes] = dadosNuvem.pagamentos[mes]; dadosModificados = true; }
                                 });
                                 if (dadosModificados) {
-                                    idbLocalStorage.setItem('examesTomografia', JSON.stringify(dadosApp));
-                                    console.log('✅ Dados da nuvem mesclados');
+                                    try {
+                                        await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp));
+                                        console.log('✅ Dados da nuvem mesclados (' + tomoStorageMode() + ')');
+                                    } catch(mergeErr) {
+                                        console.error('❌ Falha ao persistir merge da nuvem:', mergeErr && mergeErr.message);
+                                        atualizarStatus("❌ Falha ao salvar localmente", "error");
+                                    }
                                 }
+                                const leitura = tomoClassificarLeitura(meses.length, mesesComFalhaLeitura);
+                                atualizarStatus(leitura.mensagem, leitura.classe);
+                            } else {
+                                atualizarStatus("✅ Sincronizado", "success");
                             }
-                        } else { await salvarDadosFirebase(); }
-                        atualizarStatus("✅ Sincronizado", "success");
+                        } else {
+                            await salvarDadosFirebase();
+                        }
                     } catch(e) {
                         console.log('⚠️ Erro nuvem:', e.message);
                         atualizarStatus("📁 Modo offline", "offline");
                     }
+
+                    // Multi-PC: documentos diários autoritativos substituem o dia
+                    // local correspondente (refletem a soma de operações de TODOS
+                    // os PCs via ledger). Novo dia/mês aparece aqui mesmo que o
+                    // documento principal/metadata legado não tenha sido atualizado.
+                    try {
+                        const diasSnap = await db.collection('controles_dias').get();
+                        const diasDocs = {};
+                        diasSnap.forEach(doc => { diasDocs[doc.id] = (doc.data() && doc.data().exames) || {}; });
+                        const antes = JSON.stringify(dadosApp.exames);
+                        dadosApp.exames = tomoAplicarDocsDiarios(dadosApp.exames, diasDocs);
+                        if (JSON.stringify(dadosApp.exames) !== antes) {
+                            try { await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp)); }
+                            catch(e) { console.error('❌ Falha ao persistir documentos diários:', e && e.message); }
+                        }
+                    } catch(e) { console.log('⚠️ Erro ao ler controles_dias:', e.message); }
+
+                    // Pagamentos separados por serviço (autoritativos): preenche
+                    // por cima do que vier do legado (mais recente que o mensal).
+                    try {
+                        const pagSnap = await db.collection('controles_pagamentos').get();
+                        pagSnap.forEach(doc => {
+                            const dadosPag = doc.data() || {};
+                            if (!dadosApp.pagamentos[doc.id]) dadosApp.pagamentos[doc.id] = {};
+                            Object.keys(dadosPag).forEach(k => { if (k !== 'ultimaAtualizacao') dadosApp.pagamentos[doc.id][k] = dadosPag[k]; });
+                        });
+                    } catch(e) { console.log('⚠️ Erro ao ler controles_pagamentos:', e.message); }
                 } else { atualizarStatus("📁 Modo offline", "offline"); }
-                
+
                 // 💡 NOVO: limpa backups gigantes no boot
                 try {
                     const backupsRaw = idbLocalStorage.getItem(BACKUP_KEY);
@@ -974,7 +1738,7 @@
                         idbLocalStorage.removeItem(BACKUP_KEY);
                     }
                 } catch(e) {}
-                
+
                 popularSelectEmpresasModal();
                 criarLegenda();
                 criarTabela();
@@ -986,10 +1750,26 @@
                 atualizarListaBackups();
                 iniciarBackupAutomatico();
                 iniciarSalvamentoAutomatico();
+
+                // Multi-PC: carrega a fila offline persistida, tenta esvaziá-la
+                // (idempotente — seguro mesmo se uma operação já tinha sido
+                // aplicada do lado do servidor antes de cair a conexão) e busca
+                // o histórico cross-PC recente sem bloquear a UI.
+                await tomoCarregarFila();
+                tomoAtualizarBadgeFila();
+                tomoProcessarFila();
+                tomoAtualizarHistoricoCrossPC();
+                iniciarProcessamentoFila();
             } catch (e) {
                 console.error('❌ Erro ao carregar:', e);
                 atualizarStatus("❌ Erro ao carregar", "error");
             }
+        }
+        function iniciarProcessamentoFila(){
+            setInterval(() => { tomoProcessarFila(); }, 20000);
+        }
+        if (typeof window !== 'undefined' && window.addEventListener) {
+            window.addEventListener('online', () => tomoProcessarFila());
         }
 
         function repararDados() {
@@ -1035,17 +1815,21 @@
             if (!data) { showNotification("❌ Selecione uma DATA!", "error"); return; }
             if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
-            
+            await tomoEnsureStorage();
+
             const tempoGasto = currentSeconds;
             const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome, chave: cb.value }));
             const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
-            adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data);
-            
+            const baseOpId = tomoNovoOperationId();
+            const logOk = await adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data, baseOpId);
+
+            let totalOk = true;
             if(tempoGasto > 0) {
                 totalSeconds += tempoGasto;
                 updateTotalDisplay();
                 const totalKey = `totalAcumulado_${data}`;
-                idbLocalStorage.setItem(totalKey, totalSeconds.toString());
+                try { await idbLocalStorage.setItemAsync(totalKey, totalSeconds.toString()); }
+                catch(e) { console.error('❌ Falha ao persistir total do dia:', e && e.message); totalOk = false; }
             }
             if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
@@ -1063,33 +1847,65 @@
             });
             marcarMesSujo(data);
             dadosSujos = true;
-            
+
+            // Multi-PC: cada segmento vira seu próprio incremento atômico
+            // idempotente (operationId derivado do id do laudo); o laudo
+            // inteiro vira UM evento cross-PC (mesma operationId base).
+            for (const s of segmentosSelecionados) {
+                await tomoEnfileirar({ operationId: `${baseOpId}:${s.chave}`, tipo: 'contador', data, seg: s.chave, serv: servico, delta: 1 });
+            }
+            await tomoEnfileirar({
+                operationId: baseOpId, tipo: 'laudo', data,
+                evento: {
+                    empresa: empresaNome, segmentos: segmentosSelecionados.map(s => s.nome),
+                    tempo: tempoGasto, tempoFormatado: formatTimeShort(tempoGasto), tipo: 'cronometro',
+                    horario: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: Date.now(), origem: tomoDeviceId(), operationId: baseOpId
+                }
+            });
+            await tomoProcessarFila();
+
             limparSelecoesSegmentos();
             resetCurrentTimerAfterCommit();
             showNotification("🔄 Salvando...", "warning");
-            const salvou = await salvarDadosFirebase();
+            const resSave = await salvarDadosFirebase();
             criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); atualizarLog();
-            if (salvou) showNotification(`✅ Laudo finalizado! (${segmentosSelecionados.map(s => s.nome).join(', ')})`, "success");
+            if (!logOk || !totalOk || !resSave.localOk) {
+                showNotification("❌ Falha ao salvar localmente. Dados mantidos em memória.", "error");
+                return;
+            }
+            if (resSave.cloudOk) showNotification(`✅ Laudo finalizado! (${segmentosSelecionados.map(s => s.nome).join(', ')})`, "success");
             else showNotification("⚠️ Salvo LOCALMENTE. Sincronize depois.", "warning");
         }
 
         async function alterarContador(seg, serv, delta) {
-            const data = dataExameInput.value; 
+            const data = dataExameInput.value;
             if (!data) { showNotification("❌ Data inválida!", "error"); return; }
-            if(!dadosApp.exames[data]) dadosApp.exames[data] = {}; 
+            await tomoEnsureStorage();
+            if(!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
-            const atual = dadosApp.exames[data][seg][serv] || 0; 
+            const atual = dadosApp.exames[data][seg][serv] || 0;
             const novo = Math.max(0, atual + delta);
+            const deltaEfetivo = novo - atual;
             dadosApp.exames[data][seg][serv] = novo;
             marcarMesSujo(data);
             dadosSujos = true;
+            // +/- manual não gera evento de laudo cross-PC (fora do escopo
+            // desta etapa) — mas o contador em si ainda é um incremento
+            // atômico idempotente, igual ao do cronômetro.
+            if (deltaEfetivo !== 0) {
+                await tomoEnfileirar({ operationId: tomoNovoOperationId(), tipo: 'contador', data, seg, serv, delta: deltaEfetivo });
+                await tomoProcessarFila();
+            }
             if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
-                adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data);
+                const logOk = await adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data);
+                if (!logOk) showNotification("❌ Falha ao salvar log localmente.", "error");
             }
             criarTabela(); atualizarResumoEmpresas(); atualizarLog();
-            salvarDadosFirebaseSilencioso();
+            const ok = await salvarDadosFirebaseSilencioso();
+            if (ok === false && !tomoLastLocalOk()) showNotification("❌ Falha ao salvar localmente.", "error");
         }
 
         function criarLegenda() {
@@ -1302,12 +2118,25 @@
                 </div>`;
         }
         
-        function togglePagamentoUnificado(empresaId, mesAno) {
+        async function togglePagamentoUnificado(empresaId, mesAno) {
             if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
-            dadosApp.pagamentos[mesAno][empresaId] = !dadosApp.pagamentos[mesAno][empresaId];
-            marcarTudoSujo(); // pagamentos sao duplicados em cada doc de mes
+            const novoValor = !dadosApp.pagamentos[mesAno][empresaId];
+            dadosApp.pagamentos[mesAno][empresaId] = novoValor;
+            marcarTudoSujo(); // legado: pagamentos duplicados em cada doc de mes
             dadosSujos = true;
-            salvarDadosFirebase(); gerarRelatorioMensal();
+            // Autoritativo/novo: controles_pagamentos/{mesAno}, por serviço,
+            // sem depender de reescrever o documento mensal inteiro.
+            await tomoEnfileirar({ operationId: tomoNovoOperationId(), tipo: 'pagamento', mesAno, servicoId: empresaId, pago: novoValor });
+            await tomoProcessarFila();
+            try {
+                const resPag = await salvarDadosFirebase();
+                if (!resPag.localOk) showNotification("❌ Falha ao salvar localmente.", "error");
+                else if (!resPag.cloudOk && !resPag.offline) showNotification("⚠️ Pagamento salvo localmente; nuvem com falha. Sincronize depois.", "warning");
+            } catch(e) {
+                console.error('❌ Falha ao salvar pagamento:', e);
+                showNotification("❌ Falha ao salvar localmente.", "error");
+            }
+            gerarRelatorioMensal();
         }
 
         function downloadRelatorioExcel() {
@@ -1335,9 +2164,10 @@
             setInterval(() => { criarBackupAutomatico(); }, 5 * 60 * 1000);
         }
 
-        function criarBackupAutomatico() {
+        async function criarBackupAutomatico() {
             try {
-                let backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]'); 
+                await tomoEnsureStorage();
+                let backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]');
                 const agora = new Date();
                 // 💡 Só últimos 30 dias de dados
                 const dadosRecentes = { exames: {}, tempos: {}, pagamentos: dadosApp.pagamentos || {} };
@@ -1348,27 +2178,27 @@
                 Object.keys(dadosApp.tempos || {}).forEach(d => {
                     if (new Date(d) >= limite) dadosRecentes.tempos[d] = dadosApp.tempos[d];
                 });
-                const novoBackup = { 
-                    id: agora.getTime(), data: agora.toLocaleString('pt-BR'), 
-                    conteudo: dadosRecentes, timerDia: totalSeconds, dataReferencia: dataExameInput.value 
+                const novoBackup = {
+                    id: agora.getTime(), data: agora.toLocaleString('pt-BR'),
+                    conteudo: dadosRecentes, timerDia: totalSeconds, dataReferencia: dataExameInput.value
                 };
-                backups.unshift(novoBackup); 
+                backups.unshift(novoBackup);
                 // 💡 Só 3 backups
                 if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
-                idbLocalStorage.setItem(BACKUP_KEY, JSON.stringify(backups)); 
+                await idbLocalStorage.setItemAsync(BACKUP_KEY, JSON.stringify(backups));
                 atualizarListaBackups();
-            } catch (e) { 
+            } catch (e) {
                 console.error("Erro ao salvar backup:", e);
                 if (e.name === 'QuotaExceededError') {
                     console.warn('🗑️ Quota excedida — limpando backups antigos');
                     try {
-                        idbLocalStorage.removeItem(BACKUP_KEY);
+                        await idbLocalStorage.removeItemAsync(BACKUP_KEY);
                         const emergencial = [{
                             id: Date.now(), data: new Date().toLocaleString('pt-BR'),
                             conteudo: { exames: {}, tempos: {}, pagamentos: dadosApp.pagamentos || {} },
                             timerDia: totalSeconds, dataReferencia: dataExameInput.value
                         }];
-                        idbLocalStorage.setItem(BACKUP_KEY, JSON.stringify(emergencial));
+                        await idbLocalStorage.setItemAsync(BACKUP_KEY, JSON.stringify(emergencial));
                     } catch(e2) { console.error('❌ Falha no backup emergencial:', e2); }
                 }
             }
@@ -1388,83 +2218,426 @@
                 </div>`).join('');
         }
 
+        // ============================================
+        // BACKUP / RESTORE SEGURO
+        // ============================================
+        // Todo restore segue: tamanho → parse → validação → normalização em
+        // temporário → preview → confirmação → snapshot prévio → aplicação →
+        // persistência aguardada → sync estruturado. O restore automático
+        // (30 dias) faz MERGE por data (nunca apaga histórico mais antigo); o
+        // restore manual é substituição completa, mas só após dupla
+        // confirmação + snapshot de segurança.
+        const TOMO_RESTORE_MAX_BYTES = 2 * 1024 * 1024; // 2MB (app < 200KB)
+        const TOMO_RESTORE_MAX_DIAS = 5000;
+        const TOMO_SNAPSHOT_PREFIX = 'tomoPreRestore_';
+        const TOMO_SNAPSHOT_INDEX = 'tomoPreRestore_index';
+        const TOMO_SNAPSHOT_MAX = 5;
+
+        function tomoRestoreTamanhoOk(bytes){ return typeof bytes === 'number' && bytes >= 0 && bytes <= TOMO_RESTORE_MAX_BYTES; }
+        function tomoEhObjeto(v){ return v !== null && typeof v === 'object' && !Array.isArray(v); }
+        function tomoEhDataStr(s){ return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
+
+        // Validador central. Retorna {ok, errors[], formato} SEM tocar no estado.
+        function validateBackupPayload(json){
+            const errors = [];
+            if (!tomoEhObjeto(json)) return { ok: false, errors: ['raiz deve ser um objeto JSON'], formato: null };
+            let nucleo = null, formato = null, log = null;
+            if (tomoEhObjeto(json.dadosApp)) { nucleo = json.dadosApp; formato = 'manual-novo'; log = json.historicoLaudos; }
+            else if (tomoEhObjeto(json.conteudo)) { nucleo = json.conteudo; formato = 'auto-conteudo'; }
+            else if (tomoEhObjeto(json.exames)) { nucleo = json; formato = 'legado'; log = json.historicoLaudos; }
+            else if (Object.keys(json).every(k => tomoEhDataStr(k))) { nucleo = { exames: json, tempos: {}, pagamentos: {} }; formato = 'mapa-exames'; }
+            else return { ok: false, errors: ['formato desconhecido: esperado {dadosApp}, {exames,...} ou mapa de datas'], formato: null };
+
+            const exames = nucleo.exames, tempos = nucleo.tempos, pagamentos = nucleo.pagamentos;
+            if (!tomoEhObjeto(exames)) errors.push('exames deve ser um objeto');
+            else {
+                const dias = Object.keys(exames);
+                if (dias.length > TOMO_RESTORE_MAX_DIAS) errors.push(`dias demais (${dias.length} > ${TOMO_RESTORE_MAX_DIAS})`);
+                for (const data of dias) {
+                    if (!tomoEhDataStr(data)) { errors.push(`data inválida em exames: ${String(data).slice(0, 40)}`); continue; }
+                    const dia = exames[data];
+                    if (!tomoEhObjeto(dia)) { errors.push(`dia ${data} deve ser um objeto`); continue; }
+                    for (const seg of Object.keys(dia)) {
+                        const porEmp = dia[seg];
+                        if (!tomoEhObjeto(porEmp)) { errors.push(`${data}/${seg} deve ser um objeto`); continue; }
+                        for (const emp of Object.keys(porEmp)) {
+                            const qtd = porEmp[emp];
+                            if (typeof qtd !== 'number' || !Number.isFinite(qtd) || !Number.isInteger(qtd) || qtd < 0) {
+                                errors.push(`contagem inválida em ${data}/${seg}/${emp}: ${String(qtd).slice(0, 40)}`);
+                            }
+                        }
+                    }
+                }
+            }
+            if (tempos !== undefined && !tomoEhObjeto(tempos)) errors.push('tempos deve ser um objeto');
+            else if (tomoEhObjeto(tempos)) {
+                for (const data of Object.keys(tempos)) {
+                    if (!tomoEhDataStr(data)) { errors.push(`data inválida em tempos: ${String(data).slice(0, 40)}`); continue; }
+                    const dia = tempos[data];
+                    if (!tomoEhObjeto(dia)) { errors.push(`tempos ${data} deve ser um objeto`); continue; }
+                    for (const k of Object.keys(dia)) {
+                        const arr = dia[k];
+                        if (!Array.isArray(arr)) { errors.push(`tempos ${data}/${k} deve ser um array`); continue; }
+                        for (const v of arr) {
+                            if (typeof v !== 'number' || !Number.isFinite(v)) { errors.push(`tempo inválido em ${data}/${k}`); break; }
+                        }
+                    }
+                }
+            }
+            if (pagamentos !== undefined && !tomoEhObjeto(pagamentos)) errors.push('pagamentos deve ser um objeto');
+            else if (tomoEhObjeto(pagamentos)) {
+                for (const mes of Object.keys(pagamentos)) {
+                    const porEmp = pagamentos[mes];
+                    if (!tomoEhObjeto(porEmp)) { errors.push(`pagamentos ${mes} deve ser um objeto`); continue; }
+                    for (const emp of Object.keys(porEmp)) {
+                        if (typeof porEmp[emp] !== 'boolean') errors.push(`pagamento ${mes}/${emp} deve ser booleano`);
+                    }
+                }
+            }
+            if (log !== undefined && log !== null) {
+                if (!Array.isArray(log)) errors.push('historicoLaudos deve ser um array');
+                else {
+                    if (log.length > 5000) errors.push('historicoLaudos grande demais');
+                    log.forEach((item, i) => {
+                        if (!tomoEhObjeto(item)) { errors.push(`historicoLaudos[${i}] deve ser um objeto`); return; }
+                        if (item.data !== undefined && !tomoEhDataStr(item.data)) errors.push(`historicoLaudos[${i}].data inválida`);
+                        if (item.tempo !== undefined && (typeof item.tempo !== 'number' || !Number.isFinite(item.tempo))) errors.push(`historicoLaudos[${i}].tempo inválido`);
+                        if (item.segmentos !== undefined && (!Array.isArray(item.segmentos) || !item.segmentos.every(s => typeof s === 'string'))) errors.push(`historicoLaudos[${i}].segmentos inválidos`);
+                    });
+                }
+            }
+            // Backup totalmente vazio quase sempre é engano (para zerar há ação
+            // própria); rejeita em vez de permitir wipe acidental.
+            const vazio = (!exames || Object.keys(exames).length === 0)
+                && (!tempos || Object.keys(tempos).length === 0)
+                && (!pagamentos || Object.keys(pagamentos).length === 0)
+                && !(Array.isArray(log) && log.length > 0);
+            if (vazio) errors.push('backup vazio: nada para restaurar');
+            return { ok: errors.length === 0, errors, formato };
+        }
+
+        // Normaliza payload validado em objeto temporário NOVO (não muta a
+        // entrada nem o estado). Ausências viram {} (igual ao comportamento
+        // histórico `|| {}`); nada é inventado além disso.
+        function normalizarBackupPayload(json, formato){
+            const src = (formato === 'manual-novo') ? json.dadosApp
+                : (formato === 'auto-conteudo') ? json.conteudo : json;
+            const examesSrc = (formato === 'mapa-exames') ? src : (src.exames || {});
+            const out = {
+                dadosApp: {
+                    exames: JSON.parse(JSON.stringify(examesSrc)),
+                    tempos: JSON.parse(JSON.stringify(src.tempos || {})),
+                    pagamentos: JSON.parse(JSON.stringify(src.pagamentos || {}))
+                },
+                historicoLaudos: null
+            };
+            const logSrc = (formato === 'manual-novo' || formato === 'legado') ? json.historicoLaudos : null;
+            if (Array.isArray(logSrc)) out.historicoLaudos = JSON.parse(JSON.stringify(logSrc));
+            return out;
+        }
+
+        // Resumo puro para o preview (backup x atual).
+        function resumirConteudoBackup(conteudo){
+            const exames = (conteudo && conteudo.exames) || {};
+            const tempos = (conteudo && conteudo.tempos) || {};
+            const pagamentos = (conteudo && conteudo.pagamentos) || {};
+            const dias = Object.keys(exames).sort();
+            let totalExames = 0;
+            for (const d of dias) {
+                const dia = exames[d] || {};
+                for (const seg of Object.keys(dia)) {
+                    const porEmp = dia[seg] || {};
+                    for (const emp of Object.keys(porEmp)) {
+                        const q = porEmp[emp];
+                        if (typeof q === 'number' && Number.isFinite(q)) totalExames += q;
+                    }
+                }
+            }
+            let temposCount = 0;
+            for (const d of Object.keys(tempos)) {
+                const dia = tempos[d] || {};
+                for (const k of Object.keys(dia)) { if (Array.isArray(dia[k])) temposCount += dia[k].length; }
+            }
+            let pagCount = 0;
+            for (const m of Object.keys(pagamentos)) { pagCount += Object.keys(pagamentos[m] || {}).length; }
+            return { dias: dias.length, totalExames, temposCount, pagCount, minData: dias[0] || '-', maxData: dias[dias.length - 1] || '-' };
+        }
+        function montarTextoPreview(tipo, resumoBackup, resumoAtual, tamanhoBytes){
+            const fmt = (b) => (typeof b === 'number' && b > 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' bytes');
+            return [
+                `Tipo: ${tipo}`,
+                `Tamanho: ${fmt(tamanhoBytes)}`,
+                ``,
+                `ATUAL:`,
+                `${resumoAtual.dias} dias (${resumoAtual.minData} … ${resumoAtual.maxData})`,
+                `${resumoAtual.totalExames} exames, ${resumoAtual.temposCount} tempos, ${resumoAtual.pagCount} pagamentos`,
+                ``,
+                `BACKUP:`,
+                `${resumoBackup.dias} dias (${resumoBackup.minData} … ${resumoBackup.maxData})`,
+                `${resumoBackup.totalExames} exames, ${resumoBackup.temposCount} tempos, ${resumoBackup.pagCount} pagamentos`
+            ].join('\n');
+        }
+
+        // Merge por data (restore automático): datas do backup substituem
+        // aquelas datas; as demais permanecem intactas. Pagamentos preenchem
+        // apenas meses/empresas ausentes, sem sobrescrever o local.
+        function mesclarBackupPorData(atual, conteudoBackup){
+            const exames = Object.assign({}, (atual && atual.exames) || {});
+            const tempos = Object.assign({}, (atual && atual.tempos) || {});
+            const bex = (conteudoBackup && conteudoBackup.exames) || {};
+            const bte = (conteudoBackup && conteudoBackup.tempos) || {};
+            for (const d of Object.keys(bex)) exames[d] = bex[d];
+            for (const d of Object.keys(bte)) tempos[d] = bte[d];
+            const pagamentos = JSON.parse(JSON.stringify((atual && atual.pagamentos) || {}));
+            const bpg = (conteudoBackup && conteudoBackup.pagamentos) || {};
+            for (const m of Object.keys(bpg)) {
+                if (!tomoEhObjeto(pagamentos[m])) pagamentos[m] = {};
+                for (const emp of Object.keys(bpg[m] || {})) {
+                    if (!(emp in pagamentos[m])) pagamentos[m][emp] = bpg[m][emp];
+                }
+            }
+            return { exames, tempos, pagamentos };
+        }
+
+        // Monta o snapshot pré-restore (puro; não persiste).
+        function montarSnapshotPreRestore(motivo){
+            const agora = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const id = `${agora.getFullYear()}-${pad(agora.getMonth() + 1)}-${pad(agora.getDate())}_${pad(agora.getHours())}-${pad(agora.getMinutes())}-${pad(agora.getSeconds())}`;
+            return {
+                versao: 1, tipo: 'pre-restore', motivo: motivo || '',
+                criadoEm: agora.toISOString(), id,
+                dadosApp: JSON.parse(JSON.stringify(dadosApp)),
+                historicoLaudos: JSON.parse(JSON.stringify(historicoLaudos)),
+                totalSeconds: totalSeconds,
+                dataExame: (typeof dataExameInput !== 'undefined' && dataExameInput) ? dataExameInput.value : null
+            };
+        }
+        function nomeArquivoSnapshot(snap){ return `pre-restore_${snap.id}.json`; }
+        // Persiste o snapshot (IndexedDB, máx. 5 + download). Falha => {ok:false}
+        // e o restore DEVE abortar. O navegador não grava direto na pasta do
+        // projeto: o download vai para Downloads — mover depois se quiser.
+        async function tomoSnapshotPreRestore(motivo){
+            try {
+                await tomoEnsureStorage();
+                const snap = montarSnapshotPreRestore(motivo);
+                const texto = JSON.stringify(snap);
+                await idbLocalStorage.setItemAsync(TOMO_SNAPSHOT_PREFIX + snap.id, texto);
+                try {
+                    let idx = JSON.parse(idbLocalStorage.getItem(TOMO_SNAPSHOT_INDEX) || '[]');
+                    if (!Array.isArray(idx)) idx = [];
+                    idx.unshift(snap.id);
+                    while (idx.length > TOMO_SNAPSHOT_MAX) {
+                        const velho = idx.pop();
+                        try { await idbLocalStorage.removeItemAsync(TOMO_SNAPSHOT_PREFIX + velho); } catch(e) {}
+                    }
+                    await idbLocalStorage.setItemAsync(TOMO_SNAPSHOT_INDEX, JSON.stringify(idx));
+                } catch(e) { console.warn('[Tomografia] Falha ao indexar snapshot:', e); }
+                try {
+                    if (typeof document !== 'undefined') {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+                        a.download = nomeArquivoSnapshot(snap);
+                        a.click();
+                        setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch(e) {} }, 5000);
+                    }
+                } catch(e) { console.warn('[Tomografia] Falha no download do snapshot:', e); }
+                return { ok: true, id: snap.id, snapshot: snap };
+            } catch(e) {
+                console.error('❌ Falha ao criar snapshot pré-restore:', e);
+                return { ok: false, error: (e && e.message) || String(e) };
+            }
+        }
+
         async function restaurarBackupAutomatico(id) {
-            if (!confirm("Restaurar este backup automático?")) return;
-            const backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]'); 
+            await tomoEnsureStorage();
+            const backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]');
             const backup = backups.find(b => b.id === id);
-            if (backup) {
-                dadosApp = backup.conteudo || { exames: {}, tempos: {}, pagamentos: {} };
-                if (!dadosApp.exames) dadosApp.exames = {}; 
-                if (!dadosApp.tempos) dadosApp.tempos = {}; 
-                if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
-                totalSeconds = backup.timerDia || 0; 
-                marcarTudoSujo();
-                dadosSujos = true;
+            if (!backup) { showNotification("❌ Backup não encontrado.", "error"); return; }
+            const conteudo = backup.conteudo || {};
+            const val = validateBackupPayload({ conteudo });
+            if (!val.ok) {
+                showNotification(`❌ Backup automático inválido: ${val.errors[0]}`, "error");
+                return;
+            }
+            const norm = normalizarBackupPayload({ conteudo }, 'auto-conteudo');
+            const preview = montarTextoPreview(
+                'automático (últimos 30 dias — merge por data)',
+                resumirConteudoBackup(norm.dadosApp),
+                resumirConteudoBackup(dadosApp),
+                JSON.stringify(conteudo).length
+            );
+            if (!confirm(`${preview}\n\nEste backup contém apenas dados recentes.\nEle será mesclado por data e não apagará o histórico anterior.\n\nContinuar?`)) return;
+            const snap = await tomoSnapshotPreRestore('auto-' + id);
+            if (!snap.ok) {
+                showNotification("❌ Falha ao criar snapshot de segurança. Restore abortado.", "error");
+                return;
+            }
+            const anterior = dadosApp;
+            const mesesAnteriores = new Set(mesesSujos);
+            const princAnterior = _tomoPrincipalSujo;
+            const sujosAnteriores = dadosSujos;
+            dadosApp = mesclarBackupPorData(dadosApp, norm.dadosApp);
+            if (!dadosApp.exames) dadosApp.exames = {};
+            if (!dadosApp.tempos) dadosApp.tempos = {};
+            if (!dadosApp.pagamentos) dadosApp.pagamentos = {};
+            totalSeconds = backup.timerDia || 0;
+            marcarTudoSujo();
+            dadosSujos = true;
+            updateTotalDisplay();
+            const resRest = await salvarDadosFirebase();
+            if (!resRest.localOk) {
+                dadosApp = anterior;
+                mesesSujos = mesesAnteriores;
+                _tomoPrincipalSujo = princAnterior;
+                dadosSujos = sujosAnteriores;
                 updateTotalDisplay();
-                await salvarDadosFirebase(); 
-                criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
-                if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
-                showNotification("✅ Backup restaurado!", "success");
+                criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); atualizarLog();
+                showNotification("❌ Falha ao salvar localmente. Estado anterior restaurado; snapshot preservado.", "error");
+                return;
+            }
+            criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+            if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+            if (resRest.cloudOk) showNotification("✅ Backup mesclado por data!", "success");
+            else if (resRest.partial) showNotification(`⚠️ Mesclado localmente; nuvem parcial (${resRest.failedMonths.length} mês(es) com falha). Sincronize depois.`, "warning");
+            else if (resRest.offline) showNotification("⚠️ Mesclado localmente. Sincronize depois.", "warning");
+            else showNotification("❌ Falha ao salvar na nuvem. Dados preservados localmente.", "error");
+        }
+
+        async function limparHistoricoBackups() {
+            if (confirm("Limpar todo o histórico de backups automáticos?")) {
+                try { await idbLocalStorage.removeItemAsync(BACKUP_KEY); }
+                catch(e) { console.error('❌ Falha ao limpar backups:', e); showNotification("❌ Falha ao salvar localmente.", "error"); return; }
+                atualizarListaBackups(); showNotification("Histórico limpo!", "warning");
             }
         }
 
-        function limparHistoricoBackups() {
-            if (confirm("Limpar todo o histórico de backups automáticos?")) { 
-                idbLocalStorage.removeItem(BACKUP_KEY); atualizarListaBackups(); showNotification("Histórico limpo!", "warning"); 
-            }
+        function baixarBackupCompleto() {
+            const backup = {
+                formato: 'tomografia-manual-v1', tipo: 'manual-completo',
+                criadoEm: new Date().toISOString(),
+                dadosApp: JSON.parse(JSON.stringify(dadosApp)),
+                historicoLaudos: JSON.parse(JSON.stringify(historicoLaudos))
+            };
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
+            a.download = `backup_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+            a.click();
         }
 
-        function baixarBackupCompleto() { 
-            const backup = { ...dadosApp }; 
-            const a = document.createElement('a'); 
-            a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); 
-            a.download = `backup_${new Date().toISOString().slice(0,19)}.json`; 
-            a.click(); 
-        }
-        
+        // Restore manual COMPLETO e seguro: tamanho → parse → validação →
+        // normalização em temporário → preview → dupla confirmação → snapshot
+        // prévio → aplicação → persistência aguardada → sync estruturado.
         function restaurarBackup() {
-            const file = document.getElementById('upload-backup').files[0]; 
-            if(!file) return; 
+            const input = document.getElementById('upload-backup');
+            const file = input ? input.files[0] : null;
+            if(!file) return;
+            if (!tomoRestoreTamanhoOk(file.size)) {
+                showNotification(`❌ Arquivo muito grande (${(file.size / 1024).toFixed(0)} KB > ${(TOMO_RESTORE_MAX_BYTES / 1024 / 1024).toFixed(0)} MB). Restore rejeitado.`, "error");
+                try { input.value = ''; } catch(e) {}
+                return;
+            }
             const reader = new FileReader();
             reader.onload = async (e) => {
-                try { 
-                    const json = JSON.parse(e.target.result); 
-                    dadosApp = { exames: json.exames || json, tempos: json.tempos || {}, pagamentos: json.pagamentos || {} };
+                try {
+                    let json;
+                    try { json = JSON.parse(e.target.result); }
+                    catch(parseErr) { showNotification("❌ Arquivo inválido: não é um JSON válido.", "error"); return; }
+                    const val = validateBackupPayload(json);
+                    if (!val.ok) {
+                        showNotification(`❌ Backup inválido: ${val.errors.slice(0, 3).join(' | ')}`, "error");
+                        return;
+                    }
+                    const norm = normalizarBackupPayload(json, val.formato);
+                    const preview = montarTextoPreview(
+                        'manual completo (substituição do estado)',
+                        resumirConteudoBackup(norm.dadosApp),
+                        resumirConteudoBackup(dadosApp),
+                        file.size
+                    );
+                    if (!confirm(`${preview}\n\nContinuar para a restauração?`)) return;
+                    if (!confirm("Este backup substituirá o estado atual.\nUm snapshot completo será criado antes da restauração.\n\nConfirmar restauração completa?")) return;
+                    const snap = await tomoSnapshotPreRestore('manual-' + (file.name || 'arquivo'));
+                    if (!snap.ok) {
+                        showNotification("❌ Falha ao criar snapshot de segurança. Restore abortado.", "error");
+                        return;
+                    }
+                    const anterior = dadosApp;
+                    const logAnterior = historicoLaudos;
+                    const totalAnterior = totalSeconds;
+                    const mesesAnteriores = new Set(mesesSujos);
+                    const princAnterior = _tomoPrincipalSujo;
+                    const sujosAnteriores = dadosSujos;
+                    dadosApp = norm.dadosApp;
+                    if (Array.isArray(norm.historicoLaudos)) historicoLaudos = norm.historicoLaudos;
                     marcarTudoSujo();
                     dadosSujos = true;
-                    await salvarDadosFirebase(); 
-                    criarLegenda(); criarTabela(); atualizarGraficos(); 
+                    try {
+                        await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
+                    } catch(logErr) {
+                        dadosApp = anterior; historicoLaudos = logAnterior; totalSeconds = totalAnterior;
+                        mesesSujos = mesesAnteriores; _tomoPrincipalSujo = princAnterior; dadosSujos = sujosAnteriores;
+                        updateTotalDisplay();
+                        criarLegenda(); criarTabela(); atualizarGraficos(); atualizarLog();
+                        showNotification("❌ Falha ao salvar localmente. Estado anterior restaurado; snapshot preservado.", "error");
+                        return;
+                    }
+                    const resImp = await salvarDadosFirebase();
+                    if (!resImp.localOk) {
+                        dadosApp = anterior; historicoLaudos = logAnterior; totalSeconds = totalAnterior;
+                        mesesSujos = mesesAnteriores; _tomoPrincipalSujo = princAnterior; dadosSujos = sujosAnteriores;
+                        updateTotalDisplay();
+                        criarLegenda(); criarTabela(); atualizarGraficos(); atualizarLog();
+                        showNotification("❌ Falha ao salvar localmente. Estado anterior restaurado; snapshot preservado.", "error");
+                        return;
+                    }
+                    updateTotalDisplay();
+                    criarLegenda(); criarTabela(); atualizarGraficos();
                     if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
-                    showNotification("✅ Backup restaurado!", "success");
+                    if (resImp.cloudOk) showNotification("✅ Backup restaurado!", "success");
+                    else if (resImp.partial) showNotification(`⚠️ Restaurado localmente; nuvem parcial (${resImp.failedMonths.length} mês(es) com falha). Sincronize depois.`, "warning");
+                    else if (resImp.offline) showNotification("⚠️ Restaurado localmente. Sincronize depois.", "warning");
+                    else showNotification("❌ Falha ao salvar na nuvem. Dados preservados localmente.", "error");
                 } catch(err) { showNotification("❌ Erro ao restaurar", "error"); }
-            }; 
+                finally { try { input.value = ''; } catch(e2) {} }
+            };
             reader.readAsText(file);
         }
-        
-        async function limparDia() { 
-            if(confirm("Zerar exames do dia?")) { 
-                const data = dataExameInput.value; 
-                dadosApp.exames[data] = {}; dadosApp.tempos[data] = {}; 
+
+        async function limparDia() {
+            if(confirm("Zerar exames do dia?")) {
+                const data = dataExameInput.value;
+                dadosApp.exames[data] = {}; dadosApp.tempos[data] = {};
                 marcarMesSujo(data);
-                dadosSujos = true;
-                totalSeconds = 0; currentSeconds = 0; 
-                updateTotalDisplay(); updateCurrentDisplay();
-                const totalKey = `totalAcumulado_${data}`; idbLocalStorage.setItem(totalKey, '0');
-                await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); 
-                showNotification("🗑️ Dia zerado!", "warning");
-            } 
-        }
-        
-        async function limparTodosDados() {
-            if(confirm("⚠️ APAGAR TODOS os dados?")) {
-                Object.keys(dadosApp.exames || {}).forEach(marcarMesSujo); // marca ANTES de zerar
-                dadosApp = { exames: {}, tempos: {}, pagamentos: {} }; 
                 dadosSujos = true;
                 totalSeconds = 0; currentSeconds = 0;
                 updateTotalDisplay(); updateCurrentDisplay();
-                await salvarDadosFirebase(); criarTabela(); atualizarGraficos();
+                const totalKey = `totalAcumulado_${data}`;
+                try { await idbLocalStorage.setItemAsync(totalKey, '0'); }
+                catch(e) { console.error('❌ Falha ao persistir zeramento do dia:', e); showNotification("❌ Falha ao salvar localmente.", "error"); return; }
+                const resDia = await salvarDadosFirebase(); criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
+                if (!resDia.localOk) showNotification("❌ Falha ao salvar localmente.", "error");
+                else if (resDia.cloudOk) showNotification("🗑️ Dia zerado!", "warning");
+                else if (resDia.partial) showNotification(`⚠️ Dia zerado localmente; nuvem parcial (${resDia.failedMonths.length} mês(es) com falha). Sincronize depois.`, "warning");
+                else if (resDia.offline) showNotification("⚠️ Dia zerado localmente. Sincronize depois.", "warning");
+                else showNotification("❌ Falha ao salvar na nuvem. Dados preservados localmente.", "error");
+            }
+        }
+
+        async function limparTodosDados() {
+            if(confirm("⚠️ APAGAR TODOS os dados?")) {
+                Object.keys(dadosApp.exames || {}).forEach(marcarMesSujo); // marca ANTES de zerar
+                dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
+                dadosSujos = true;
+                totalSeconds = 0; currentSeconds = 0;
+                updateTotalDisplay(); updateCurrentDisplay();
+                const resWipe = await salvarDadosFirebase(true); criarTabela(); atualizarGraficos();
                 if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
-                showNotification("⚠️ Todos os dados apagados!", "error");
+                if (!resWipe.localOk) showNotification("❌ Falha ao salvar localmente.", "error");
+                else if (resWipe.cloudOk) showNotification("⚠️ Todos os dados apagados!", "error");
+                else if (resWipe.partial) showNotification(`⚠️ Apagado localmente; nuvem parcial (${resWipe.failedMonths.length} mês(es) com falha). Sincronize depois.`, "warning");
+                else if (resWipe.offline) showNotification("⚠️ Apagado localmente. Sincronize depois.", "warning");
+                else showNotification("❌ Falha ao salvar na nuvem. Dados preservados localmente.", "error");
             }
         }
 
@@ -1477,7 +2650,44 @@
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', function() { setGraphView(this.dataset.view); });
         });
-        document.getElementById('btn-sincronizar').addEventListener('click', () => salvarDadosFirebase(true));
+        document.getElementById('btn-sincronizar').addEventListener('click', async () => {
+            // Anti clique-repetido: desabilita durante o save e restaura no
+            // finally. Saves concorrentes caem na fila de tomoSerieSave.
+            const btn = document.getElementById('btn-sincronizar');
+            if (btn.dataset.sincronizando === '1') return;
+            const textoOriginal = btn.textContent;
+            btn.dataset.sincronizando = '1';
+            btn.disabled = true;
+            btn.textContent = '⏳ Sincronizando...';
+            try {
+                await salvarDadosFirebase(true);
+                await tomoProcessarFila();
+            } finally {
+                btn.dataset.sincronizando = '';
+                btn.disabled = false;
+                btn.textContent = textoOriginal;
+            }
+        });
+        document.getElementById('btn-migracao-preview').addEventListener('click', async () => {
+            const out = document.getElementById('migracao-resultado');
+            out.textContent = '🔄 Analisando (dry-run, nada será gravado)...';
+            const rel = await tomoMigrarLegado(db, { dryRun: true });
+            out.textContent = tomoFormatarRelatorioMigracao(rel);
+        });
+        document.getElementById('btn-migracao-executar').addEventListener('click', async () => {
+            if (!confirm('Executar migração para controles_dias? Dias já existentes não serão sobrescritos.')) return;
+            const out = document.getElementById('migracao-resultado');
+            out.textContent = '🔄 Executando migração...';
+            const rel = await tomoMigrarLegado(db, { dryRun: false });
+            out.textContent = tomoFormatarRelatorioMigracao(rel);
+            showNotification('✅ Migração concluída (ver relatório abaixo).', 'success');
+        });
+        document.getElementById('btn-auditoria-executar').addEventListener('click', async () => {
+            const out = document.getElementById('auditoria-resultado');
+            out.textContent = '🔄 Auditando (somente leitura)...';
+            const rel = await tomoAuditar(db, dadosApp);
+            out.textContent = tomoFormatarRelatorioAuditoria(rel);
+        });
         document.getElementById('btn-zerar-dia').addEventListener('click', limparDia);
         document.getElementById('btn-reparar').addEventListener('click', repararDados);
         document.getElementById('btn-pause-current').addEventListener('click', togglePauseCurrentTimer);

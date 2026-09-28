@@ -124,6 +124,52 @@ tipo de teste antes de considerar a mudança pronta — validação manual no
 navegador não pega regressão de "quantas escritas por ação" com
 confiabilidade.
 
+## Arquitetura multi-PC (branch `rebuild-controle-tomografias`)
+
+A partir desta reconstrução, os CONTADORES (exames por segmento/serviço) e
+PAGAMENTOS têm uma fonte autoritativa nova, além da coleção mensal legada:
+
+- `controles_dias/{AAAA-MM-DD}` — documento diário autoritativo. Reflete a
+  soma de operações de TODOS os PCs (não é "o que este PC viu por último").
+- `controles_operacoes/{operationId}` — ledger de idempotência. Cada
+  incremento de contador ou pagamento tem um `operationId` estável; a
+  transação que aplica o incremento primeiro CONSULTA esse ledger e só
+  aplica se ainda não tiver sido aplicado. Isso é o que permite reenviar
+  (retry) uma operação com segurança sem contar duas vezes.
+- `controles_dias/{dia}/laudos/{eventId}` — evento de laudo (cronômetro),
+  `eventId = operationId` do laudo inteiro. Usado por
+  `tomoBuscarLaudosCrossPC()` (via `collectionGroup('laudos')`) para montar
+  o histórico "outro PC" em `montarHistoricoVisual()`.
+- `controles_pagamentos/{AAAA-MM}` — pagamento por serviço, atualizado por
+  merge (nunca reescreve o documento mensal inteiro).
+
+**Nunca "conserte" um incremento de contador fazendo `.get()` + soma manual
++ `.set()` fora de uma transação com o ledger.** Isso reintroduz exatamente
+o problema que a arquitetura multi-PC resolve (duas escritas concorrentes
+pisando uma na outra). Use `tomoAplicarIncrementoAtomico()` /
+`tomoAplicarPagamento()`.
+
+A coleção mensal legada (`controles/examesTomografia_AAAA-MM` +
+`controles/examesTomografia`) CONTINUA recebendo dual-write (compatibilidade
+com qualquer ferramenta/relatório antigo que dependa dela), mas não é mais
+autoritativa: ao carregar (`carregarDados()`), um dia com documento em
+`controles_dias` sempre prevalece sobre o valor legado ou local desatualizado.
+
+**Fila offline** (`tomoEnfileirar`/`tomoProcessarFila`, persistida em
+`idbLocalStorage` sob a chave `tomoFilaOperacoes`): toda operação nova
+(contador/pagamento/laudo) passa pela fila antes de ir ao Firestore. Isso é
+o que permite usar o app sem internet e sincronizar depois sem duplicar.
+**Não chame `tomoProcessarFila()` de dentro de `tomoEnfileirar()`** — isso já
+causou uma corrida real (a chamada "dispara e esquece" corria em paralelo com
+uma chamada explícita logo depois, e a segunda simplesmente reaproveitava a
+promise já resolvida da primeira, sem reprocessar nada). Em vez disso, cada
+fluxo que enfileira uma operação chama `await tomoProcessarFila()` explicitamente
+logo depois.
+
+**Migração** (`tomoMigrarLegado`) e **auditoria** (`tomoAuditar`) são
+manuais (sempre disparadas por botão na aba Backup, nunca automáticas) e
+puras o suficiente para serem testadas sem Firestore real — ver `tests/`.
+
 ## Mantendo este arquivo atualizado
 
 Toda vez que você mexer na lógica de storage, sincronização, ou merge de
