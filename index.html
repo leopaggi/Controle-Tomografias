@@ -1946,6 +1946,12 @@
             dadosApp.exames[data][seg][serv] = novo;
             marcarMesSujo(data);
             dadosSujos = true;
+
+            // UI otimista: o estado local já está correto neste ponto —
+            // não esperamos fila/Firestore para o usuário ver o número
+            // mudar. Nenhum await de persistência foi removido abaixo.
+            criarTabela(); atualizarResumoEmpresas();
+
             // +/- manual não gera evento de laudo cross-PC (fora do escopo
             // desta etapa) — mas o contador em si ainda é um incremento
             // atômico idempotente, igual ao do cronômetro.
@@ -1959,7 +1965,7 @@
                 const logOk = await adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data);
                 if (!logOk) showNotification("❌ Falha ao salvar log localmente.", "error");
             }
-            criarTabela(); atualizarResumoEmpresas(); atualizarLog();
+            atualizarLog();
             const ok = await salvarDadosFirebaseSilencioso();
             if (ok === false && !tomoLastLocalOk()) showNotification("❌ Falha ao salvar localmente.", "error");
         }
