@@ -1352,14 +1352,70 @@
             }
         }
 
+        // Reconstrói {segmento: {servico: valor}} a partir de um doc de
+        // controles_dias/{dia}. O Firestore real grava os campos escritos
+        // via tomoAplicarIncrementoAtomico (set com merge:true e chave em
+        // dot-notation) como propriedades de TOPO literalmente chamadas
+        // "exames.segmento.servico" — NÃO como um mapa aninhado "exames".
+        // Aceita também um eventual campo `exames` já aninhado (ex.: dados
+        // gravados por outra via), preservando seus valores primeiro e
+        // deixando as chaves em dot-notation completarem/sobrescreverem por
+        // cima. Núcleo puro — não muta o objeto recebido.
+        function tomoExtrairExamesDocDiario(docData){
+            const out = {};
+            if (!docData) return out;
+            if (docData.exames && typeof docData.exames === 'object' && !Array.isArray(docData.exames)) {
+                Object.keys(docData.exames).forEach(seg => {
+                    out[seg] = Object.assign({}, docData.exames[seg]);
+                });
+            }
+            Object.keys(docData).forEach(key => {
+                if (!key.startsWith('exames.')) return;
+                const partes = key.split('.').slice(1);
+                if (partes.length < 2) return;
+                let alvo = out;
+                for (let i = 0; i < partes.length - 1; i++) {
+                    if (typeof alvo[partes[i]] !== 'object' || alvo[partes[i]] === null) alvo[partes[i]] = {};
+                    alvo = alvo[partes[i]];
+                }
+                alvo[partes[partes.length - 1]] = docData[key];
+            });
+            return out;
+        }
+
+        // Um dia é "vazio" se não existir ou não tiver nenhum segmento —
+        // usado para nunca tratar um dia com {} (órfão de bug ou de doc
+        // diário parcial) como "já tenho esse dia, não precisa preencher".
+        function tomoDiaVazio(dia){
+            return !dia || Object.keys(dia).length === 0;
+        }
+
         // Aplica documentos diários por cima dos dados locais: um dia com
-        // controles_dias/{dia} é AUTORITATIVO (reflete a soma de operações de
-        // todos os PCs) e substitui o dado local daquele dia; dias sem
-        // documento diário ainda ficam como estavam (fallback legado). Núcleo
-        // puro — não muta os objetos recebidos.
+        // controles_dias/{dia} é AUTORITATIVO POR CAMPO (reflete a soma de
+        // operações de todos os PCs) — cada segmento/serviço presente no doc
+        // diário substitui o valor local correspondente, mas um
+        // segmento/serviço AUSENTE no doc diário preserva o que já existia
+        // localmente. Um doc diário vazio ou parcial nunca zera um dia
+        // existente (proteção contra doc diário incompleto/mal formado).
+        // Núcleo puro — não muta os objetos recebidos.
         function tomoAplicarDocsDiarios(examesLocais, diasDocs){
-            const out = Object.assign({}, examesLocais || {});
-            Object.keys(diasDocs || {}).forEach(dia => { out[dia] = diasDocs[dia]; });
+            const out = {};
+            Object.keys(examesLocais || {}).forEach(dia => {
+                out[dia] = {};
+                Object.keys((examesLocais || {})[dia] || {}).forEach(seg => {
+                    out[dia][seg] = Object.assign({}, examesLocais[dia][seg]);
+                });
+            });
+            Object.keys(diasDocs || {}).forEach(dia => {
+                if (!out[dia]) out[dia] = {};
+                const diario = diasDocs[dia] || {};
+                Object.keys(diario).forEach(seg => {
+                    if (!out[dia][seg]) out[dia][seg] = {};
+                    Object.keys(diario[seg] || {}).forEach(serv => {
+                        out[dia][seg][serv] = diario[seg][serv];
+                    });
+                });
+            });
             return out;
         }
 
@@ -1585,7 +1641,7 @@
                 const local = ((dadosLocais && dadosLocais.exames) || {})[dia] || null;
                 let diario = null, legadoMes = null;
                 if (dbLike) {
-                    try { const s = await dbLike.collection('controles_dias').doc(dia).get(); if (s.exists) diario = s.data().exames || {}; } catch(e) {}
+                    try { const s = await dbLike.collection('controles_dias').doc(dia).get(); if (s.exists) diario = tomoExtrairExamesDocDiario(s.data()); } catch(e) {}
                     try {
                         const mes = dia.substring(0, 7);
                         const s = await dbLike.collection('controles').doc(`examesTomografia_${mes}`).get();
@@ -1672,7 +1728,7 @@
                                 // R$2000 documentado no AI.md). Dias com documento diário
                                 // autoritativo (abaixo) tomam precedência sobre isso.
                                 Object.keys(dadosNuvem.exames).forEach(data => {
-                                    if (!dadosApp.exames[data]) { dadosApp.exames[data] = dadosNuvem.exames[data]; dadosModificados = true; }
+                                    if (tomoDiaVazio(dadosApp.exames[data])) { dadosApp.exames[data] = dadosNuvem.exames[data]; dadosModificados = true; }
                                 });
                                 Object.keys(dadosNuvem.tempos).forEach(data => {
                                     if (!dadosApp.tempos[data]) { dadosApp.tempos[data] = dadosNuvem.tempos[data]; dadosModificados = true; }
@@ -1709,7 +1765,7 @@
                     try {
                         const diasSnap = await db.collection('controles_dias').get();
                         const diasDocs = {};
-                        diasSnap.forEach(doc => { diasDocs[doc.id] = (doc.data() && doc.data().exames) || {}; });
+                        diasSnap.forEach(doc => { diasDocs[doc.id] = tomoExtrairExamesDocDiario(doc.data()); });
                         const antes = JSON.stringify(dadosApp.exames);
                         dadosApp.exames = tomoAplicarDocsDiarios(dadosApp.exames, diasDocs);
                         if (JSON.stringify(dadosApp.exames) !== antes) {

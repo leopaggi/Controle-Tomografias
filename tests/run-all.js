@@ -14,6 +14,7 @@ const suites = [
   './test-auditoria',
   './test-integracao-multipc',
   './test-fundacao-legado',
+  './test-loader-docs-diarios',
 ];
 
 const results = [];

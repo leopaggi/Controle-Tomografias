@@ -22,7 +22,7 @@ const EPILOGUE = `
 return {
   // núcleo multi-PC (dependency-injected, testável isoladamente)
   tomoAplicarIncrementoAtomico, tomoAplicarPagamento, tomoGravarEventoLaudo,
-  tomoAplicarDocsDiarios, tomoBuscarLaudosCrossPC, montarHistoricoVisual,
+  tomoAplicarDocsDiarios, tomoExtrairExamesDocDiario, tomoDiaVazio, tomoBuscarLaudosCrossPC, montarHistoricoVisual,
   tomoMigrarLegado, tomoFormatarRelatorioMigracao,
   tomoAuditar, tomoFormatarRelatorioAuditoria,
   tomoIncrementValue, tomoNovoOperationId, tomoDeviceId,
