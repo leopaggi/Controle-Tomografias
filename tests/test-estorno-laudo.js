@@ -382,11 +382,11 @@ async function run(check){
     await h.api.adicionarAoLog('HBJ',['CRÂNIO'],30,'cronometro',DAY,'legado-local');
     await h.api.tomoGravarEventoLaudo(db,'legado-local',DAY,{empresa:'HBJ',segmentos:['CRÂNIO'],tempo:30});
     const view=h.api.montarHistoricoVisual(h.api.getHistoricoLaudos().slice(0,10),[]);
-    verify('timer legado local mantém Editar/Remover do histórico sem Estornar',()=>{
+    verify('timer legado local mantém Editar/Remover somente do histórico sem Estornar',()=>{
       assert.equal(view[0]._localIndex,0);
       const html=h.doc.getElementById('log-lista').innerHTML;
       assert(html.includes('editarLog(0)') && html.includes('excluirLog(0)'));
-      assert(html.includes('Remover do histórico'));
+      assert(html.includes('Remover somente do histórico'));
       assert(!html.includes('Estornar laudo'));
     });
     const prior=JSON.stringify(h.api.getDadosApp()), total=h.api.getTimerState().totalSeconds;
@@ -408,10 +408,169 @@ async function run(check){
   {
     const h=app(); await h.api.tomoEnsureStorage();
     await h.api.adicionarAoLog('HBJ',['CRÂNIO'],0,'manual',DAY);
-    verify('registro manual local mantém Editar/Remover do histórico sem estorno técnico',()=>{
+    verify('legado manual mantém Editar/Remover somente do histórico sem estorno técnico',()=>{
       const html=h.doc.getElementById('log-lista').innerHTML;
       assert(html.includes('editarLog(0)') && html.includes('excluirLog(0)'));
-      assert(html.includes('Remover do histórico') && !html.includes('Estornar laudo'));
+      assert(html.includes('Remover somente do histórico') && !html.includes('Estornar laudo'));
+      assert(!html.includes('estornar'));
+      assert(html.includes('Esta ação remove apenas este registro da lista de histórico'));
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.alterarContador('torax','mobilemed',1);
+    const item=h.api.getHistoricoLaudos()[0], s=item.effectsSnapshot;
+    verify('A. novo manual + MOBILEMED TÓRAX tem identidade, snapshot válido e sem tempo',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,1);
+      assert.equal(h.doc.getElementById('total-exames-dia').textContent,'1 exames');
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 25.00');
+      assert.equal(h.api.getHistoricoLaudos().length,1);
+      assert.equal(item.empresa,'MOBILEMED');
+      assert.deepEqual(item.segmentos,['TORAX']);
+      assert.equal(item.tipo,'manual');
+      assert(typeof item.operationId==='string' && item.operationId.length>0);
+      assert.equal(item.effectsVersion,1);
+      assert(h.api.tomoComprovanteValido(item));
+      assert.equal(s.operationId,item.operationId);
+      assert.equal(s.data,DAY);
+      assert.equal(s.empresaId,'mobilemed');
+      assert.equal(s.totalDailyDeltaSeconds,0);
+      assert.equal(s.segmentos.length,1);
+      assert.equal(s.segmentos[0].segmentoId,'torax');
+      assert.equal(s.segmentos[0].counterOperationId,`${s.operationId}:torax`);
+      assert.equal(s.segmentos[0].counterDelta,1);
+      assert.equal(s.segmentos[0].timeContributionId,undefined);
+      assert.equal(s.segmentos[0].timeSeconds,undefined);
+      assert.equal(h.api.getDadosApp().tempos[DAY]?.['mobilemed_torax'],undefined);
+      assert.equal(h.api.getDadosApp().timeContributions?.[DAY]?.[`${s.operationId}:time:torax`],undefined);
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.torax.mobilemed,1);
+      assert(db._store.has('controles_operacoes/'+s.segmentos[0].counterOperationId));
+      const html=h.doc.getElementById('log-lista').innerHTML;
+      assert(html.includes('Estornar laudo') && !html.includes('excluirLog('));
+    });
+    const opId=item.operationId, revId=h.api.tomoReversalId(opId);
+    await reverse(h,opId);
+    verify('B. estorno do manual reverte contagem/valor e mantém ESTORNADO',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,0);
+      assert.equal(h.doc.getElementById('total-exames-dia').textContent,'0 exames');
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 0.00');
+      assert.equal(h.api.getHistoricoLaudos().length,1);
+      assert.equal(h.api.getHistoricoLaudos()[0].reversal.reversalId,revId);
+      assert.equal(h.api.getHistoricoLaudos()[0].reversal.status,'confirmed');
+      assert.equal(h.api.getTimerState().totalSeconds,30);
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.torax.mobilemed,0);
+      assert.equal(db._store.get('controles_operacoes/'+revId).tipo,'estorno');
+      assert.equal(db._store.get('controles_operacoes/'+revId).reversesOperationId,opId);
+      assert(db._store.has(`controles_dias/${DAY}/laudos/${revId}`));
+      assert.equal(db._store.get(`controles_dias/${DAY}/laudos/${revId}`).reversesOperationId,opId);
+      const html=h.doc.getElementById('log-lista').innerHTML;
+      assert(html.includes('ESTORNADO') && !html.includes('Estornar laudo'));
+    });
+    await h.api.estornarLaudo(opId);
+    verify('C. segundo estorno do mesmo manual é bloqueado e idempotente',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,0);
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 0.00');
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.torax.mobilemed,0);
+      assert.equal(h.api.getHistoricoLaudos()[0].reversal.status,'confirmed');
+      assert(notice(h).includes('Estorno bloqueado'));
+    });
+    await h.api.excluirLog(0);
+    verify('manual novo estornado não pode ser excluído do histórico',()=>{
+      assert.equal(h.api.getHistoricoLaudos().length,1);
+      assert(notice(h).includes('deve ser estornado'));
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.alterarContador('torax','mobilemed',1);
+    const opId=h.api.getHistoricoLaudos()[0].operationId;
+    const reloaded=app({sharedIdb:h.sharedIdb}); reloaded.api.setDb(db);
+    await reloaded.api.carregarDados();
+    verify('D. reload preserva manual novo com snapshot e contagem',()=>{
+      assert.equal(reloaded.api.getHistoricoLaudos().length,1);
+      assert.equal(reloaded.api.getHistoricoLaudos()[0].operationId,opId);
+      assert(reloaded.api.tomoComprovanteValido(reloaded.api.getHistoricoLaudos()[0]));
+      assert.equal(reloaded.api.getDadosApp().exames[DAY].torax.mobilemed,1);
+      assert(reloaded.doc.getElementById('log-lista').innerHTML.includes('Estornar laudo'));
+    });
+    await reverse(reloaded,opId);
+    verify('D. estorno após reload continua correto e confirmado',()=>{
+      assert.equal(reloaded.api.getDadosApp().exames[DAY].torax.mobilemed,0);
+      assert.equal(reloaded.api.getHistoricoLaudos()[0].reversal.status,'confirmed');
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.torax.mobilemed,0);
+      assert(reloaded.doc.getElementById('log-lista').innerHTML.includes('ESTORNADO'));
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.alterarContador('torax','mobilemed',1);
+    await h.api.alterarContador('face-atm','mobilemed',1);
+    const torax=h.api.getHistoricoLaudos().find(x=>x.segmentos[0]==='TORAX');
+    const face=h.api.getHistoricoLaudos().find(x=>x.segmentos[0]==='FACE/ATM');
+    verify('E. dois manuais TÓRAX e FACE/ATM somam 2 exames e R$ 50',()=>{
+      assert.equal(h.api.getHistoricoLaudos().length,2);
+      assert(torax.operationId!==face.operationId);
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,1);
+      assert.equal(h.api.getDadosApp().exames[DAY]['face-atm'].mobilemed,1);
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 50.00');
+    });
+    await reverse(h,torax.operationId);
+    verify('E. estornar só TÓRAX preserva FACE/ATM',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,0);
+      assert.equal(h.api.getDadosApp().exames[DAY]['face-atm'].mobilemed,1);
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 25.00');
+      assert.equal(h.api.getHistoricoLaudos().find(x=>x.operationId===torax.operationId).reversal.status,'confirmed');
+      assert.equal(h.api.getHistoricoLaudos().find(x=>x.operationId===face.operationId).reversal,undefined);
+    });
+    await reverse(h,face.operationId);
+    verify('E. estornar FACE/ATM depois zera ambos sem colisão',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,0);
+      assert.equal(h.api.getDadosApp().exames[DAY]['face-atm'].mobilemed,0);
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 0.00');
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.torax.mobilemed,0);
+      assert.equal(db._store.get('controles_dias/'+DAY).exames['face-atm'].mobilemed,0);
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.tomoEnsureStorage();
+    h.api.getDadosApp().exames[DAY]={torax:{mobilemed:1}};
+    await h.api.adicionarAoLog('MOBILEMED',['TORAX'],0,'manual',DAY);
+    const before=JSON.stringify(h.api.getDadosApp());
+    const writes=db._log.length;
+    await h.api.excluirLog(0);
+    verify('F. legado manual só remove do histórico, sem alterar contagem/valor/nuvem',()=>{
+      assert.equal(h.api.getHistoricoLaudos().length,0);
+      assert.equal(JSON.stringify(h.api.getDadosApp()),before);
+      assert.equal(h.api.getDadosApp().exames[DAY].torax.mobilemed,1);
+      assert.equal(db._log.length,writes);
+      assert(notice(h).includes('Removido apenas do histórico'));
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    h.doc.getElementById('timer-servico').value='mobilemed';
+    const original=await finish(h), id=original.operationId;
+    verify('Timer MOBILEMED: comprovante habilita Estornar laudo',()=>{
+      assert(original.effectsSnapshot && original.effectsSnapshot.empresaId==='mobilemed');
+      assert(h.doc.getElementById('log-lista').innerHTML.includes('Estornar laudo'));
+    });
+    await reverse(h,id);
+    const events=await h.api.tomoBuscarLaudosCrossPC(db,100);
+    const view=h.api.montarHistoricoVisual(h.api.getHistoricoLaudos().slice(0,10),events);
+    h.api.tomoRenderizarHistorico(view);
+    verify('Timer MOBILEMED: estorno reverte efeitos e mantém original ESTORNADO no merge',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].cranio.mobilemed,0);
+      assert.deepEqual(h.api.getDadosApp().tempos[DAY].mobilemed_cranio,[]);
+      assert.equal(h.api.getTimerState().totalSeconds,30);
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.cranio.mobilemed,0);
+      assert.equal(h.doc.getElementById('total-valor-dia').textContent,'R$ 0.00');
+      assert.equal(view.length,1);
+      assert.equal(view[0].operationId,id);
+      assert.equal(view[0].reversal.status,'confirmed');
+      assert(h.doc.getElementById('log-lista').innerHTML.includes('ESTORNADO'));
+      assert(db._store.has(`controles_dias/${DAY}/laudos/${id}`));
+      assert(db._store.has(`controles_dias/${DAY}/laudos/${h.api.tomoReversalId(id)}`));
     });
   }
   {

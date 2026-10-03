@@ -883,6 +883,18 @@
                 totalDailyDeltaSeconds: duracao > 0 ? duracao : 0
             });
         }
+        // Comprovante para NOVO lançamento manual pelo "+": só contagem,
+        // sem tempo. Não cria timeContribution falsa; totalDailyDeltaSeconds
+        // é 0 e o segmento tem apenas identidade do contador.
+        function tomoCriarEffectsSnapshotManual(operationId, data, empresaId, segmentoId){
+            return tomoCongelarEfeitos({
+                operationId, data, empresaId,
+                segmentos: [{
+                    segmentoId, counterOperationId: `${operationId}:${segmentoId}`, counterDelta: 1
+                }],
+                totalDailyDeltaSeconds: 0
+            });
+        }
         // Retrocompatível: tempos continua sendo array de NÚMEROS, lido pelas
         // mesmas estatísticas. Só novos lançamentos ganham identidade no mapa
         // paralelo; sampleIndex aponta a inserção exata, sem rotular o legado.
@@ -932,6 +944,11 @@
             const efeitos = s.segmentos.map(e => {
                 const atual = dados.exames[data] && dados.exames[data][e.segmentoId] && dados.exames[data][e.segmentoId][empresaId];
                 if (!Number.isInteger(atual) || atual < e.counterDelta) throw new Error('Contagem insuficiente ou inconsistente para estorno.');
+                const ehManual = e.timeContributionId === undefined && e.timeSeconds === undefined;
+                if (ehManual) {
+                    if (s.totalDailyDeltaSeconds !== 0) throw new Error('Comprovante manual inconsistente.');
+                    return { e, c: null, key: null, manual: true };
+                }
                 const c = dados.timeContributions && dados.timeContributions[data] && dados.timeContributions[data][e.timeContributionId];
                 if (!c || c.operationId !== s.operationId || c.empresaId !== empresaId || c.segmentoId !== e.segmentoId || c.timeSeconds !== e.timeSeconds) throw new Error('Contribuição de tempo ausente ou divergente.');
                 if (e.timeSeconds === 0) {
@@ -948,8 +965,9 @@
             // Só copiar e modificar após validar TODOS os efeitos; o estado vivo
             // e as chaves IndexedDB permanecem intactos em qualquer erro.
             const novo = JSON.parse(JSON.stringify(dados));
-            efeitos.forEach(({ e, c, key }) => {
+            efeitos.forEach(({ e, c, key, manual }) => {
                 novo.exames[data][e.segmentoId][empresaId] -= e.counterDelta;
+                if (manual) return;
                 if (c.sampleIndex !== null) novo.tempos[data][key].splice(c.sampleIndex, 1);
                 // O comprovante histórico permanece; o mapa ativo não pode
                 // conservar um ID apontando para a posição agora reutilizada.
@@ -1050,19 +1068,22 @@
                     && ((s.totalDailyDeltaSeconds === 0 && totalRaw === null)
                         || (totalRaw !== null && Number.isSafeInteger(Number(totalRaw)) && Number(totalRaw) >= s.totalDailyDeltaSeconds))
                     && s.segmentos.every(e => {
-                        const c = mapa && mapa[e.timeContributionId];
                         const qtd = dadosApp.exames[s.data]?.[e.segmentoId]?.[s.empresaId];
+                        if (!(Number.isInteger(qtd) && qtd >= e.counterDelta)) return false;
+                        if (e.timeContributionId === undefined && e.timeSeconds === undefined) return true;
+                        const c = mapa && mapa[e.timeContributionId];
                         return c && c.operationId === s.operationId && c.empresaId === s.empresaId
                             && c.segmentoId === e.segmentoId && c.timeSeconds === e.timeSeconds
-                            && Number.isInteger(qtd) && qtd >= e.counterDelta
                             && (e.timeSeconds === 0 ? c.sampleIndex === null
                                 : !!tomoLocalizarContribuicaoTempo(dadosApp, s.data, e.timeContributionId));
                     });
+                const ehManual = !!(s && s.totalDailyDeltaSeconds === 0 && s.segmentos.every(e => e.timeContributionId === undefined && e.timeSeconds === undefined));
+                const tituloEstorno = ehManual ? 'Estornar laudo (contagem)' : 'Estornar laudo (contagem, tempo e total diário)';
                 const acoesHtml = statusEstorno === 'confirmed' ? '<strong>ESTORNADO</strong>'
                     : statusEstorno === 'pending' ? '<strong>⏳ Estorno pendente</strong>'
-                    : compativel ? `<button class="btn-delete-small" title="Estornar laudo (contagem, tempo e total diário)" data-reversal-id="${encodeURIComponent(item.id).replace(/'/g, '%27')}">↩️ Estornar laudo</button>`
+                    : compativel ? `<button class="btn-delete-small" title="${tituloEstorno}" data-reversal-id="${encodeURIComponent(item.id).replace(/'/g, '%27')}">↩️ Estornar laudo</button>`
                     : local && !local.effectsSnapshot && local.effectsVersion === undefined
-                        ? `<button class="btn-edit-small" onclick="editarLog(${item._localIndex})">✏️</button><button class="btn-delete-small" title="Remover do histórico: não altera contagem, tempos, total diário nem dados remotos." onclick="excluirLog(${item._localIndex})">🗑️ Remover do histórico</button>`
+                        ? `<button class="btn-edit-small" onclick="editarLog(${item._localIndex})">✏️</button><button class="btn-delete-small" title="Esta ação remove apenas este registro da lista de histórico. A contagem de laudos e os valores não serão alterados." onclick="excluirLog(${item._localIndex})">🗑️ Remover somente do histórico</button>`
                         : `<span title="${local ? 'Comprovante técnico inválido ou efeitos locais indisponíveis para estorno.' : 'Evento remoto sem registro local editável ou efeitos locais para estorno.'}">—</span>`;
                 html += `<tr><td class="log-data">${item.dataFormatada || formatarData(item.data)}</td><td class="log-horario">${item.horario || '-'}</td><td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td><td>${segmentosHtml}${origemHtml}</td><td><strong>${item.tempoFormatado || formatTimeShort(item.tempo || 0)}</strong></td><td><span class="${tipoClass}">${tipoLabel}</span></td><td><div class="log-actions">${acoesHtml}</div></td></tr>`;
             });
@@ -1110,7 +1131,7 @@
             if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (index < 0 || index >= historicoLaudos.length) return;
             if (historicoLaudos[index].effectsSnapshot || historicoLaudos[index].effectsVersion !== undefined) { showNotification('Este laudo deve ser estornado, não excluído do histórico.', 'error'); return; }
-            if (!confirm(`Remover este registro APENAS do histórico?\nIsso NÃO altera contagem, tempos, total diário nem dados remotos.\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
+            if (!confirm(`Esta ação remove apenas este registro da lista de histórico.\nA contagem de laudos e os valores não serão alterados.\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
             historicoLaudos.splice(index, 1);
             try {
                 await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
@@ -1138,11 +1159,15 @@
                 if (!item) throw new Error('O comprovante local deste laudo não está disponível neste dispositivo.');
                 if (!tomoComprovanteValido(item)) throw new Error('Este registro é anterior ao comprovante técnico ou está inconsistente.');
                 if (item.reversal) throw new Error('Este laudo já possui estorno pendente ou confirmado.');
-                if (!confirm('Este estorno irá desfazer a contagem dos segmentos, o tempo registrado e o total diário deste laudo. Deseja continuar?')) return;
+                const s0 = item.effectsSnapshot;
+                const ehManual0 = s0 && s0.totalDailyDeltaSeconds === 0 && s0.segmentos.every(e => e.timeContributionId === undefined && e.timeSeconds === undefined);
+                if (!confirm(ehManual0 ? 'Este estorno irá desfazer a contagem deste lançamento manual. Deseja continuar?' : 'Este estorno irá desfazer a contagem dos segmentos, o tempo registrado e o total diário deste laudo. Deseja continuar?')) return;
                 const s = item.effectsSnapshot;
                 const totalKey = `totalAcumulado_${s.data}`;
                 const raw = idbLocalStorage.getItem(totalKey);
-                const total = raw === null ? NaN : Number(raw);
+                const total = (raw === null && s.totalDailyDeltaSeconds === 0)
+                    ? (dataExameInput.value === s.data ? totalSeconds : 0)
+                    : (raw === null ? NaN : Number(raw));
                 if (dataExameInput.value === s.data && totalSeconds !== total) throw new Error('O total diário local não coincide com o total exibido.');
                 const preparado = tomoPrepararEstornoLocal(item, dadosApp, total);
                 const reversalId = tomoReversalId(operationId);
@@ -1644,17 +1669,20 @@
                 const jaAplicado = await dbLike.runTransaction(async tx => {
                     const registrado = await tx.get(ledger);
                     if (registrado.exists) return true;
-                    const evento = await tx.get(original);
-                    const remoto = evento.exists && evento.data();
-                    const r = remoto && remoto.effectsSnapshot;
-                    if (!r || !tomoComprovanteValido({ operationId: s.operationId, effectsVersion: remoto.effectsVersion, effectsSnapshot: r })
-                        || r.data !== s.data || r.empresaId !== s.empresaId || r.totalDailyDeltaSeconds !== s.totalDailyDeltaSeconds
-                        || r.segmentos.length !== s.segmentos.length || !r.segmentos.every((e, i) => {
-                            const esperado = s.segmentos[i];
-                            return e.segmentoId === esperado.segmentoId && e.counterOperationId === esperado.counterOperationId
-                                && e.counterDelta === esperado.counterDelta && e.timeContributionId === esperado.timeContributionId
-                                && e.timeSeconds === esperado.timeSeconds;
-                        })) throw new Error('Evento original não confirmado ou comprovante divergente.');
+                    const ehManual = s.segmentos.every(e => e.timeContributionId === undefined && e.timeSeconds === undefined);
+                    if (!ehManual) {
+                        const evento = await tx.get(original);
+                        const remoto = evento.exists && evento.data();
+                        const r = remoto && remoto.effectsSnapshot;
+                        if (!r || !tomoComprovanteValido({ operationId: s.operationId, effectsVersion: remoto.effectsVersion, effectsSnapshot: r })
+                            || r.data !== s.data || r.empresaId !== s.empresaId || r.totalDailyDeltaSeconds !== s.totalDailyDeltaSeconds
+                            || r.segmentos.length !== s.segmentos.length || !r.segmentos.every((e, i) => {
+                                const esperado = s.segmentos[i];
+                                return e.segmentoId === esperado.segmentoId && e.counterOperationId === esperado.counterOperationId
+                                    && e.counterDelta === esperado.counterDelta && e.timeContributionId === esperado.timeContributionId
+                                    && e.timeSeconds === esperado.timeSeconds;
+                            })) throw new Error('Evento original não confirmado ou comprovante divergente.');
+                    }
                     for (const e of s.segmentos) {
                         const op = await tx.get(dbLike.collection('controles_operacoes').doc(e.counterOperationId));
                         if (!op.exists || op.data().data !== s.data || op.data().seg !== e.segmentoId || op.data().serv !== s.empresaId || op.data().delta !== e.counterDelta) throw new Error('Incremento original não confirmado no ledger.');
@@ -2368,18 +2396,22 @@
             // mudar. Nenhum await de persistência foi removido abaixo.
             criarTabela(); atualizarResumoEmpresas();
 
-            // +/- manual não gera evento de laudo cross-PC (fora do escopo
-            // desta etapa) — mas o contador em si ainda é um incremento
-            // atômico idempotente, igual ao do cronômetro.
-            if (deltaEfetivo !== 0) {
-                await tomoEnfileirar({ operationId: tomoNovoOperationId(), tipo: 'contador', data, seg, serv, delta: deltaEfetivo });
+            // "+" manual gera comprovante reversível novo (só contagem, sem
+            // tempo). O incremento usa o counterOperationId do snapshot, para
+            // o estorno validar o ledger original. Não cria evento de laudo
+            // cross-PC nesta etapa. "-" continua ajuste genérico sem vínculo.
+            if (delta > 0 && deltaEfetivo !== 0 && novo > 0) {
+                const manualOpId = tomoNovoOperationId();
+                const snapshotManual = tomoCriarEffectsSnapshotManual(manualOpId, data, serv, seg);
+                await tomoEnfileirar({ operationId: snapshotManual.segmentos[0].counterOperationId, tipo: 'contador', data, seg, serv, delta: deltaEfetivo });
                 await tomoProcessarFila();
-            }
-            if (delta > 0 && novo > 0) {
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
-                const logOk = await adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data);
+                const logOk = await adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data, manualOpId, snapshotManual);
                 if (!logOk) showNotification("❌ Falha ao salvar log localmente.", "error");
+            } else if (deltaEfetivo !== 0) {
+                await tomoEnfileirar({ operationId: tomoNovoOperationId(), tipo: 'contador', data, seg, serv, delta: deltaEfetivo });
+                await tomoProcessarFila();
             }
             atualizarLog();
             const ok = await salvarDadosFirebaseSilencioso();
@@ -2725,8 +2757,10 @@
             return s.segmentos.every(e => {
                 if (!tomoEhObjeto(e) || typeof e.segmentoId !== 'string' || !e.segmentoId || ids.has(e.segmentoId)) return false;
                 ids.add(e.segmentoId);
-                return e.counterOperationId === `${s.operationId}:${e.segmentoId}` && e.counterDelta === 1
-                    && e.timeContributionId === `${s.operationId}:time:${e.segmentoId}`
+                if (e.counterOperationId !== `${s.operationId}:${e.segmentoId}` || e.counterDelta !== 1) return false;
+                const temTempo = ('timeContributionId' in e) || ('timeSeconds' in e);
+                if (!temTempo) return s.totalDailyDeltaSeconds === 0;
+                return e.timeContributionId === `${s.operationId}:time:${e.segmentoId}`
                     && e.timeSeconds === s.totalDailyDeltaSeconds / s.segmentos.length;
             });
         }

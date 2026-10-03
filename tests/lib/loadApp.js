@@ -42,7 +42,7 @@ return {
   finalizarLaudo, alterarContador, togglePagamentoUnificado,
   adicionarAoLog, atualizarLog, excluirLog, tomoRenderizarHistorico, tomoAtualizarHistoricoCrossPC,
   editarLog, getStatsByService, atualizarGraficos, criarBackupAutomatico,
-  tomoCriarEffectsSnapshot, tomoProtegerComprovante, tomoAdicionarContribuicaoTempo, tomoLocalizarContribuicaoTempo,
+  tomoCriarEffectsSnapshot, tomoCriarEffectsSnapshotManual, tomoComprovanteValido, tomoProtegerComprovante, tomoAdicionarContribuicaoTempo, tomoLocalizarContribuicaoTempo,
   estornarLaudo, tomoPrepararEstornoLocal, tomoAplicarEstornoAtomico, tomoReversalId,
   // acesso/controle de estado interno para os testes
   getDb: () => db, setDb: (v) => { db = v; },

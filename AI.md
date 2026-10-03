@@ -185,34 +185,43 @@ negativos. Não remover o registro histórico original.
 Persistir `examesTomografia`, `historicoLaudos`, fila e total diário numa só
 transação IndexedDB antes da UI. Bloquear estorno no fallback localStorage,
 que não oferece atomicidade multi-chave. A fila tem um pedido `estorno` com
-ID fixo `reversal:<operationId>`; a transação Firestore verifica evento e
-ledgers originais, decrementa todos os segmentos e cria marcador SEPARADO
-do evento original, além do ledger de estorno. O `.set(evento)` original não
-pode apagar o marcador. Marcar status `pending` até confirmação; retries não
-aplicam o mesmo delta duas vezes. Não remover awaits do fluxo de finalização.
-O merge diário deve preservar valores locais de estornos ainda na fila.
+ID fixo `reversal:<operationId>`; a transação Firestore verifica ledgers
+originais (e o evento original no caso Timer), decrementa todos os segmentos
+e cria marcador SEPARADO do evento original, além do ledger de estorno. Manual
+novo não tem evento original remoto: valida só o ledger do contador, sem criar
+tempo negativo nem alterar o total diário. O `.set(evento)` original não pode
+apagar o marcador. Marcar status `pending` até confirmação; retries não aplicam
+o mesmo delta duas vezes. Não remover awaits do fluxo de finalização. O merge
+diário deve preservar valores locais de estornos ainda na fila.
 
 Limite conhecido: ajuste manual `-` permanece genérico e sem associação;
 agregado positivo não prova que certo laudo não foi compensado antes. Um
 registro/PC sem amostras e total local correspondente não pode executar
-estorno automático. Outros PCs recebem o marcador remoto, mas tempos e
+estorno automático de Timer. Outros PCs recebem o marcador remoto, mas tempos e
 totais locais antigos de outros dispositivos não são reconciliados por ele.
 Não executar correção automática de registros antigos ou em massa.
 Na coluna Ações, `_localIndex` indica que existe item em `historicoLaudos`
-editável/removível localmente. Preservar Editar/Remover do histórico para
-legados/manuais **locais** sem comprovante; a remoção não altera contagens,
-tempo, total diário nem dados remotos. Não oferecer essas ações locais para
-evento somente remoto, nem estorno para comprovante inválido. `pending` e
-`confirmed` não permitem novo estorno.
+editável/removível localmente. Preservar Editar e **Remover somente do
+histórico** para legados/manuais **locais antigos** sem comprovante; a remoção
+não altera contagens, valores, tempo, total diário nem dados remotos, e nunca
+usa a palavra "estornar". Não oferecer essas ações locais para evento somente
+remoto, nem estorno para comprovante inválido. `pending` e `confirmed` não
+permitem novo estorno. Novos manuais com comprovante não podem ser excluídos;
+só estornados.
 
-### Comprovantes de efeitos — fundação local de 03/10/2026
+### Comprovantes de efeitos — fundação local de 03/10/2026, com manual novo
 
-Somente novos laudos de cronômetro recebem `effectsVersion: 1` e
-`effectsSnapshot`, construído uma vez a partir da captura técnica original.
-Preservar `operationId`, IDs `<P>:<segmentoId>` e `<P>:time:<segmentoId>`,
-deltas/valores exatos e data no evento. Histórico/fila/evento reutilizam essa
-captura; edição visual não pode alterá-la. Reaplicar proteção de escrita e
-congelamento ao desserializar um comprovante presente, sem criar um para legado.
+Novos laudos de cronômetro e novos lançamentos manuais pelo `+` recebem
+`effectsVersion: 1` e `effectsSnapshot`, construído uma vez a partir da
+captura técnica original. Timer preserva `operationId`, IDs
+`<P>:<segmentoId>` e `<P>:time:<segmentoId>`, deltas/valores exatos e data no
+evento. Manual novo preserva `operationId`, data, `empresaId`, um segmento com
+`counterOperationId` `<P>:<segmentoId>` e `counterDelta: 1`, e
+`totalDailyDeltaSeconds: 0`, sem `timeContribution` falsa. Histórico/fila/evento
+reutilizam essa captura; edição visual não pode alterá-la. Reaplicar proteção
+de escrita e congelamento ao desserializar um comprovante presente, sem criar
+um para legado. Nunca gerar snapshot artificial para manual antigo nem vincular
+`-` antigo a um laudo.
 
 `tempos` continua array de números. A identidade fica no mapa opcional
 `timeContributions[data][timeContributionId]` com `sampleIndex` (null para

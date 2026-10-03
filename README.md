@@ -51,9 +51,11 @@ Radiológico como referência de como isso é tratado lá.
 ## Funcionalidades principais
 
 - Cronômetro por laudo + acumulado do dia
-- Lançamento manual por contador (+/-) além do fluxo com cronômetro
-- Log dos últimos 10 laudos, editável/excluível
-- Estorno auditável para laudos novos com comprovante técnico válido
+- Lançamento manual por contador: `+` cria registro novo com comprovante
+  reversível; `-` continua ajuste genérico sem vínculo
+- Log dos últimos 10 laudos, editável; somente legado sem comprovante pode
+  ser removido somente do histórico, sem alterar contagem/valor
+- Estorno auditável para Timer novo e para manual novo com comprovante válido
 - Relatório mensal com total por empresa e status de pagamento
 - Projeção de ganhos em 24h baseada na média do mês
 - Backup automático (a cada 5 min, últimos 3, só 30 dias de dados) e
@@ -84,6 +86,9 @@ Cada nova finalização pelo cronômetro guarda `effectsVersion: 1` e
 `effectsSnapshot` no histórico e no evento remoto. A captura contém o ID
 principal, data, empresa técnica, segmentos técnicos, IDs/deltas dos
 incrementos, IDs/valores das contribuições de tempo e delta do total diário.
+Cada novo `+` manual guarda `effectsVersion: 1` e snapshot só de contagem
+(`counterOperationId`, `counterDelta: 1`, `totalDailyDeltaSeconds: 0`), sem
+tempo. Não há snapshot retroativo para manual antigo.
 O evento também recebe `data` explicitamente. O mesmo objeto capturado é
 usado no histórico e no evento da fila, e nenhum ID é regenerado no retry.
 
@@ -108,16 +113,17 @@ comprovante não substitui a verificação de sincronização/ledger.
 
 ## Estornar laudo (implementação local, em revisão)
 
-Somente laudos com `effectsVersion: 1` e comprovante técnico válido oferecem
-**Estornar laudo** em Últimos 10 Laudos. O registro original permanece visível
-e recebe `reversal` com ID `reversal:<operationId>` e status `pending` ou
-`confirmed`. O botão some após o pedido. Registros legados permanecem sem
-estorno automático; linhas vindas de outro PC exigem o comprovante e as
-contribuições locais correspondentes, ou a ação é bloqueada.
-Registros legados/manuais **locais** continuam com Editar e **Remover do
-histórico**. Essa remoção afeta apenas o histórico local: não corrige
-contagens, tempos, total diário nem eventos remotos. Eventos somente remotos
-não têm índice local para essas ações.
+Somente Timer novo e manual novo com `effectsVersion: 1` e comprovante válido
+oferecem **Estornar laudo** em Últimos 10 Laudos. O registro original
+permanece visível e recebe `reversal` com ID `reversal:<operationId>` e status
+`pending` ou `confirmed`. O botão some após o pedido. Manual novo estorna só a
+contagem, sem tempo negativo e sem mudar o total diário. Registros legados
+permanecem sem estorno automático; linhas vindas de outro PC exigem o
+comprovante e as contribuições locais correspondentes, ou a ação é bloqueada.
+Registros legados/manuais antigos **locais** continuam com Editar e **Remover
+somente do histórico**. Essa remoção afeta apenas a lista local: não corrige
+contagens, valores, tempos, total diário nem eventos remotos. Eventos somente
+remotos não têm índice local para essas ações.
 
 Antes da alteração, todos os contadores, contribuições identificadas, posições
 e total diário são validados. O estado, histórico, fila e chave de total são

@@ -142,3 +142,21 @@ comprovante/efeitos locais válidos continuam com **Estornar laudo**;
 remotos não recebem ação local porque não têm `_localIndex`. Testes de
 regressão verificam também que a remoção visual não altera produção.
 Correção apenas local para revisão, sem stage, commit ou publicação.
+
+## 03/10/2026 — Estorno real para novo lançamento manual pelo "+"
+
+O botão "+" criava o contador com um ID, mas o item do histórico ficava sem
+identidade e sem comprovante. Por isso ele só oferecia "Remover do histórico",
+que apaga o registro da lista e mantém contagem e valor. Isso podia parecer
+um estorno, mas não era.
+
+A partir desta mudança, todo "+" novo cria um comprovante só de contagem,
+sem tempo inventado. Esse registro mostra "Estornar laudo" e, ao estornar,
+a contagem e o valor voltam corretamente, com o registro mantido como
+ESTORNADO. O "-" continua sendo apenas um ajuste simples, sem vínculo. Os
+registros manuais antigos não foram alterados: continuam com "Remover somente
+do histórico", com aviso claro de que contagem e valores não mudam. O Timer
+continua igual, inclusive no controle de tempo.
+
+Suíte completa com **223/223 verificações passando**. Nada foi alterado nos
+dados reais de 03/10/2026; sem stage, commit ou publicação, aguardando revisão.
