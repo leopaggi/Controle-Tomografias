@@ -12,7 +12,9 @@ const HTML_PATH = path.join(__dirname, '..', '..', 'index.html');
 
 function extractInlineScript(){
   const html = fs.readFileSync(HTML_PATH, 'utf8');
-  const scripts = [...html.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)];
+  // O head também contém o bootstrap de tema. Testar o script real do app
+  // no body, sem confundir esse bootstrap com uma segunda aplicação.
+  const scripts = [...html.slice(html.indexOf('<body')).matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)];
   if (scripts.length !== 1) throw new Error(`esperado 1 script inline em index.html, achado ${scripts.length}`);
   return { html, code: scripts[0][1] };
 }
@@ -45,6 +47,10 @@ return {
   getHistoricoLaudos: () => historicoLaudos, setHistoricoLaudos: (v) => { historicoLaudos = v; },
   getFilaInterna: () => _tomoFila, setFilaInterna: (v) => { _tomoFila = v; }, setFilaCarregada: (v) => { _tomoFilaCarregada = v; },
   getMesesSujos: () => mesesSujos, getDadosSujos: () => dadosSujos,
+  getTimerState: () => ({ currentSeconds, totalSeconds, currentInterval, isCurrentRunning }),
+  setTimerState: (v) => { currentSeconds = v.currentSeconds; totalSeconds = v.totalSeconds; isCurrentRunning = v.isCurrentRunning; },
+  startCurrentTimer, resetCurrentTimer, togglePauseCurrentTimer,
+  getFinalizacaoEmAndamento: () => finalizacaoEmAndamento,
 };
 `;
 
@@ -81,17 +87,20 @@ function loadApp(options = {}){
   // precisar tocar no escopo interno do script avaliado.
   const confirmBox = { value: true };
   const confirmFn = () => confirmBox.value;
-  const timers = makeUnrefTimers();
+  const timers = options.timers || makeUnrefTimers();
   // Chart.js só é usado para desenhar gráficos (efeito colateral de UI, não
   // faz parte da lógica sob teste) — um construtor fake com destroy() no-op
   // basta pra atualizarGraficos()/atualizarGraficoProjecao() não lançarem.
   function FakeChart(){ this.destroy = () => {}; }
+  FakeChart.defaults = {};
 
   const factory = new Function(
-    'document', 'window', 'indexedDB', 'crypto', 'confirm', 'alert', 'setInterval', 'setTimeout', 'Chart',
+    'document', 'window', 'indexedDB', 'crypto', 'confirm', 'alert', 'setInterval', 'setTimeout', 'Chart', 'clearInterval', 'requestAnimationFrame', 'getComputedStyle',
     code + EPILOGUE
   );
-  const api = factory(doc, win, idb, cryptoShim, confirmFn, () => {}, timers.setInterval, timers.setTimeout, FakeChart);
+  const api = factory(doc, win, idb, cryptoShim, confirmFn, () => {}, timers.setInterval, timers.setTimeout, FakeChart,
+    timers.clearInterval || clearInterval, options.requestAnimationFrame,
+    () => ({ getPropertyValue(){ return ''; } }));
   api.setConfirmAnswer = (v) => { confirmBox.value = v; };
   return { api, doc, window: win, sharedIdb };
 }

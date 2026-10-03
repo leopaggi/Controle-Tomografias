@@ -1900,74 +1900,114 @@
             document.getElementById('total-valor-dia').textContent = `R$ ${totalGeralValor.toFixed(2)}`;
         }
 
+        let finalizacaoEmAndamento = false;
         async function finalizarLaudo() {
+            if (finalizacaoEmAndamento) return;
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
             const data = dataExameInput.value;
             if (!data) { showNotification("❌ Selecione uma DATA!", "error"); return; }
             if (!servico) { showNotification("Selecione a EMPRESA!", "error"); return; }
             if (checkboxes.length === 0) { showNotification("Selecione ao menos 1 SEGMENTO!", "error"); return; }
-            await tomoEnsureStorage();
-
-            const tempoGasto = currentSeconds;
-            const segmentosSelecionados = Array.from(checkboxes).map(cb => ({ nome: valoresSegmentos[cb.value].nome, chave: cb.value }));
-            const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
-            const baseOpId = tomoNovoOperationId();
-            const logOk = await adicionarAoLog(empresaNome, segmentosSelecionados.map(s => s.nome), tempoGasto, 'cronometro', data, baseOpId);
-
-            let totalOk = true;
-            if(tempoGasto > 0) {
-                totalSeconds += tempoGasto;
-                updateTotalDisplay();
+            const btn = document.getElementById('btn-finalizar-laudo');
+            const textoBotao = btn.textContent;
+            const dataDesabilitada = dataExameInput.disabled;
+            finalizacaoEmAndamento = true;
+            btn.disabled = true;
+            btn.textContent = '⏳ Finalizando...';
+            // O save legado também lê a data selecionada: mantê-la estável
+            // até ele terminar evita gravar o total na chave de outro dia.
+            dataExameInput.disabled = true;
+            try {
+                // Captura antes do primeiro await e antes de qualquer reset.
+                const tempoGasto = currentSeconds;
+                if (currentInterval) clearInterval(currentInterval);
+                currentInterval = null;
+                const segmentosSelecionados = Object.freeze(Array.from(checkboxes).map(cb => Object.freeze({ nome: valoresSegmentos[cb.value].nome, chave: cb.value })));
+                const nomesSegmentos = Object.freeze(segmentosSelecionados.map(s => s.nome));
+                const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
+                const baseOpId = tomoNovoOperationId();
+                const operationIds = Object.freeze([...segmentosSelecionados.map(s => `${baseOpId}:${s.chave}`), baseOpId]);
+                const totalAposLaudo = totalSeconds + tempoGasto;
                 const totalKey = `totalAcumulado_${data}`;
-                try { await idbLocalStorage.setItemAsync(totalKey, totalSeconds.toString()); }
-                catch(e) { console.error('❌ Falha ao persistir total do dia:', e && e.message); totalOk = false; }
-            }
-            if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
-            if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
-            const tempoDividido = tempoGasto / checkboxes.length;
-            checkboxes.forEach(cb => {
-                const seg = cb.value;
-                if (tempoDividido > 0) {
-                    const key = `${servico}_${seg}`;
-                    if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
-                    dadosApp.tempos[data][key].push(tempoDividido);
-                }
-                if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
-                const atual = dadosApp.exames[data][seg][servico] || 0;
-                dadosApp.exames[data][seg][servico] = atual + 1;
-            });
-            marcarMesSujo(data);
-            dadosSujos = true;
-
-            // Multi-PC: cada segmento vira seu próprio incremento atômico
-            // idempotente (operationId derivado do id do laudo); o laudo
-            // inteiro vira UM evento cross-PC (mesma operationId base).
-            for (const s of segmentosSelecionados) {
-                await tomoEnfileirar({ operationId: `${baseOpId}:${s.chave}`, tipo: 'contador', data, seg: s.chave, serv: servico, delta: 1 });
-            }
-            await tomoEnfileirar({
-                operationId: baseOpId, tipo: 'laudo', data,
-                evento: {
-                    empresa: empresaNome, segmentos: segmentosSelecionados.map(s => s.nome),
+                const tempoDividido = tempoGasto / segmentosSelecionados.length;
+                const agora = new Date();
+                await tomoEnsureStorage();
+                const evento = Object.freeze({
+                    empresa: empresaNome, segmentos: nomesSegmentos,
                     tempo: tempoGasto, tempoFormatado: formatTimeShort(tempoGasto), tipo: 'cronometro',
-                    horario: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                    timestamp: Date.now(), origem: tomoDeviceId(), operationId: baseOpId
+                    horario: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: agora.getTime(), origem: tomoDeviceId(), operationId: baseOpId
+                });
+                const logOk = await adicionarAoLog(empresaNome, nomesSegmentos, tempoGasto, 'cronometro', data, baseOpId);
+                let totalOk = true;
+                if (tempoGasto > 0) {
+                    totalSeconds = totalAposLaudo;
+                    updateTotalDisplay();
+                    try { await idbLocalStorage.setItemAsync(totalKey, totalAposLaudo.toString()); }
+                    catch(e) { console.error('❌ Falha ao persistir total do dia:', e && e.message); totalOk = false; }
                 }
-            });
-            await tomoProcessarFila();
+                if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
+                if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
+                segmentosSelecionados.forEach(({ chave: seg }) => {
+                    if (tempoDividido > 0) {
+                        const key = `${servico}_${seg}`;
+                        if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
+                        dadosApp.tempos[data][key].push(tempoDividido);
+                    }
+                    if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
+                    const atual = dadosApp.exames[data][seg][servico] || 0;
+                    dadosApp.exames[data][seg][servico] = atual + 1;
+                });
+                marcarMesSujo(data);
+                dadosSujos = true;
 
-            limparSelecoesSegmentos();
-            resetCurrentTimerAfterCommit();
-            showNotification("🔄 Salvando...", "warning");
-            const resSave = await salvarDadosFirebase();
-            criarTabela(); atualizarResumoEmpresas(); atualizarGraficos(); atualizarLog();
-            if (!logOk || !totalOk || !resSave.localOk) {
-                showNotification("❌ Falha ao salvar localmente. Dados mantidos em memória.", "error");
-                return;
+                // IDs e payloads vêm da captura, nunca dos controles limpos.
+                for (const [index, s] of segmentosSelecionados.entries()) {
+                    await tomoEnfileirar({ operationId: operationIds[index], tipo: 'contador', data, seg: s.chave, serv: servico, delta: 1 });
+                }
+                await tomoEnfileirar({ operationId: baseOpId, tipo: 'laudo', data, evento });
+                // tomoPersistirFila registra falhas sem rejeitar. Confirmar
+                // diretamente a durabilidade local antes de limpar a tela.
+                await idbLocalStorage.setItemAsync(TOMO_QUEUE_KEY, JSON.stringify(_tomoFila));
+                const estadoLocal = JSON.stringify(dadosApp);
+                await idbLocalStorage.setItemAsync('examesTomografia', estadoLocal);
+                if (!logOk || !totalOk) throw new Error('Log ou total diário não confirmado localmente.');
+
+                limparSelecoesSegmentos();
+                resetCurrentTimerAfterCommit();
+                criarTabela(); atualizarGraficos(); atualizarLog();
+                showNotification("🔄 Laudo registrado localmente. Sincronizando...", "warning");
+                // Apenas entrega um frame. Não dispara persistência em paralelo.
+                if (typeof requestAnimationFrame === 'function' && document.visibilityState !== 'hidden') {
+                    await new Promise(requestAnimationFrame);
+                }
+                let erroFila = null;
+                try { await tomoProcessarFila(); }
+                catch(e) { erroFila = e; console.error('❌ Falha ao processar fila do laudo:', e); }
+                const resSave = await salvarDadosFirebase();
+                const filaPendente = _tomoFila.some(op => operationIds.includes(op.operationId) && op.status !== 'concluido');
+                if (!resSave.localOk) {
+                    showNotification("❌ Falha no salvamento local final. Captura local anterior preservada; verifique a sincronização.", "error");
+                    return;
+                }
+                if (erroFila || filaPendente) {
+                    atualizarStatus("⚠️ Laudo com sincronização pendente na fila", "warning");
+                    showNotification("⚠️ Laudo salvo LOCALMENTE, com operação pendente na fila. Sincronize depois; não finalize novamente este laudo.", "warning");
+                } else if (resSave.cloudOk) showNotification(`✅ Laudo finalizado! (${nomesSegmentos.join(', ')})`, "success");
+                else showNotification("⚠️ Salvo LOCALMENTE. Sincronize depois.", "warning");
+            } catch(e) {
+                console.error('❌ Falha ao finalizar laudo:', e);
+                showNotification("❌ Finalização com falha. Dados/captura mantidos; verifique a fila e a persistência antes de finalizar novamente.", "error");
+            } finally {
+                dataExameInput.disabled = dataDesabilitada;
+                btn.textContent = textoBotao;
+                btn.disabled = false;
+                finalizacaoEmAndamento = false;
+                // O intervalo fica parado durante TODA a persistência. Ao sair,
+                // retoma o fluxo normal (ou mantém a pausa, se não houve reset).
+                startCurrentTimer();
             }
-            if (resSave.cloudOk) showNotification(`✅ Laudo finalizado! (${segmentosSelecionados.map(s => s.nome).join(', ')})`, "success");
-            else showNotification("⚠️ Salvo LOCALMENTE. Sincronize depois.", "warning");
         }
 
         async function alterarContador(seg, serv, delta) {

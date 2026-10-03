@@ -63,7 +63,23 @@ Carrega o `<script>` real de `index.html` num sandbox com IndexedDB/Firestore
 mockados e exercita idempotência, fila offline, migração, auditoria e
 histórico cross-PC. Ver `AI.md` para o porquê da arquitetura testada.
 
+`node tests/test-finalizacao-responsiva.js` — verifica captura de duração,
+parada do intervalo, UI antes da rede, reentrada, falhas locais/remotas,
+retry sem duplicação e regressão de `+/-` com promises controladas.
+
 ## Histórico relevante
+
+Correção do encerramento aprovada em teste real (02/10/2026): ver
+`LOG_DESENVOLVIMENTO.md`. A medição real anterior informou
+~2081 ms até reset, principalmente na fila remota. `finalizarLaudo` agora
+confirma captura/fila/estado local antes de limpar a UI, para o intervalo e
+atualiza a tela antes da rede; os dois awaits remotos continuam obrigatórios.
+Botão Finalizar e data ficam bloqueados durante a operação e são restaurados
+no finally. Um frame é aguardado antes da rede quando a página está visível;
+o intervalo retoma ao terminar a persistência. No teste real pós-correção,
+reset/tabela ocorreram em ~20 ms e o primeiro frame com UI atualizada em
+~48 ms; o handler aguardou ~3683 ms até a conclusão. A instrumentação
+temporária foi removida após a aprovação. Publicação pendente de revisão final.
 
 Ver `AI.md` — esse projeto já passou por um incidente real de perda de
 dados (R$ 2.000 em laudos de um dia) e duas rodadas de estouro de cota do

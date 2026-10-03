@@ -172,5 +172,26 @@ puras o suficiente para serem testadas sem Firestore real — ver `tests/`.
 
 ## Mantendo este arquivo atualizado
 
+Correção de finalização aprovada em teste real em 02/10/2026:
+`LOG_DESENVOLVIMENTO.md` registra os resultados e as decisões. Em
+`finalizarLaudo`, capturar duração/empresa/data/segmentos/IDs antes de awaits e
+reset; parar o intervalo imediatamente; confirmar a fila e snapshot do estado
+via `setItemAsync` antes de limpar UI (o helper da fila registra falha sem
+rejeitar). Essas confirmações locais adicionais são intencionais.
+Preservar `await tomoProcessarFila()` e `await salvarDadosFirebase()`; nunca
+anunciar sucesso se IDs desse laudo ainda estiverem na fila. Guardar a trava de
+reentrada até os dois terminarem e restaurar botão/data/intervalo no finally.
+A data fica bloqueada porque o save legado também lê a data selecionada para
+gravar o total; não trocar isso por leitura de controles limpos. Falha local
+antes de confirmar captura não limpa duração/seleções e não recria operação.
+Os helpers de fila/save, ledger, dual-write, loader e `alterarContador` foram
+preservados nesta correção. Manter o frame aguardado antes da rede quando
+disponível e página visível. O harness suporta o tema no head e o script do
+app no body; testes permanentes usam timers/promises e DOM mock controlados,
+sem instrumentação de produção. A medição real aprovada mostrou reset/tabela
+em ~20 ms, primeiro frame em ~48 ms e handler total ~3683 ms, com persistência
+remota aguardada. Instrumentação e arquivos temporários removidos após teste;
+aguardando revisão final para publicação.
+
 Toda vez que você mexer na lógica de storage, sincronização, ou merge de
 dados, atualize este arquivo e o `README.md` no mesmo commit/entrega.

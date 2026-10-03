@@ -33,6 +33,11 @@ function fakeDocument(){
   const elements = new Map();
   const doc = {
     readyState: 'loading',
+    documentElement: {
+      _attributes: new Map([['data-theme', 'light']]),
+      getAttribute(name){ return this._attributes.get(name); },
+      setAttribute(name, value){ this._attributes.set(name, value); },
+    },
     getElementById(id){
       if (!elements.has(id)) elements.set(id, fakeElement());
       return elements.get(id);
