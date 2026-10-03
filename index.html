@@ -1146,8 +1146,12 @@
         }
         async function estornarLaudo(operationId){
             // Uma única transação de estorno local por vez; pedidos distintos
-            // também não podem disputar o mesmo cache/fila/total.
-            if (_tomoEstornosEmAndamento.size || finalizacaoEmAndamento) return;
+            // também não podem disputar o mesmo cache/fila/total. Nunca sair
+            // em silêncio: o usuário precisa saber que o clique não valeu.
+            if (_tomoEstornosEmAndamento.size || finalizacaoEmAndamento) {
+                showNotification('⏳ Aguarde a conclusão da operação em andamento antes de estornar outro laudo.', 'warning');
+                return;
+            }
             _tomoEstornosEmAndamento.add(operationId);
             try {
                 await tomoEnsureStorage();
@@ -1844,15 +1848,23 @@
         let _tomoFilaCarregada = false;
         let _tomoProcessandoFilaPromise = null;
 
+        let _tomoFilaCarregando = null;
         async function tomoCarregarFila(){
             if (_tomoFilaCarregada) return;
-            await tomoEnsureStorage();
-            try {
-                const raw = idbLocalStorage.getItem(TOMO_QUEUE_KEY);
-                _tomoFila = raw ? JSON.parse(raw) : [];
-                _tomoFila.forEach(op => { if (op.tipo === 'laudo' && op.evento) tomoProtegerComprovante(op.evento); });
-            } catch(e) { _tomoFila = []; }
-            _tomoFilaCarregada = true;
+            // Sem guarda, dois fluxos concorrentes (ex.: dois cliques rápidos
+            // no "+") podiam recarregar e descartar o enqueue um do outro.
+            if (_tomoFilaCarregando) return _tomoFilaCarregando;
+            _tomoFilaCarregando = (async () => {
+                await tomoEnsureStorage();
+                try {
+                    const raw = idbLocalStorage.getItem(TOMO_QUEUE_KEY);
+                    _tomoFila = raw ? JSON.parse(raw) : [];
+                    _tomoFila.forEach(op => { if (op.tipo === 'laudo' && op.evento) tomoProtegerComprovante(op.evento); });
+                } catch(e) { _tomoFila = []; }
+                _tomoFilaCarregada = true;
+            })();
+            try { await _tomoFilaCarregando; }
+            finally { _tomoFilaCarregando = null; }
         }
         async function tomoPersistirFila(){
             try { await idbLocalStorage.setItemAsync(TOMO_QUEUE_KEY, JSON.stringify(_tomoFila)); }
@@ -2074,6 +2086,46 @@
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
                 await tomoCarregarFila();
+                // Recompõe pedidos de estorno MANUAL perdidos (ex.: escrita
+                // concorrente da fila em outra aba): registro marcado, efeitos
+                // intactos e sem op na fila travavam para sempre — reload não
+                // convergia e o re-clique ficava bloqueado. Só manuais (sem
+                // tempo): Timer continua pelo fluxo normal. Idempotente via
+                // ledger `reversal:<op>` (já aplicado = sem re-decremento); o
+                // merge do documento diário logo abaixo adota as contagens.
+                if (db) {
+                    try {
+                        // Meses de ops concluídas aqui precisam de rewrite mensal
+                        // (instância nova tem dirty vazio; sem isso o mensal legado
+                        // ficava obsoleto após concluir pendências no load).
+                        const datasPendentes = new Map(_tomoFila
+                            .filter(op => op && op.status !== 'concluido' && op.data)
+                            .map(op => [op.operationId, op.data]));
+                        const semOp = new Set(_tomoFila.map(op => op && op.operationId));
+                        for (const rec of historicoLaudos) {
+                            if (!rec || !rec.reversal || !rec.reversal.reversalId || !rec.operationId) continue;
+                            if (rec.reversal.reversalId !== tomoReversalId(rec.operationId)) continue;
+                            if (!tomoComprovanteValido(rec)) continue;
+                            const rs = rec.effectsSnapshot;
+                            if (!rs.segmentos.every(e => e.timeContributionId === undefined && e.timeSeconds === undefined)) continue;
+                            const intactos = rs.segmentos.every(e => {
+                                const qtd = dadosApp.exames?.[rs.data]?.[e.segmentoId]?.[rs.empresaId];
+                                return Number.isInteger(qtd) && qtd >= e.counterDelta;
+                            });
+                            if (!intactos) continue;
+                            if (semOp.has(rec.reversal.reversalId)) continue;
+                            await tomoEnfileirar({ operationId: rec.reversal.reversalId, tipo: 'estorno', data: rs.data,
+                                reversesOperationId: rec.operationId, effectsVersion: rec.effectsVersion, effectsSnapshot: rs });
+                            semOp.add(rec.reversal.reversalId);
+                            // O mês precisa ser reescrito (como faz estornarLaudo):
+                            // sem isso, o documento mensal legado ficava obsoleto.
+                            marcarMesSujo(rs.data); dadosSujos = true;
+                        }
+                        await tomoProcessarFila();
+                        _tomoFila.forEach(op => { if (op && op.status !== 'concluido') datasPendentes.delete(op.operationId); });
+                        datasPendentes.forEach(data => { marcarMesSujo(data); dadosSujos = true; });
+                    } catch (e) { console.warn('[Tomografia] Reconciliação de estornos manuais falhou:', e); }
+                }
 
                 if (db) {
                     try {

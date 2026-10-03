@@ -123,7 +123,10 @@ comprovante e as contribuições locais correspondentes, ou a ação é bloquead
 Registros legados/manuais antigos **locais** continuam com Editar e **Remover
 somente do histórico**. Essa remoção afeta apenas a lista local: não corrige
 contagens, valores, tempos, total diário nem eventos remotos. Eventos somente
-remotos não têm índice local para essas ações.
+remotos não têm índice local para essas ações. Clicar em estornar durante outro
+estorno em andamento avisa para aguardar; se um pedido de estorno manual se
+perder da fila com o registro já marcado, recarregar recompõe o pedido de forma
+idempotente e a contagem converge (sem duplicar o desconto).
 
 Antes da alteração, todos os contadores, contribuições identificadas, posições
 e total diário são validados. O estado, histórico, fila e chave de total são

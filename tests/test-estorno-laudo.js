@@ -675,6 +675,92 @@ async function run(check){
       assert.equal(h.api.getDadosApp().exames[DAY].cranio.hbj,0);
     });
   }
+  {
+    // BUG REAL 03/10/2026 (MOBILEMED/CRANIO +2): o segundo estorno clicado
+    // durante o voo de rede do primeiro era descartado em silencio (sem
+    // confirm, sem toast), deixando contagem parcial e usuario confuso.
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.alterarContador('cranio','mobilemed',1);
+    await h.api.alterarContador('cranio','mobilemed',1);
+    const ids=h.api.getHistoricoLaudos().map(x=>x.operationId);
+    let release; const gate=new Promise(resolve=>{release=resolve;});
+    const realRun=db.runTransaction.bind(db);
+    db.runTransaction=async fn=>{ await gate; return realRun(fn); };
+    const pA=h.api.estornarLaudo(ids[1]);
+    await until(()=>h.frames.length);
+    h.frames.shift()(performance.now());
+    await new Promise(resolve=>setTimeout(resolve,20));
+    const antesB=JSON.stringify(h.api.getHistoricoLaudos().find(x=>x.operationId===ids[0]).reversal||null);
+    await h.api.estornarLaudo(ids[0]);
+    verify('estorno concorrente avisa em vez de descartar em silencio',()=>{
+      assert.equal(JSON.stringify(h.api.getHistoricoLaudos().find(x=>x.operationId===ids[0]).reversal||null),antesB);
+      assert(notice(h).includes('Aguarde'));
+    });
+    release(); await pA; db.runTransaction=realRun;
+    verify('apos voo, primeiro estorno confirma e segundo continua oferecido',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].cranio.mobilemed,1);
+      assert.equal(h.api.getHistoricoLaudos().find(x=>x.operationId===ids[1]).reversal.status,'confirmed');
+      assert.equal(h.api.getHistoricoLaudos().find(x=>x.operationId===ids[0]).reversal,undefined);
+    });
+    await reverse(h,ids[0]);
+    verify('segundo estorno apos conclusao zera sem duplicar',()=>{
+      assert.equal(h.api.getDadosApp().exames[DAY].cranio.mobilemed,0);
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.cranio.mobilemed,0);
+    });
+  }
+  {
+    // BUG REAL 03/10/2026: registro manual marcado (pending) com efeitos
+    // intactos e SEM a op na fila (pedido perdido) ficava preso para sempre:
+    // reload mantinha a contagem e o re-clique era bloqueado. O carregamento
+    // deve recompor o pedido idempotente e convergir.
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.alterarContador('cranio','mobilemed',1);
+    const item=h.api.getHistoricoLaudos()[0], opId=item.operationId, revId=h.api.tomoReversalId(opId);
+    const marcado=h.api.getHistoricoLaudos().map(x=>x.operationId===opId
+      ? Object.assign({},x,{reversal:{reversalId:revId,reversedAt:Date.now(),status:'pending'}}):x);
+    h.api.setHistoricoLaudos(marcado);
+    h.api.setFilaInterna([]);
+    await h.api.idbLocalStorage.setItemAsync('historicoLaudos',JSON.stringify(marcado));
+    await h.api.idbLocalStorage.setItemAsync('tomoFilaOperacoes',JSON.stringify([]));
+    await h.api.idbLocalStorage.setItemAsync('examesTomografia',JSON.stringify(h.api.getDadosApp()));
+    const reloaded=app({sharedIdb:h.sharedIdb}); reloaded.api.setDb(db);
+    await reloaded.api.carregarDados();
+    verify('reload recompoe estorno manual perdido e converge sem duplicar',()=>{
+      assert.equal(reloaded.api.getDadosApp().exames[DAY].cranio.mobilemed,0);
+      assert.equal(reloaded.api.getHistoricoLaudos()[0].reversal.status,'confirmed');
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.cranio.mobilemed,0);
+      assert.equal(db._store.get('controles_operacoes/'+revId).reversesOperationId,opId);
+      assert.equal(JSON.parse(reloaded.sharedIdb.get('examesTomografia')).exames[DAY].cranio.mobilemed,0);
+    });
+    await reloaded.api.estornarLaudo(opId);
+    verify('apos convergencia, re-clique continua bloqueado sem novo efeito',()=>{
+      assert.equal(reloaded.api.getDadosApp().exames[DAY].cranio.mobilemed,0);
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.cranio.mobilemed,0);
+    });
+  }
+  {
+    // Variante com DOIS manuais perdidos: ambos convergem e o valor acompanha.
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.alterarContador('cranio','mobilemed',1);
+    await h.api.alterarContador('cranio','mobilemed',1);
+    const ops=h.api.getHistoricoLaudos().map(x=>x.operationId);
+    const marcado=h.api.getHistoricoLaudos().map(x=>Object.assign({},x,
+      {reversal:{reversalId:h.api.tomoReversalId(x.operationId),reversedAt:Date.now(),status:'pending'}}));
+    h.api.setHistoricoLaudos(marcado);
+    h.api.setFilaInterna([]);
+    await h.api.idbLocalStorage.setItemAsync('historicoLaudos',JSON.stringify(marcado));
+    await h.api.idbLocalStorage.setItemAsync('tomoFilaOperacoes',JSON.stringify([]));
+    await h.api.idbLocalStorage.setItemAsync('examesTomografia',JSON.stringify(h.api.getDadosApp()));
+    const reloaded=app({sharedIdb:h.sharedIdb}); reloaded.api.setDb(db);
+    await reloaded.api.carregarDados();
+    verify('reload converge dois manuais perdidos 2 -> 0 com valor zerado',()=>{
+      assert.equal(reloaded.api.getDadosApp().exames[DAY].cranio.mobilemed,0);
+      assert(reloaded.api.getHistoricoLaudos().every(x=>x.reversal.status==='confirmed'));
+      assert.equal(db._store.get('controles_dias/'+DAY).exames.cranio.mobilemed,0);
+      assert.equal(reloaded.doc.getElementById('total-valor-dia').textContent,'R$ 0.00');
+      assert(ops.every(opId=>db._store.get('controles_operacoes/'+reloaded.api.tomoReversalId(opId)).reversesOperationId===opId));
+    });
+  }
   return count;
 }
 module.exports = { run };

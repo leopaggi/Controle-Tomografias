@@ -160,3 +160,27 @@ continua igual, inclusive no controle de tempo.
 
 Suíte completa com **223/223 verificações passando**. Nada foi alterado nos
 dados reais de 03/10/2026; sem stage, commit ou publicação, aguardando revisão.
+
+## 03/10/2026 — Estorno manual não revertia em produção (corrigido localmente)
+
+Teste real após publicar o estorno manual: dois CRÂNIOS MOBILEMED lançados com
+"+", ambos estornados, mas a contagem ficou em 2 e o valor não voltou.
+
+O que foi descoberto: o caminho feliz estava correto (é por isso que os testes
+passavam). Faltavam três proteções. Primeiro, clicar no segundo "Estornar"
+enquanto o primeiro ainda sincronizava descartava o clique em silêncio, sem
+avisar. Segundo, dois fluxos lendo a fila ao mesmo tempo podiam perder um
+pedido. Terceiro e principal: se o pedido de estorno sumia da fila com o
+registro já marcado, nada mais convergia — recarregar mantinha a contagem e o
+botão de estornar ficava bloqueado para sempre.
+
+Correção local, sem tocar em nenhum dado real: clique concorrente agora avisa
+para aguardar; a leitura da fila não corre mais em duplicidade; e ao abrir o
+app, um pedido de estorno manual perdido é refeito de forma segura (o controle
+remoto impede duplicar o desconto) e a contagem é adotada do documento diário.
+Manuais antigos e Timer não mudam de comportamento.
+
+Suíte completa com **229/229 verificações passando** (6 novas cobrindo clique
+concorrente, pedido perdido e convergência após recarregar). Sem stage, commit
+ou publicação, aguardando revisão. Com o app atualizado, basta recarregar a
+página na produção para os registros travados convergirem sozinhos.

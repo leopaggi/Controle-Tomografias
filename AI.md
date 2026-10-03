@@ -207,7 +207,13 @@ não altera contagens, valores, tempo, total diário nem dados remotos, e nunca
 usa a palavra "estornar". Não oferecer essas ações locais para evento somente
 remoto, nem estorno para comprovante inválido. `pending` e `confirmed` não
 permitem novo estorno. Novos manuais com comprovante não podem ser excluídos;
-só estornados.
+só estornados. Um segundo clique de estorno durante outro em voo deve AVISAR
+(nunca sair em silêncio). `tomoCarregarFila` tem guarda contra carregamento
+concorrente (dois fluxos não podem recarregar e perder um enqueue). No
+`carregarDados`, pedidos de estorno MANUAL perdidos (registro marcado, efeitos
+intactos, sem op na fila) são recompostos de forma idempotente via ledger
+`reversal:<op>` antes do merge diário, com o mês marcado como sujo; restrito a
+snapshots sem tempo para não tocar no fluxo do Timer.
 
 ### Comprovantes de efeitos — fundação local de 03/10/2026, com manual novo
 
