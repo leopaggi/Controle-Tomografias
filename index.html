@@ -844,7 +844,158 @@
         // ============================================
         // LOG DE LAUDOS
         // ============================================
-        async function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef, operationId) {
+        const TOMO_EFFECTS_VERSION = 1;
+        function tomoCongelarEfeitos(value){
+            if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+                Object.values(value).forEach(tomoCongelarEfeitos);
+                Object.freeze(value);
+            }
+            return value;
+        }
+        function tomoProtegerComprovante(registro){
+            // Só protege comprovantes já presentes. Nunca cria efeitos para legado.
+            if (!registro || !registro.effectsSnapshot) return registro;
+            tomoCongelarEfeitos(registro.effectsSnapshot);
+            ['operationId', 'effectsVersion', 'effectsSnapshot'].forEach(key => {
+                if (Object.prototype.hasOwnProperty.call(registro, key)) {
+                    Object.defineProperty(registro, key, { value: registro[key], enumerable: true, writable: false, configurable: false });
+                }
+            });
+            return registro;
+        }
+        function tomoCopiarComprovante(destino, origem){
+            if (origem && origem.effectsSnapshot) {
+                destino.effectsVersion = origem.effectsVersion;
+                destino.effectsSnapshot = origem.effectsSnapshot;
+                if (origem.reversal && !destino.reversal) destino.reversal = Object.assign({}, origem.reversal);
+                tomoProtegerComprovante(destino);
+            }
+            return destino;
+        }
+        function tomoCriarEffectsSnapshot(operationId, data, empresaId, segmentoIds, duracao){
+            const timeSeconds = duracao > 0 ? duracao / segmentoIds.length : 0;
+            return tomoCongelarEfeitos({
+                operationId, data, empresaId,
+                segmentos: segmentoIds.map(segmentoId => ({
+                    segmentoId, counterOperationId: `${operationId}:${segmentoId}`, counterDelta: 1,
+                    timeContributionId: `${operationId}:time:${segmentoId}`, timeSeconds
+                })),
+                totalDailyDeltaSeconds: duracao > 0 ? duracao : 0
+            });
+        }
+        // Retrocompatível: tempos continua sendo array de NÚMEROS, lido pelas
+        // mesmas estatísticas. Só novos lançamentos ganham identidade no mapa
+        // paralelo; sampleIndex aponta a inserção exata, sem rotular o legado.
+        function tomoAdicionarContribuicaoTempo(dados, snapshot, efeito){
+            const { data, empresaId, operationId } = snapshot;
+            const key = `${empresaId}_${efeito.segmentoId}`;
+            if (!dados.timeContributions) dados.timeContributions = {};
+            if (!dados.timeContributions[data]) dados.timeContributions[data] = {};
+            const existente = dados.timeContributions[data][efeito.timeContributionId];
+            if (existente) {
+                if (existente.operationId !== operationId || existente.empresaId !== empresaId || existente.segmentoId !== efeito.segmentoId || existente.timeSeconds !== efeito.timeSeconds) {
+                    throw new Error('Identidade de contribuição de tempo em conflito.');
+                }
+                return existente; // Não adiciona uma segunda amostra no mesmo ID.
+            }
+            let sampleIndex = null;
+            if (efeito.timeSeconds > 0) {
+                if (!dados.tempos[data][key]) dados.tempos[data][key] = [];
+                sampleIndex = dados.tempos[data][key].length;
+                dados.tempos[data][key].push(efeito.timeSeconds);
+            }
+            const contribuicao = Object.freeze({ operationId, empresaId, segmentoId: efeito.segmentoId, timeSeconds: efeito.timeSeconds, sampleIndex });
+            dados.timeContributions[data][efeito.timeContributionId] = contribuicao;
+            return contribuicao;
+        }
+        function tomoLocalizarContribuicaoTempo(dados, data, timeContributionId){
+            const c = dados.timeContributions && dados.timeContributions[data] && dados.timeContributions[data][timeContributionId];
+            if (!c || c.sampleIndex === null) return null; // duração zero não insere amostra
+            const key = `${c.empresaId}_${c.segmentoId}`;
+            const arr = dados.tempos[data] && dados.tempos[data][key];
+            if (!Array.isArray(arr) || !Number.isInteger(c.sampleIndex) || c.sampleIndex < 0 || arr[c.sampleIndex] !== c.timeSeconds) return null;
+            return { key, sampleIndex: c.sampleIndex, timeSeconds: c.timeSeconds, operationId: c.operationId };
+        }
+        const _tomoEstornosEmAndamento = new Set();
+        let _tomoEstornoCommitPromise = null, _tomoEstornoCommitResolve = null;
+        function tomoBloquearEdicaoDuranteEstorno(){
+            if (!_tomoEstornosEmAndamento.size) return false;
+            showNotification('⏳ Aguarde a conclusão do estorno antes de alterar dados.', 'warning');
+            return true;
+        }
+        function tomoReversalId(operationId){ return `reversal:${operationId}`; }
+        function tomoPrepararEstornoLocal(item, dados, totalDia){
+            if (!tomoComprovanteValido(item)) throw new Error('Registro antigo ou comprovante técnico inválido.');
+            if (item.reversal) throw new Error('Este laudo já possui um pedido de estorno.');
+            const s = item.effectsSnapshot, data = s.data, empresaId = s.empresaId;
+            if (!Number.isSafeInteger(totalDia) || totalDia < s.totalDailyDeltaSeconds) throw new Error('Total diário incompatível com o laudo.');
+            const efeitos = s.segmentos.map(e => {
+                const atual = dados.exames[data] && dados.exames[data][e.segmentoId] && dados.exames[data][e.segmentoId][empresaId];
+                if (!Number.isInteger(atual) || atual < e.counterDelta) throw new Error('Contagem insuficiente ou inconsistente para estorno.');
+                const c = dados.timeContributions && dados.timeContributions[data] && dados.timeContributions[data][e.timeContributionId];
+                if (!c || c.operationId !== s.operationId || c.empresaId !== empresaId || c.segmentoId !== e.segmentoId || c.timeSeconds !== e.timeSeconds) throw new Error('Contribuição de tempo ausente ou divergente.');
+                if (e.timeSeconds === 0) {
+                    if (c.sampleIndex !== null) throw new Error('Contribuição de tempo zero inconsistente.');
+                    return { e, c, key: `${empresaId}_${e.segmentoId}` };
+                }
+                const pos = tomoLocalizarContribuicaoTempo(dados, data, e.timeContributionId);
+                if (!pos || pos.sampleIndex !== c.sampleIndex || pos.timeSeconds !== e.timeSeconds) throw new Error('A amostra original não está na posição esperada.');
+                const duplicado = Object.entries(dados.timeContributions[data]).some(([id, outra]) =>
+                    id !== e.timeContributionId && outra && outra.empresaId === empresaId && outra.segmentoId === e.segmentoId && outra.sampleIndex === pos.sampleIndex);
+                if (duplicado) throw new Error('Duas contribuições apontam para a mesma amostra; estorno bloqueado.');
+                return { e, c, key: pos.key };
+            });
+            // Só copiar e modificar após validar TODOS os efeitos; o estado vivo
+            // e as chaves IndexedDB permanecem intactos em qualquer erro.
+            const novo = JSON.parse(JSON.stringify(dados));
+            efeitos.forEach(({ e, c, key }) => {
+                novo.exames[data][e.segmentoId][empresaId] -= e.counterDelta;
+                if (c.sampleIndex !== null) novo.tempos[data][key].splice(c.sampleIndex, 1);
+                // O comprovante histórico permanece; o mapa ativo não pode
+                // conservar um ID apontando para a posição agora reutilizada.
+                delete novo.timeContributions[data][e.timeContributionId];
+                if (c.sampleIndex === null) return;
+                Object.values(novo.timeContributions[data]).forEach(outra => {
+                    if (outra && outra.empresaId === empresaId && `${outra.empresaId}_${outra.segmentoId}` === key
+                        && outra.sampleIndex !== null && outra.sampleIndex > c.sampleIndex) outra.sampleIndex--;
+                });
+            });
+            return { dados: novo, total: totalDia - s.totalDailyDeltaSeconds };
+        }
+        async function tomoPersistirEstornoLocal(dados, log, fila, totalKey, total){
+            // Quatro chaves numa ÚNICA transação; sem confirmação local não há
+            // alteração de memória/UI nem tentativa de enviar deltas remotos.
+            if (tomoStorageMode() !== 'indexeddb' || !_tomoIdbDb) throw new Error('Estorno requer IndexedDB disponível para gravação atômica.');
+            const valores = {
+                examesTomografia: JSON.stringify(dados), historicoLaudos: JSON.stringify(log),
+                [TOMO_QUEUE_KEY]: JSON.stringify(fila), [totalKey]: String(total)
+            };
+            await new Promise((resolve, reject) => {
+                const tx = _tomoIdbDb.transaction(TOMO_IDB_STORE, 'readwrite');
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('Falha na transação local do estorno.'));
+                tx.onabort = () => reject(tx.error || new Error('Transação local de estorno abortada.'));
+                try {
+                    const store = tx.objectStore(TOMO_IDB_STORE);
+                    Object.entries(valores).forEach(([key, value]) => store.put(value, key));
+                } catch(e) {
+                    if (typeof tx.abort === 'function') tx.abort();
+                    reject(e);
+                }
+            });
+            Object.assign(_tomoCache, valores);
+        }
+        function tomoCopiarIdentidadesTempo(destino, origem, datas){
+            if (!origem || !origem.timeContributions) return;
+            datas.forEach(data => {
+                if (!Object.prototype.hasOwnProperty.call(origem.timeContributions, data)) return;
+                if (!destino.timeContributions) destino.timeContributions = {};
+                const dia = JSON.parse(JSON.stringify(origem.timeContributions[data]));
+                Object.values(dia).forEach(tomoCongelarEfeitos);
+                destino.timeContributions[data] = dia;
+            });
+        }
+        async function adicionarAoLog(empresaNome, segmentosNomes, tempoSegundos, tipo, dataRef, operationId, effectsSnapshot) {
             const agora = new Date();
             const horario = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const data = dataRef || dataExameInput.value;
@@ -854,6 +1005,7 @@
                 tempo: tempoSegundos, tempoFormatado: formatTimeShort(tempoSegundos), tipo: tipo,
                 operationId: operationId || null, origem: tomoDeviceId()
             };
+            if (effectsSnapshot) tomoCopiarComprovante(entrada, { effectsVersion: TOMO_EFFECTS_VERSION, effectsSnapshot });
             historicoLaudos.unshift(entrada);
             if (historicoLaudos.length > 50) historicoLaudos = historicoLaudos.slice(0, 50);
             try {
@@ -888,9 +1040,12 @@
                 const tipoLabel = item.tipo === 'cronometro' ? '⏱️ Timer' : '✋ Manual';
                 const remoto = item.origem && item.origem !== 'local' && item.origem !== tomoDeviceId();
                 const origemHtml = remoto ? ` <span class="segmentos-tag" style="background:var(--tag-bg-2);">🖥️ outro PC</span>` : '';
-                const acoesHtml = (typeof item._localIndex === 'number')
-                    ? `<button class="btn-edit-small" onclick="editarLog(${item._localIndex})">✏️</button><button class="btn-delete-small" onclick="excluirLog(${item._localIndex})">🗑️</button>`
-                    : '';
+                const statusEstorno = item.reversal && item.reversal.status;
+                const compativel = tomoComprovanteValido(item);
+                const acoesHtml = statusEstorno === 'confirmed' ? '<strong>ESTORNADO</strong>'
+                    : statusEstorno === 'pending' ? '<strong>⏳ Estorno pendente</strong>'
+                    : compativel ? `<button class="btn-delete-small" title="Estornar laudo (contagem, tempo e total diário)" data-reversal-id="${encodeURIComponent(item.id).replace(/'/g, '%27')}">↩️ Estornar laudo</button>`
+                    : `<span title="Este registro é anterior ao comprovante técnico e não pode ser estornado automaticamente.">—</span>`;
                 html += `<tr><td class="log-data">${item.dataFormatada || formatarData(item.data)}</td><td class="log-horario">${item.horario || '-'}</td><td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td><td>${segmentosHtml}${origemHtml}</td><td><strong>${item.tempoFormatado || formatTimeShort(item.tempo || 0)}</strong></td><td><span class="${tipoClass}">${tipoLabel}</span></td><td><div class="log-actions">${acoesHtml}</div></td></tr>`;
             });
             html += `</tbody></table>`;
@@ -901,7 +1056,7 @@
             if (historicoLaudos.length === 0) {
                 try {
                     const saved = idbLocalStorage.getItem('historicoLaudos');
-                    if (saved) historicoLaudos = JSON.parse(saved);
+                    if (saved) historicoLaudos = JSON.parse(saved).map(tomoProtegerComprovante);
                 } catch(e) {}
             }
             const lista = montarHistoricoVisual(historicoLaudos.slice(0, 10), []);
@@ -934,7 +1089,9 @@
         }
 
         async function excluirLog(index) {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (index < 0 || index >= historicoLaudos.length) return;
+            if (historicoLaudos[index].effectsSnapshot) { showNotification('Este laudo deve ser estornado, não excluído do histórico.', 'error'); return; }
             if (!confirm(`Excluir este registro?\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
             historicoLaudos.splice(index, 1);
             try {
@@ -948,6 +1105,68 @@
             atualizarLog();
             showNotification('🗑️ Registro excluído!', 'warning');
         }
+        async function estornarLaudo(operationId){
+            // Uma única transação de estorno local por vez; pedidos distintos
+            // também não podem disputar o mesmo cache/fila/total.
+            if (_tomoEstornosEmAndamento.size || finalizacaoEmAndamento) return;
+            _tomoEstornosEmAndamento.add(operationId);
+            try {
+                await tomoEnsureStorage();
+                await tomoCarregarFila();
+                if (_tomoProcessandoFilaPromise) await _tomoProcessandoFilaPromise;
+                await _tomoSaveChain;
+                _tomoEstornoCommitPromise = new Promise(resolve => { _tomoEstornoCommitResolve = resolve; });
+                const item = historicoLaudos.find(h => h.operationId === operationId);
+                if (!item) throw new Error('O comprovante local deste laudo não está disponível neste dispositivo.');
+                if (!tomoComprovanteValido(item)) throw new Error('Este registro é anterior ao comprovante técnico ou está inconsistente.');
+                if (item.reversal) throw new Error('Este laudo já possui estorno pendente ou confirmado.');
+                if (!confirm('Este estorno irá desfazer a contagem dos segmentos, o tempo registrado e o total diário deste laudo. Deseja continuar?')) return;
+                const s = item.effectsSnapshot;
+                const totalKey = `totalAcumulado_${s.data}`;
+                const raw = idbLocalStorage.getItem(totalKey);
+                const total = raw === null ? NaN : Number(raw);
+                if (dataExameInput.value === s.data && totalSeconds !== total) throw new Error('O total diário local não coincide com o total exibido.');
+                const preparado = tomoPrepararEstornoLocal(item, dadosApp, total);
+                const reversalId = tomoReversalId(operationId);
+                const pedido = { operationId: reversalId, tipo: 'estorno', data: s.data, reversesOperationId: operationId,
+                    effectsVersion: TOMO_EFFECTS_VERSION, effectsSnapshot: s, tentativas: 0, criadoEm: Date.now(), status: 'pendente' };
+                const novoLog = historicoLaudos.map(h => {
+                    if (h.operationId !== operationId) return h;
+                    return tomoCopiarComprovante(Object.assign({}, h, { reversal: { reversalId, reversedAt: Date.now(), status: 'pending' } }), h);
+                });
+                const novaFila = _tomoFila.concat(pedido);
+                await tomoPersistirEstornoLocal(preparado.dados, novoLog, novaFila, totalKey, preparado.total);
+                dadosApp = preparado.dados; historicoLaudos = novoLog; _tomoFila = novaFila;
+                _tomoEstornoCommitResolve(); _tomoEstornoCommitResolve = null; _tomoEstornoCommitPromise = null;
+                if (dataExameInput.value === s.data) { totalSeconds = preparado.total; updateTotalDisplay(); }
+                marcarMesSujo(s.data); dadosSujos = true;
+                tomoAtualizarBadgeFila();
+                criarTabela(); atualizarGraficos(); atualizarLog();
+                if (document.getElementById('relatorio').classList.contains('active')) gerarRelatorioMensal();
+                if (document.getElementById('projecao').classList.contains('active')) atualizarGraficoProjecao();
+                if (typeof requestAnimationFrame === 'function' && document.visibilityState !== 'hidden') await new Promise(requestAnimationFrame);
+                let erroFila = null;
+                try { await tomoProcessarFila(); } catch(e) { erroFila = e; console.error('Falha ao sincronizar estorno:', e); }
+                const res = await salvarDadosFirebase();
+                if (erroFila || _tomoFila.some(op => op.operationId === reversalId) || !res.localOk || !res.cloudOk) {
+                    showNotification('⚠️ Estorno local registrado; sincronização pendente. Não estorne novamente.', 'warning');
+                    return;
+                }
+                const confirmado = historicoLaudos.map(h => h.operationId === operationId
+                    ? tomoCopiarComprovante(Object.assign({}, h, { reversal: { reversalId, reversedAt: h.reversal.reversedAt, status: 'confirmed' } }), h) : h);
+                await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(confirmado));
+                historicoLaudos = confirmado;
+                atualizarLog();
+                showNotification('✅ Laudo estornado. Registro original preservado.', 'success');
+            } catch(e) {
+                console.error('Estorno não concluído:', e);
+                showNotification(`❌ Estorno bloqueado: ${(e && e.message) || e}`, 'error');
+            } finally {
+                if (_tomoEstornoCommitResolve) _tomoEstornoCommitResolve();
+                _tomoEstornoCommitResolve = null; _tomoEstornoCommitPromise = null;
+                _tomoEstornosEmAndamento.delete(operationId);
+            }
+        }
 
         function fecharModalEdicaoLog() {
             document.getElementById('modal-editar-log').classList.remove('active');
@@ -956,6 +1175,7 @@
 
         document.getElementById('form-editar-log').addEventListener('submit', async function(e) {
             e.preventDefault();
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (logEditandoIndex === null || logEditandoIndex < 0 || logEditandoIndex >= historicoLaudos.length) {
                 showNotification('❌ Erro: registro não encontrado!', 'error');
                 fecharModalEdicaoLog(); return;
@@ -970,13 +1190,15 @@
             const segmentos = segmentosRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
             if (segmentos.length === 0) { showNotification('❌ Informe um segmento!', 'error'); return; }
             const anterior = historicoLaudos[logEditandoIndex];
-            historicoLaudos[logEditandoIndex] = {
+            const editada = {
                 data: data, dataFormatada: formatarData(data), horario: horario,
                 timestamp: new Date(data + 'T' + horario + ':00').getTime(),
                 empresa: empresa, segmentos: segmentos, tempo: tempo,
                 tempoFormatado: formatTimeShort(tempo), tipo: tipo,
                 operationId: anterior && anterior.operationId, origem: (anterior && anterior.origem) || tomoDeviceId()
             };
+            // A edição muda apresentação, nunca a captura/IDs técnicos originais.
+            historicoLaudos[logEditandoIndex] = tomoCopiarComprovante(editada, anterior);
             try {
                 await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
             } catch(err) {
@@ -1027,7 +1249,8 @@
         let _tomoPrincipalSujo = false;
         let _tomoSaveChain = Promise.resolve();
         function tomoSerieSave(fn){
-            const p = _tomoSaveChain.then(fn, fn);
+            const executar = async () => { if (_tomoEstornoCommitPromise) await _tomoEstornoCommitPromise; return fn(); };
+            const p = _tomoSaveChain.then(executar, executar);
             _tomoSaveChain = p.catch(() => {});
             return p;
         }
@@ -1125,6 +1348,7 @@
                 const montarDadosMes = (mes) => {
                     const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
+                    tomoCopiarIdentidadesTempo(dadosMes, dadosApp, Object.keys(dadosMes.tempos));
                     // Guarda contra save vazio: em vez de pular em silêncio, o
                     // mês é registrado como falha para não fingir sincronização.
                     if (!dadosMes.exames || Object.keys(dadosMes.exames).length === 0) {
@@ -1233,6 +1457,7 @@
                     const docId = `examesTomografia_${mes}`;
                     const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
+                    tomoCopiarIdentidadesTempo(dadosMes, dadosApp, Object.keys(dadosMes.tempos));
 
                     // 💡 guarda contra save vazio
                     if (!dadosMes.exames || Object.keys(dadosMes.exames).length === 0) {
@@ -1388,6 +1613,54 @@
             }
         }
 
+        async function tomoAplicarEstornoAtomico(dbLike, pedido){
+            if (!dbLike) return { ok: false, offline: true };
+            const s = pedido.effectsSnapshot;
+            if (!tomoComprovanteValido({ operationId: pedido.reversesOperationId, effectsVersion: pedido.effectsVersion, effectsSnapshot: s })
+                || pedido.operationId !== tomoReversalId(s.operationId) || pedido.data !== s.data) return { ok: false, error: 'Comprovante de estorno inválido.' };
+            const ledger = dbLike.collection('controles_operacoes').doc(pedido.operationId);
+            const dia = dbLike.collection('controles_dias').doc(s.data);
+            const original = dia.collection('laudos').doc(s.operationId);
+            const marcador = dia.collection('laudos').doc(pedido.operationId);
+            try {
+                const jaAplicado = await dbLike.runTransaction(async tx => {
+                    const registrado = await tx.get(ledger);
+                    if (registrado.exists) return true;
+                    const evento = await tx.get(original);
+                    const remoto = evento.exists && evento.data();
+                    const r = remoto && remoto.effectsSnapshot;
+                    if (!r || !tomoComprovanteValido({ operationId: s.operationId, effectsVersion: remoto.effectsVersion, effectsSnapshot: r })
+                        || r.data !== s.data || r.empresaId !== s.empresaId || r.totalDailyDeltaSeconds !== s.totalDailyDeltaSeconds
+                        || r.segmentos.length !== s.segmentos.length || !r.segmentos.every((e, i) => {
+                            const esperado = s.segmentos[i];
+                            return e.segmentoId === esperado.segmentoId && e.counterOperationId === esperado.counterOperationId
+                                && e.counterDelta === esperado.counterDelta && e.timeContributionId === esperado.timeContributionId
+                                && e.timeSeconds === esperado.timeSeconds;
+                        })) throw new Error('Evento original não confirmado ou comprovante divergente.');
+                    for (const e of s.segmentos) {
+                        const op = await tx.get(dbLike.collection('controles_operacoes').doc(e.counterOperationId));
+                        if (!op.exists || op.data().data !== s.data || op.data().seg !== e.segmentoId || op.data().serv !== s.empresaId || op.data().delta !== e.counterDelta) throw new Error('Incremento original não confirmado no ledger.');
+                    }
+                    const snap = await tx.get(dia);
+                    const contagens = snap.exists ? tomoExtrairExamesDocDiario(snap.data()) : {};
+                    const alteracoes = { data: s.data, ultimaAtualizacao: new Date().toISOString() };
+                    s.segmentos.forEach(e => {
+                        const atual = contagens[e.segmentoId] && contagens[e.segmentoId][s.empresaId];
+                        if (!Number.isInteger(atual) || atual < e.counterDelta) throw new Error('Contagem remota insuficiente para estorno.');
+                        alteracoes[`exames.${e.segmentoId}.${s.empresaId}`] = tomoIncrementValue(-e.counterDelta);
+                    });
+                    tx.set(dia, alteracoes, { merge: true });
+                    tx.set(ledger, { tipo: 'estorno', reversesOperationId: s.operationId, data: s.data, aplicadoEm: new Date().toISOString() });
+                    // Evento SEPARADO: retries de tomoGravarEventoLaudo().set(evento)
+                    // no ID original jamais removem este marcador auditável.
+                    tx.set(marcador, { tipo: 'estorno', reversalId: pedido.operationId, reversesOperationId: s.operationId,
+                        data: s.data, timestamp: Date.now(), origem: tomoDeviceId() });
+                    return false;
+                });
+                return { ok: true, jaAplicado };
+            } catch(e) { return { ok: false, error: (e && e.message) || String(e) }; }
+        }
+
         // Reconstrói {segmento: {servico: valor}} a partir de um doc de
         // controles_dias/{dia}. O Firestore real grava os campos escritos
         // via tomoAplicarIncrementoAtomico (set com merge:true e chave em
@@ -1466,7 +1739,7 @@
                 if (q.limit) q = q.limit(limite || 100);
                 const snap = await q.get();
                 const out = [];
-                snap.forEach(doc => out.push(Object.assign({ operationId: doc.id }, doc.data())));
+                snap.forEach(doc => out.push(tomoProtegerComprovante(Object.assign({ operationId: doc.id }, doc.data()))));
                 return out;
             } catch(e) {
                 console.warn('[Tomografia] Falha ao buscar histórico cross-PC:', e);
@@ -1482,31 +1755,38 @@
             const porId = new Map();
             (localLog || []).forEach((item, idx) => {
                 const id = item.operationId || ('local:' + item.timestamp + ':' + item.empresa + ':' + idx);
-                porId.set(id, {
-                    id, data: item.data, dataFormatada: item.dataFormatada || formatarData(item.data),
+                porId.set(id, tomoCopiarComprovante({
+                    id, operationId: item.operationId, data: item.data, dataFormatada: item.dataFormatada || formatarData(item.data),
                     horario: item.horario, timestamp: item.timestamp, empresa: item.empresa,
                     segmentos: Array.isArray(item.segmentos) ? item.segmentos.slice() : [],
                     tempo: item.tempo, tempoFormatado: item.tempoFormatado, tipo: item.tipo,
-                    origem: item.origem || 'local', _localIndex: idx
-                });
+                    origem: item.origem || 'local', _localIndex: idx, reversal: item.reversal
+                }, item));
             });
+            const estornos = new Map();
             (eventosRemotos || []).forEach(ev => {
+                if (ev && ev.tipo === 'estorno' && ev.reversesOperationId && ev.reversalId === tomoReversalId(ev.reversesOperationId)) {
+                    estornos.set(ev.reversesOperationId, { reversalId: ev.reversalId, reversedAt: ev.timestamp, status: 'confirmed' });
+                    return;
+                }
                 if (!ev || !ev.operationId) return;
                 const existente = porId.get(ev.operationId);
                 const segmentos = (Array.isArray(ev.segmentos) && ev.segmentos.length)
                     ? ev.segmentos.slice()
                     : (ev.segmento ? [ev.segmento] : ((existente && existente.segmentos) || []));
-                porId.set(ev.operationId, {
-                    id: ev.operationId, data: ev.data, dataFormatada: formatarData(ev.data),
+                porId.set(ev.operationId, tomoCopiarComprovante({
+                    id: ev.operationId, operationId: ev.operationId, data: ev.data, dataFormatada: formatarData(ev.data),
                     horario: ev.horario || (existente && existente.horario),
                     timestamp: ev.timestamp || (existente && existente.timestamp),
                     empresa: ev.empresa || (existente && existente.empresa),
                     segmentos, tempo: ev.tempo, tempoFormatado: ev.tempoFormatado || formatTimeShort(ev.tempo || 0),
                     tipo: ev.tipo || (existente && existente.tipo),
                     origem: ev.origem || 'remoto',
-                    _localIndex: existente ? existente._localIndex : undefined
-                });
+                    _localIndex: existente ? existente._localIndex : undefined,
+                    reversal: (existente && existente.reversal) || ev.reversal
+                }, ev.effectsSnapshot ? ev : existente));
             });
+            estornos.forEach((reversal, id) => { if (porId.has(id)) porId.get(id).reversal = reversal; });
             return Array.from(porId.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         }
 
@@ -1524,6 +1804,7 @@
             try {
                 const raw = idbLocalStorage.getItem(TOMO_QUEUE_KEY);
                 _tomoFila = raw ? JSON.parse(raw) : [];
+                _tomoFila.forEach(op => { if (op.tipo === 'laudo' && op.evento) tomoProtegerComprovante(op.evento); });
             } catch(e) { _tomoFila = []; }
             _tomoFilaCarregada = true;
         }
@@ -1556,6 +1837,7 @@
         // à mesma execução em andamento em vez de virar um no-op silencioso
         // — quem chamou espera o processamento real terminar.
         async function tomoProcessarFila(){
+            if (_tomoEstornoCommitPromise) await _tomoEstornoCommitPromise;
             if (_tomoProcessandoFilaPromise) return _tomoProcessandoFilaPromise;
             _tomoProcessandoFilaPromise = (async () => {
                 try {
@@ -1568,9 +1850,20 @@
                         if (op.tipo === 'contador') res = await tomoAplicarIncrementoAtomico(db, op.operationId, op.data, op.seg, op.serv, op.delta);
                         else if (op.tipo === 'pagamento') res = await tomoAplicarPagamento(db, op.operationId, op.mesAno, op.servicoId, op.pago);
                         else if (op.tipo === 'laudo') res = await tomoGravarEventoLaudo(db, op.operationId, op.data, op.evento);
+                        else if (op.tipo === 'estorno') res = await tomoAplicarEstornoAtomico(db, op);
                         else res = { ok: false, error: 'tipo de operação desconhecido: ' + op.tipo };
                         if (res.ok) {
                             op.status = 'concluido'; mudou = true;
+                            if (op.tipo === 'estorno') {
+                                const atualizado = historicoLaudos.map(item => item.operationId === op.reversesOperationId && item.reversal
+                                    ? tomoCopiarComprovante(Object.assign({}, item, { reversal: Object.assign({}, item.reversal, { status: 'confirmed' }) }), item)
+                                    : item);
+                                try {
+                                    await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(atualizado));
+                                    historicoLaudos = atualizado;
+                                    atualizarLog();
+                                } catch(e) { console.error('Falha ao confirmar estorno no histórico local:', e); }
+                            }
                         } else {
                             op.tentativas = (op.tentativas || 0) + 1;
                             op.status = res.offline ? 'pendente' : 'erro';
@@ -1709,7 +2002,7 @@
 
                 try {
                     const savedLog = idbLocalStorage.getItem('historicoLaudos');
-                    if (savedLog) historicoLaudos = JSON.parse(savedLog);
+                    if (savedLog) historicoLaudos = JSON.parse(savedLog).map(tomoProtegerComprovante);
                 } catch(e) {}
 
                 const local = idbLocalStorage.getItem('examesTomografia');
@@ -1720,6 +2013,8 @@
                         dadosApp.exames = dadosLocais.exames || {};
                         dadosApp.tempos = dadosLocais.tempos || {};
                         dadosApp.pagamentos = dadosLocais.pagamentos || {};
+                        delete dadosApp.timeContributions;
+                        tomoCopiarIdentidadesTempo(dadosApp, dadosLocais, Object.keys(dadosApp.tempos));
                         console.log('📁 Dados locais carregados:', Object.keys(dadosApp.exames).length, 'dias');
                     } catch(e) { console.error('Erro ao parsear dados locais:', e); }
                 }
@@ -1732,6 +2027,7 @@
                 const savedTotal = idbLocalStorage.getItem(totalKey);
                 totalSeconds = savedTotal ? parseInt(savedTotal) : 0;
                 updateTotalDisplay();
+                await tomoCarregarFila();
 
                 if (db) {
                     try {
@@ -1751,6 +2047,7 @@
                                             const dadosMes = docMes.data();
                                             Object.assign(dadosNuvem.exames, dadosMes.exames || {});
                                             Object.assign(dadosNuvem.tempos, dadosMes.tempos || {});
+                                            tomoCopiarIdentidadesTempo(dadosNuvem, dadosMes, Object.keys(dadosMes.tempos || {}));
                                             if (dadosMes.pagamentos) Object.assign(dadosNuvem.pagamentos, dadosMes.pagamentos);
                                             totalDiasNuvem += Object.keys(dadosMes.exames || {}).length;
                                         }
@@ -1767,7 +2064,12 @@
                                     if (tomoDiaVazio(dadosApp.exames[data])) { dadosApp.exames[data] = dadosNuvem.exames[data]; dadosModificados = true; }
                                 });
                                 Object.keys(dadosNuvem.tempos).forEach(data => {
-                                    if (!dadosApp.tempos[data]) { dadosApp.tempos[data] = dadosNuvem.tempos[data]; dadosModificados = true; }
+                                    if (!dadosApp.tempos[data]) {
+                                        dadosApp.tempos[data] = dadosNuvem.tempos[data];
+                                        // Índices acompanham SOMENTE os arrays realmente carregados.
+                                        tomoCopiarIdentidadesTempo(dadosApp, dadosNuvem, [data]);
+                                        dadosModificados = true;
+                                    }
                                 });
                                 Object.keys(dadosNuvem.pagamentos).forEach(mes => {
                                     if (!dadosApp.pagamentos[mes]) { dadosApp.pagamentos[mes] = dadosNuvem.pagamentos[mes]; dadosModificados = true; }
@@ -1804,6 +2106,22 @@
                         diasSnap.forEach(doc => { diasDocs[doc.id] = tomoExtrairExamesDocDiario(doc.data()); });
                         const antes = JSON.stringify(dadosApp.exames);
                         dadosApp.exames = tomoAplicarDocsDiarios(dadosApp.exames, diasDocs);
+                        // Enquanto o estorno estiver pendente, o documento
+                        // diário pode ainda conter o +1 original: não repô-lo
+                        // silenciosamente sobre a correção local no reload.
+                        const antesEstorno = JSON.parse(antes);
+                        _tomoFila.filter(op => op.tipo === 'estorno' && op.status !== 'concluido').forEach(op => {
+                            const s = op.effectsSnapshot;
+                            if (!s || !antesEstorno[s.data]) return;
+                            marcarMesSujo(s.data); dadosSujos = true;
+                            s.segmentos.forEach(e => {
+                                const local = antesEstorno[s.data][e.segmentoId];
+                                if (!local || !Object.prototype.hasOwnProperty.call(local, s.empresaId)) return;
+                                if (!dadosApp.exames[s.data]) dadosApp.exames[s.data] = {};
+                                if (!dadosApp.exames[s.data][e.segmentoId]) dadosApp.exames[s.data][e.segmentoId] = {};
+                                dadosApp.exames[s.data][e.segmentoId][s.empresaId] = local[s.empresaId];
+                            });
+                        });
                         if (JSON.stringify(dadosApp.exames) !== antes) {
                             try { await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp)); }
                             catch(e) { console.error('❌ Falha ao persistir documentos diários:', e && e.message); }
@@ -1865,6 +2183,7 @@
         }
 
         function repararDados() {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             console.log('🔧 REPARO...');
             const local = idbLocalStorage.getItem('examesTomografia');
             if (local) {
@@ -1873,6 +2192,8 @@
                     dadosApp.exames = dados.exames || {};
                     dadosApp.tempos = dados.tempos || {};
                     dadosApp.pagamentos = dados.pagamentos || {};
+                    delete dadosApp.timeContributions;
+                    tomoCopiarIdentidadesTempo(dadosApp, dados, Object.keys(dadosApp.tempos));
                     console.log('✅ Recuperado:', Object.keys(dadosApp.exames).length, 'dias');
                     criarTabela(); atualizarResumoEmpresas(); atualizarGraficos();
                     showNotification('✅ Dados recuperados!', 'success');
@@ -1902,6 +2223,7 @@
 
         let finalizacaoEmAndamento = false;
         async function finalizarLaudo() {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (finalizacaoEmAndamento) return;
             const servico = document.getElementById('timer-servico').value;
             const checkboxes = document.querySelectorAll('#timer-segmentos-container input:checked');
@@ -1927,19 +2249,20 @@
                 const nomesSegmentos = Object.freeze(segmentosSelecionados.map(s => s.nome));
                 const empresaNome = servicos.find(s => s.id === servico)?.nome || servico;
                 const baseOpId = tomoNovoOperationId();
-                const operationIds = Object.freeze([...segmentosSelecionados.map(s => `${baseOpId}:${s.chave}`), baseOpId]);
+                const effectsSnapshot = tomoCriarEffectsSnapshot(baseOpId, data, servico, segmentosSelecionados.map(s => s.chave), tempoGasto);
+                const operationIds = Object.freeze([...effectsSnapshot.segmentos.map(s => s.counterOperationId), baseOpId]);
                 const totalAposLaudo = totalSeconds + tempoGasto;
                 const totalKey = `totalAcumulado_${data}`;
-                const tempoDividido = tempoGasto / segmentosSelecionados.length;
                 const agora = new Date();
                 await tomoEnsureStorage();
                 const evento = Object.freeze({
-                    empresa: empresaNome, segmentos: nomesSegmentos,
+                    data, empresa: empresaNome, segmentos: nomesSegmentos,
                     tempo: tempoGasto, tempoFormatado: formatTimeShort(tempoGasto), tipo: 'cronometro',
                     horario: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                    timestamp: agora.getTime(), origem: tomoDeviceId(), operationId: baseOpId
+                    timestamp: agora.getTime(), origem: tomoDeviceId(), operationId: baseOpId,
+                    effectsVersion: TOMO_EFFECTS_VERSION, effectsSnapshot
                 });
-                const logOk = await adicionarAoLog(empresaNome, nomesSegmentos, tempoGasto, 'cronometro', data, baseOpId);
+                const logOk = await adicionarAoLog(empresaNome, nomesSegmentos, tempoGasto, 'cronometro', data, baseOpId, effectsSnapshot);
                 let totalOk = true;
                 if (tempoGasto > 0) {
                     totalSeconds = totalAposLaudo;
@@ -1949,22 +2272,19 @@
                 }
                 if (!dadosApp.exames[data]) dadosApp.exames[data] = {};
                 if (!dadosApp.tempos[data]) dadosApp.tempos[data] = {};
-                segmentosSelecionados.forEach(({ chave: seg }) => {
-                    if (tempoDividido > 0) {
-                        const key = `${servico}_${seg}`;
-                        if (!dadosApp.tempos[data][key]) dadosApp.tempos[data][key] = [];
-                        dadosApp.tempos[data][key].push(tempoDividido);
-                    }
+                effectsSnapshot.segmentos.forEach(efeito => {
+                    const seg = efeito.segmentoId;
+                    tomoAdicionarContribuicaoTempo(dadosApp, effectsSnapshot, efeito);
                     if (!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
                     const atual = dadosApp.exames[data][seg][servico] || 0;
-                    dadosApp.exames[data][seg][servico] = atual + 1;
+                    dadosApp.exames[data][seg][servico] = atual + efeito.counterDelta;
                 });
                 marcarMesSujo(data);
                 dadosSujos = true;
 
                 // IDs e payloads vêm da captura, nunca dos controles limpos.
-                for (const [index, s] of segmentosSelecionados.entries()) {
-                    await tomoEnfileirar({ operationId: operationIds[index], tipo: 'contador', data, seg: s.chave, serv: servico, delta: 1 });
+                for (const efeito of effectsSnapshot.segmentos) {
+                    await tomoEnfileirar({ operationId: efeito.counterOperationId, tipo: 'contador', data, seg: efeito.segmentoId, serv: servico, delta: efeito.counterDelta });
                 }
                 await tomoEnfileirar({ operationId: baseOpId, tipo: 'laudo', data, evento });
                 // tomoPersistirFila registra falhas sem rejeitar. Confirmar
@@ -2011,9 +2331,11 @@
         }
 
         async function alterarContador(seg, serv, delta) {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             const data = dataExameInput.value;
             if (!data) { showNotification("❌ Data inválida!", "error"); return; }
             await tomoEnsureStorage();
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if(!dadosApp.exames[data]) dadosApp.exames[data] = {};
             if(!dadosApp.exames[data][seg]) dadosApp.exames[data][seg] = {};
             const atual = dadosApp.exames[data][seg][serv] || 0;
@@ -2078,7 +2400,7 @@
                     const td = document.createElement('td'); const valor = seg.valores[s.id]; 
                     const qtd = dadosApp.exames[data]?.[chave]?.[s.id] || 0;
                     if (valor !== null && valor !== undefined) {
-                        td.innerHTML = `<div class="counter"><button class="counter-btn remove" data-seg="${chave}" data-serv="${s.id}" data-delta="-1">-</button><span class="count-display">${qtd}</span><button class="counter-btn" data-seg="${chave}" data-serv="${s.id}" data-delta="1">+</button></div>`;
+                        td.innerHTML = `<div class="counter"><button class="counter-btn remove" title="Ajuste manual de contagem. Não estorna tempo nem total diário." data-seg="${chave}" data-serv="${s.id}" data-delta="-1">-</button><span class="count-display">${qtd}</span><button class="counter-btn" data-seg="${chave}" data-serv="${s.id}" data-delta="1">+</button></div>`;
                     } else { td.className = "nao-tem"; td.textContent = "-"; }
                     tr.appendChild(td);
                 });
@@ -2257,6 +2579,7 @@
         }
         
         async function togglePagamentoUnificado(empresaId, mesAno) {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
             const novoValor = !dadosApp.pagamentos[mesAno][empresaId];
             dadosApp.pagamentos[mesAno][empresaId] = novoValor;
@@ -2316,6 +2639,7 @@
                 Object.keys(dadosApp.tempos || {}).forEach(d => {
                     if (new Date(d) >= limite) dadosRecentes.tempos[d] = dadosApp.tempos[d];
                 });
+                tomoCopiarIdentidadesTempo(dadosRecentes, dadosApp, Object.keys(dadosRecentes.tempos));
                 const novoBackup = {
                     id: agora.getTime(), data: agora.toLocaleString('pt-BR'),
                     conteudo: dadosRecentes, timerDia: totalSeconds, dataReferencia: dataExameInput.value
@@ -2375,6 +2699,31 @@
         function tomoEhObjeto(v){ return v !== null && typeof v === 'object' && !Array.isArray(v); }
         function tomoEhDataStr(s){ return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
 
+        function tomoComprovanteValido(registro){
+            const s = registro.effectsSnapshot;
+            if (registro.effectsVersion !== TOMO_EFFECTS_VERSION || !tomoEhObjeto(s) || typeof s.operationId !== 'string' || !s.operationId || s.operationId !== registro.operationId || !tomoEhDataStr(s.data) || typeof s.empresaId !== 'string' || !s.empresaId) return false;
+            if (!Array.isArray(s.segmentos) || !s.segmentos.length || !Number.isFinite(s.totalDailyDeltaSeconds) || s.totalDailyDeltaSeconds < 0) return false;
+            const ids = new Set();
+            return s.segmentos.every(e => {
+                if (!tomoEhObjeto(e) || typeof e.segmentoId !== 'string' || !e.segmentoId || ids.has(e.segmentoId)) return false;
+                ids.add(e.segmentoId);
+                return e.counterOperationId === `${s.operationId}:${e.segmentoId}` && e.counterDelta === 1
+                    && e.timeContributionId === `${s.operationId}:time:${e.segmentoId}`
+                    && e.timeSeconds === s.totalDailyDeltaSeconds / s.segmentos.length;
+            });
+        }
+        function tomoIdentidadesTempoValidas(nucleo){
+            const mapa = nucleo.timeContributions;
+            if (!tomoEhObjeto(mapa)) return false;
+            return Object.keys(mapa).every(data => tomoEhDataStr(data) && tomoEhObjeto(mapa[data]) && Object.keys(mapa[data]).every(id => {
+                const c = mapa[data][id];
+                if (!tomoEhObjeto(c) || typeof c.operationId !== 'string' || !c.operationId || typeof c.empresaId !== 'string' || !c.empresaId || typeof c.segmentoId !== 'string' || !c.segmentoId || !Number.isFinite(c.timeSeconds) || c.timeSeconds < 0 || id !== `${c.operationId}:time:${c.segmentoId}`) return false;
+                if (c.sampleIndex === null) return c.timeSeconds === 0;
+                const arr = nucleo.tempos && nucleo.tempos[data] && nucleo.tempos[data][`${c.empresaId}_${c.segmentoId}`];
+                return c.timeSeconds > 0 && Number.isInteger(c.sampleIndex) && c.sampleIndex >= 0 && Array.isArray(arr) && arr[c.sampleIndex] === c.timeSeconds;
+            }));
+        }
+
         // Validador central. Retorna {ok, errors[], formato} SEM tocar no estado.
         function validateBackupPayload(json){
             const errors = [];
@@ -2432,6 +2781,8 @@
                     }
                 }
             }
+            // Extensão opcional: backups legados sem o mapa continuam válidos.
+            if (nucleo.timeContributions !== undefined && !tomoIdentidadesTempoValidas(nucleo)) errors.push('timeContributions inválido ou incompatível com os arrays de tempos');
             if (log !== undefined && log !== null) {
                 if (!Array.isArray(log)) errors.push('historicoLaudos deve ser um array');
                 else {
@@ -2441,6 +2792,7 @@
                         if (item.data !== undefined && !tomoEhDataStr(item.data)) errors.push(`historicoLaudos[${i}].data inválida`);
                         if (item.tempo !== undefined && (typeof item.tempo !== 'number' || !Number.isFinite(item.tempo))) errors.push(`historicoLaudos[${i}].tempo inválido`);
                         if (item.segmentos !== undefined && (!Array.isArray(item.segmentos) || !item.segmentos.every(s => typeof s === 'string'))) errors.push(`historicoLaudos[${i}].segmentos inválidos`);
+                        if ((item.effectsVersion !== undefined || item.effectsSnapshot !== undefined) && !tomoComprovanteValido(item)) errors.push(`historicoLaudos[${i}].comprovante de efeitos inválido`);
                     });
                 }
             }
@@ -2469,8 +2821,9 @@
                 },
                 historicoLaudos: null
             };
+            tomoCopiarIdentidadesTempo(out.dadosApp, src, Object.keys(out.dadosApp.tempos));
             const logSrc = (formato === 'manual-novo' || formato === 'legado') ? json.historicoLaudos : null;
-            if (Array.isArray(logSrc)) out.historicoLaudos = JSON.parse(JSON.stringify(logSrc));
+            if (Array.isArray(logSrc)) out.historicoLaudos = JSON.parse(JSON.stringify(logSrc)).map(tomoProtegerComprovante);
             return out;
         }
 
@@ -2534,7 +2887,11 @@
                     if (!(emp in pagamentos[m])) pagamentos[m][emp] = bpg[m][emp];
                 }
             }
-            return { exames, tempos, pagamentos };
+            const out = { exames, tempos, pagamentos };
+            tomoCopiarIdentidadesTempo(out, atual, Object.keys(tempos).filter(d => !Object.prototype.hasOwnProperty.call(bte, d)));
+            // Restore de arrays antigos não pode herdar índices de arrays novos.
+            tomoCopiarIdentidadesTempo(out, conteudoBackup, Object.keys(bte));
+            return out;
         }
 
         // Monta o snapshot pré-restore (puro; não persiste).
@@ -2588,6 +2945,7 @@
         }
 
         async function restaurarBackupAutomatico(id) {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             await tomoEnsureStorage();
             const backups = JSON.parse(idbLocalStorage.getItem(BACKUP_KEY) || '[]');
             const backup = backups.find(b => b.id === id);
@@ -2611,6 +2969,7 @@
                 showNotification("❌ Falha ao criar snapshot de segurança. Restore abortado.", "error");
                 return;
             }
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             const anterior = dadosApp;
             const mesesAnteriores = new Set(mesesSujos);
             const princAnterior = _tomoPrincipalSujo;
@@ -2667,6 +3026,7 @@
         // normalização em temporário → preview → dupla confirmação → snapshot
         // prévio → aplicação → persistência aguardada → sync estruturado.
         function restaurarBackup() {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             const input = document.getElementById('upload-backup');
             const file = input ? input.files[0] : null;
             if(!file) return;
@@ -2677,6 +3037,7 @@
             }
             const reader = new FileReader();
             reader.onload = async (e) => {
+                if (tomoBloquearEdicaoDuranteEstorno()) { try { input.value = ''; } catch(e2) {} return; }
                 try {
                     let json;
                     try { json = JSON.parse(e.target.result); }
@@ -2695,6 +3056,7 @@
                     );
                     if (!confirm(`${preview}\n\nContinuar para a restauração?`)) return;
                     if (!confirm("Este backup substituirá o estado atual.\nUm snapshot completo será criado antes da restauração.\n\nConfirmar restauração completa?")) return;
+                    if (tomoBloquearEdicaoDuranteEstorno()) return;
                     const snap = await tomoSnapshotPreRestore('manual-' + (file.name || 'arquivo'));
                     if (!snap.ok) {
                         showNotification("❌ Falha ao criar snapshot de segurança. Restore abortado.", "error");
@@ -2743,9 +3105,11 @@
         }
 
         async function limparDia() {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if(confirm("Zerar exames do dia?")) {
                 const data = dataExameInput.value;
                 dadosApp.exames[data] = {}; dadosApp.tempos[data] = {};
+                if (dadosApp.timeContributions) delete dadosApp.timeContributions[data];
                 marcarMesSujo(data);
                 dadosSujos = true;
                 totalSeconds = 0; currentSeconds = 0;
@@ -2763,6 +3127,7 @@
         }
 
         async function limparTodosDados() {
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if(confirm("⚠️ APAGAR TODOS os dados?")) {
                 Object.keys(dadosApp.exames || {}).forEach(marcarMesSujo); // marca ANTES de zerar
                 dadosApp = { exames: {}, tempos: {}, pagamentos: {} };
@@ -2891,6 +3256,10 @@
         document.getElementById('exams-body').addEventListener('click', function(e) {
             const btn = e.target.closest('.counter-btn');
             if (btn) alterarContador(btn.dataset.seg, btn.dataset.serv, parseInt(btn.dataset.delta));
+        });
+        document.getElementById('log-lista').addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-reversal-id]');
+            if (btn) estornarLaudo(decodeURIComponent(btn.dataset.reversalId));
         });
         document.getElementById('unificado-pagamento-container').addEventListener('click', function(e) {
             const btn = e.target.closest('.btn-pagamento-empresa');

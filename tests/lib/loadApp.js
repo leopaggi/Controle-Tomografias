@@ -41,6 +41,9 @@ return {
   // fluxo principal
   finalizarLaudo, alterarContador, togglePagamentoUnificado,
   adicionarAoLog, atualizarLog, tomoRenderizarHistorico, tomoAtualizarHistoricoCrossPC,
+  editarLog, getStatsByService, atualizarGraficos, criarBackupAutomatico,
+  tomoCriarEffectsSnapshot, tomoProtegerComprovante, tomoAdicionarContribuicaoTempo, tomoLocalizarContribuicaoTempo,
+  estornarLaudo, tomoPrepararEstornoLocal, tomoAplicarEstornoAtomico, tomoReversalId,
   // acesso/controle de estado interno para os testes
   getDb: () => db, setDb: (v) => { db = v; },
   getDadosApp: () => dadosApp, setDadosApp: (v) => { dadosApp = v; },
@@ -51,6 +54,7 @@ return {
   setTimerState: (v) => { currentSeconds = v.currentSeconds; totalSeconds = v.totalSeconds; isCurrentRunning = v.isCurrentRunning; },
   startCurrentTimer, resetCurrentTimer, togglePauseCurrentTimer,
   getFinalizacaoEmAndamento: () => finalizacaoEmAndamento,
+  getIdbHandle: () => _tomoIdbDb,
 };
 `;
 

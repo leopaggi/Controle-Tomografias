@@ -16,6 +16,8 @@ const suites = [
   './test-fundacao-legado',
   './test-loader-docs-diarios',
   './test-finalizacao-responsiva',
+  './test-comprovante-efeitos',
+  './test-estorno-laudo',
 ];
 
 const results = [];

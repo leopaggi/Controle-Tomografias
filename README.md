@@ -32,7 +32,9 @@ Radiológico como referência de como isso é tratado lá.
 ## Arquitetura
 
 - **Dados** (`dadosApp`): `{ exames, tempos, pagamentos }`, organizados
-  por dia (`AAAA-MM-DD`) e por mês (`AAAA-MM`) pro lado do Firestore.
+  por dia (`AAAA-MM-DD`) e por mês (`AAAA-MM`) pro lado do Firestore. Novos
+  laudos acrescentam o mapa opcional `timeContributions`, sem converter os
+  arrays numéricos de `tempos` nem atribuir IDs aos valores antigos.
 - **Armazenamento local** — IndexedDB (banco `tomografia_idb`), não
   `localStorage`. Ver `AI.md` pra entender por quê.
 - **Sincronização** — Firebase Firestore (projeto
@@ -51,6 +53,7 @@ Radiológico como referência de como isso é tratado lá.
 - Cronômetro por laudo + acumulado do dia
 - Lançamento manual por contador (+/-) além do fluxo com cronômetro
 - Log dos últimos 10 laudos, editável/excluível
+- Estorno auditável para laudos novos com comprovante técnico válido
 - Relatório mensal com total por empresa e status de pagamento
 - Projeção de ganhos em 24h baseada na média do mês
 - Backup automático (a cada 5 min, últimos 3, só 30 dias de dados) e
@@ -67,6 +70,73 @@ histórico cross-PC. Ver `AI.md` para o porquê da arquitetura testada.
 parada do intervalo, UI antes da rede, reentrada, falhas locais/remotas,
 retry sem duplicação e regressão de `+/-` com promises controladas.
 
+`node tests/test-comprovante-efeitos.js` — verifica comprovantes de novos
+laudos, IDs técnicos/estáveis, edição real do histórico, retry após reload,
+arrays legados, estatísticas e transporte dos metadados em save/backup/loader.
+
+`node tests/test-estorno-laudo.js` — exercita estorno de 1/2 segmentos,
+tempo zero, amostra/índice, total diário, ledger, histórico, offline/reload,
+falhas/inconsistências e ajustes manuais, sempre com mocks.
+
+## Fundação de efeitos para novos laudos (local, em revisão)
+
+Cada nova finalização pelo cronômetro guarda `effectsVersion: 1` e
+`effectsSnapshot` no histórico e no evento remoto. A captura contém o ID
+principal, data, empresa técnica, segmentos técnicos, IDs/deltas dos
+incrementos, IDs/valores das contribuições de tempo e delta do total diário.
+O evento também recebe `data` explicitamente. O mesmo objeto capturado é
+usado no histórico e no evento da fila, e nenhum ID é regenerado no retry.
+
+IDs dos contadores continuam `<operationId>:<segmentoId>`; IDs de tempo são
+`<operationId>:time:<segmentoId>`. `dadosApp.timeContributions[data][id]`
+registra `operationId`, `empresaId`, `segmentoId`, `timeSeconds` e `sampleIndex`.
+O índice aponta a amostra nova exata no array numérico. Para duração zero,
+fica `null` e nenhuma amostra é inserida: somas, quantidades e médias mantêm
+a regra anterior. `tomoLocalizarContribuicaoTempo` somente localiza/valida,
+não remove nada.
+
+A edição do histórico preserva comprovante e ID principal, protegidos contra
+escrita e com snapshot profundamente congelado; a proteção é reaplicada na
+leitura dos dados existentes. Os campos de apresentação continuam editáveis.
+Save mensal e backups transportam o mapa junto dos arrays correspondentes;
+o loader mantém o merge legado e não associa índices remotos a arrays locais
+que não foram carregados. Não há backfill nem migração de registros antigos.
+
+Os índices pressupõem os arrays correspondentes. O estorno agora valida a
+identidade antes de remover uma amostra e ajusta índices posteriores; o
+comprovante não substitui a verificação de sincronização/ledger.
+
+## Estornar laudo (implementação local, em revisão)
+
+Somente laudos com `effectsVersion: 1` e comprovante técnico válido oferecem
+**Estornar laudo** em Últimos 10 Laudos. O registro original permanece visível
+e recebe `reversal` com ID `reversal:<operationId>` e status `pending` ou
+`confirmed`. O botão some após o pedido. Registros legados permanecem sem
+estorno automático; linhas vindas de outro PC exigem o comprovante e as
+contribuições locais correspondentes, ou a ação é bloqueada.
+
+Antes da alteração, todos os contadores, contribuições identificadas, posições
+e total diário são validados. O estado, histórico, fila e chave de total são
+gravados juntos numa transação IndexedDB; sem IndexedDB disponível o estorno
+é bloqueado (fallback localStorage não oferece transação equivalente).
+Depois da gravação, o app recalcula UI/relatório/gráficos pelas funções
+existentes, aguarda o processamento da fila e o save mensal. Falha remota
+mantém `pending` para retry, sem repetir a reversão local.
+
+Uma transação Firestore verifica o ledger original e o ID determinístico do
+estorno, aplica os deltas negativos, grava o ledger e um evento **separado**
+de estorno. Reenvio do evento original não apaga o marcador separado. Outras
+instalações enxergam o marcador; seus tempos/totais locais já existentes não
+são reescritos automaticamente por esse evento.
+
+O botão `-` continua ajuste genérico e não estorna tempo/total. Ajustes
+manuais antigos não possuem vínculo com laudos e não são reconstruídos. Se
+uma compensação anterior zerou a célula, a validação bloqueia o estorno; se
+outras operações mantiverem o agregado positivo, ele não prova qual laudo
+foi compensado. Revisar esses casos antes de usar estorno automático.
+Nenhuma operação sobre dados de produção foi executada nesta entrega;
+sem commit/push, aguardando revisão e teste real antes de publicação.
+
 ## Histórico relevante
 
 Correção do encerramento aprovada em teste real (02/10/2026): ver
@@ -79,7 +149,8 @@ no finally. Um frame é aguardado antes da rede quando a página está visível;
 o intervalo retoma ao terminar a persistência. No teste real pós-correção,
 reset/tabela ocorreram em ~20 ms e o primeiro frame com UI atualizada em
 ~48 ms; o handler aguardou ~3683 ms até a conclusão. A instrumentação
-temporária foi removida após a aprovação. Publicação pendente de revisão final.
+temporária foi removida após a aprovação. Correção publicada em
+`bdc728124e1d2efa15854274d0327a54cb45f521`.
 
 Ver `AI.md` — esse projeto já passou por um incidente real de perda de
 dados (R$ 2.000 em laudos de um dia) e duas rodadas de estouro de cota do

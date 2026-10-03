@@ -59,3 +59,72 @@ antes da rede, os dois awaits remotos, fila em erro e liberação no finally.
 **Teste real aprovado; publicação pendente de revisão final. Nada staged,
 commitado ou publicado nesta entrega.**
 O backup físico e o pacote de recuperação não foram alterados.
+
+## 03/10/2026 — Fundação dos comprovantes para laudos novos
+
+Estado inicial conferido: branch main, HEAD e origin/main em
+`bdc728124e1d2efa15854274d0327a54cb45f521`, com somente o pacote de recuperação
+untracked. Antes de editar, criado ZIP adicional do projeto versionado em
+`%TEMP%\opencode\Controle-Tomografias_PRE_FUNDACAO_EFEITOS_bdc7281_2026-10-03.zip`.
+Esse backup é do código/documentação/testes; não é exportação dos dados do
+navegador. O pacote existente não foi lido nem incluído no ZIP.
+
+Cada laudo novo do cronômetro passa a guardar um comprovante versionado dos
+efeitos originais: data, empresa e segmentos técnicos, IDs dos incrementos,
+quantidades, contribuições de tempo identificadas e delta do tempo diário.
+O mesmo comprovante segue no histórico e no evento da fila/Firestore. O
+evento agora também contém a data, mantendo leitura de eventos antigos.
+Editar o texto/data/tempo exibidos no histórico preserva a captura original.
+Os campos protegidos e o snapshot são congelados também após a leitura local.
+
+Os tempos antigos continuam números nos mesmos arrays. Um mapa paralelo
+opcional aponta a posição exata de cada amostra nova por um ID estável.
+Isso distingue contribuições mesmo quando os números são iguais. Duração
+zero tem identidade reservada com posição null e não adiciona uma amostra.
+As estatísticas não foram reescritas: soma, quantidade e média permanecem
+iguais. Loader mensal, saves e backups preservam o mapa junto dos arrays;
+restaurar arrays legados não herda posições de um estado diferente.
+
+Os 105 testes anteriores passaram antes da mudança. Ao final, **149/149
+verificações passaram**, incluindo 44 novas: um/múltiplos segmentos, zero,
+frações sem arredondar, proteção na edição real, retry depois de reload,
+persistência de IDs/snapshot, legado, estatísticas e backups. Mantidas as
+garantias de UI antecipada, frame e persistência aguardada da finalização.
+
+Limites desta entrega: não existe estorno nem remoção de contribuição; uma
+implementação futura terá que manter as posições ao remover amostras e
+verificar sincronização/ledger. Versões anteriores do app podem ignorar os
+metadados novos ao salvar/restaurar. Não houve migração ou inferência de dados
+antigos, consulta/escrita em Firestore real, commit, stage ou push.
+**Fundação somente local, aguardando revisão antes de publicar.**
+
+## 03/10/2026 — Estorno de laudo com comprovante (ainda local)
+
+Criado antes desta mudança backup separado da árvore local (sem o pacote de
+recuperação):
+`C:\Users\LEONARDO\AppData\Local\Temp\opencode\Controle-Tomografias_PRE_ESTORNO_LOCAL_2026-10-03_11-21-33.zip`.
+O ZIP contém código/testes/documentação, não IndexedDB/Firestore do navegador.
+
+Laudos novos com comprovante técnico válido mostram **Estornar laudo** na
+tabela Últimos 10 Laudos. O original continua visível; depois da confirmação
+fica **ESTORNADO**, ou **Estorno pendente** enquanto não sincronizou. Antes de
+alterar, todos os contadores, amostras identificadas, índices e total diário
+são checados. O estado local, o histórico, a fila e o total são persistidos
+numa só transação IndexedDB. Falha nessa transação não altera os números/UI;
+sem IndexedDB a ação é bloqueada. Correção remove só a amostra identificada
+e ajusta índices posteriores; valores e gráficos vêm dos cálculos existentes.
+
+Um único pedido de fila usa o ID determinístico `reversal:<operationId>`.
+Firestore, numa transação, confere o evento/ledger original, aplica os
+decrementos, registra o ID do estorno no ledger e cria marcador de evento
+separado. Retry ou dois computadores não repetem a escrita remota com esse
+ID. O evento original permanece e seu retry não apaga o marcador. Backup,
+loader legado, finalização responsiva e ajuste genérico `-` foram preservados.
+
+Limitações: cliques antigos de `-` não podem ser vinculados retroativamente.
+Se o agregado continuar positivo por outros laudos, não há como deduzir que
+um `-` anterior já compensou o laudo escolhido. Outra instalação mostra o
+marcador, mas não ajusta automaticamente seu tempo/total local anterior;
+linhas sem amostra/total correspondentes neste dispositivo são bloqueadas.
+Por isso estes casos exigem revisão, não suposições. Sem operações reais,
+stage, commit, push ou publicação nesta etapa; aguardar revisão dos testes.

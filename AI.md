@@ -172,6 +172,54 @@ puras o suficiente para serem testadas sem Firestore real — ver `tests/`.
 
 ## Mantendo este arquivo atualizado
 
+### Estorno vinculado ao comprovante — local, aguardando revisão
+
+Para laudos com `effectsVersion:1`, `estornarLaudo` usa apenas chaves técnicas
+e IDs do `effectsSnapshot`. Nunca subtrair um agregado por nome de exibição,
+nem associar cliques antigos do `-` ao laudo. Antes de mutar, validar todos
+os contadores, identidade/posição/valor das amostras e total diário. Colisão
+de `sampleIndex` ou resultado negativo aborta o estorno inteiro. Depois do
+splice ajustar os índices posteriores no mesmo array; não inserir tempos
+negativos. Não remover o registro histórico original.
+
+Persistir `examesTomografia`, `historicoLaudos`, fila e total diário numa só
+transação IndexedDB antes da UI. Bloquear estorno no fallback localStorage,
+que não oferece atomicidade multi-chave. A fila tem um pedido `estorno` com
+ID fixo `reversal:<operationId>`; a transação Firestore verifica evento e
+ledgers originais, decrementa todos os segmentos e cria marcador SEPARADO
+do evento original, além do ledger de estorno. O `.set(evento)` original não
+pode apagar o marcador. Marcar status `pending` até confirmação; retries não
+aplicam o mesmo delta duas vezes. Não remover awaits do fluxo de finalização.
+O merge diário deve preservar valores locais de estornos ainda na fila.
+
+Limite conhecido: ajuste manual `-` permanece genérico e sem associação;
+agregado positivo não prova que certo laudo não foi compensado antes. Um
+registro/PC sem amostras e total local correspondente não pode executar
+estorno automático. Outros PCs recebem o marcador remoto, mas tempos e
+totais locais antigos de outros dispositivos não são reconciliados por ele.
+Não executar correção automática de registros antigos ou em massa.
+
+### Comprovantes de efeitos — fundação local de 03/10/2026
+
+Somente novos laudos de cronômetro recebem `effectsVersion: 1` e
+`effectsSnapshot`, construído uma vez a partir da captura técnica original.
+Preservar `operationId`, IDs `<P>:<segmentoId>` e `<P>:time:<segmentoId>`,
+deltas/valores exatos e data no evento. Histórico/fila/evento reutilizam essa
+captura; edição visual não pode alterá-la. Reaplicar proteção de escrita e
+congelamento ao desserializar um comprovante presente, sem criar um para legado.
+
+`tempos` continua array de números. A identidade fica no mapa opcional
+`timeContributions[data][timeContributionId]` com `sampleIndex` (null para
+duração zero, sem inserir amostra), IDs técnicos e valor. Não buscar uma
+amostra pelo primeiro número igual nem renumerar/rotular tempos antigos.
+Copiar identidades somente junto dos arrays/dias realmente copiados no
+loader/save/backup/restore; nunca herdar índices novos ao substituir por um
+array legado. Futuras remoções devem manter índices/associações consistentes.
+No estágio inicial desta fundação não havia estorno nem novo tipo de fila;
+o snapshot por si só não é confirmação de aplicação remota do ledger.
+149/149 checks locais passaram; 105 verificações anteriores preservadas.
+Nenhum commit/push desta etapa; aguardar revisão do usuário.
+
 Correção de finalização aprovada em teste real em 02/10/2026:
 `LOG_DESENVOLVIMENTO.md` registra os resultados e as decisões. Em
 `finalizarLaudo`, capturar duração/empresa/data/segmentos/IDs antes de awaits e
@@ -191,7 +239,7 @@ app no body; testes permanentes usam timers/promises e DOM mock controlados,
 sem instrumentação de produção. A medição real aprovada mostrou reset/tabela
 em ~20 ms, primeiro frame em ~48 ms e handler total ~3683 ms, com persistência
 remota aguardada. Instrumentação e arquivos temporários removidos após teste;
-aguardando revisão final para publicação.
+correção publicada em `bdc728124e1d2efa15854274d0327a54cb45f521`.
 
 Toda vez que você mexer na lógica de storage, sincronização, ou merge de
 dados, atualize este arquivo e o `README.md` no mesmo commit/entrega.
