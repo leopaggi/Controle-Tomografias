@@ -198,6 +198,12 @@ registro/PC sem amostras e total local correspondente não pode executar
 estorno automático. Outros PCs recebem o marcador remoto, mas tempos e
 totais locais antigos de outros dispositivos não são reconciliados por ele.
 Não executar correção automática de registros antigos ou em massa.
+Na coluna Ações, `_localIndex` indica que existe item em `historicoLaudos`
+editável/removível localmente. Preservar Editar/Remover do histórico para
+legados/manuais **locais** sem comprovante; a remoção não altera contagens,
+tempo, total diário nem dados remotos. Não oferecer essas ações locais para
+evento somente remoto, nem estorno para comprovante inválido. `pending` e
+`confirmed` não permitem novo estorno.
 
 ### Comprovantes de efeitos — fundação local de 03/10/2026
 

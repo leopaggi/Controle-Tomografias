@@ -278,6 +278,8 @@ async function run(check){
     await reverse(h, id);
     verify('offline mantém pedido com mesmo ID e todos os efeitos locais', () => {
       assert.equal(h.api.getHistoricoLaudos()[0].reversal.status, 'pending');
+      assert(h.doc.getElementById('log-lista').innerHTML.includes('Estorno pendente'));
+      assert(!h.doc.getElementById('log-lista').innerHTML.includes('Estornar laudo'));
       assert.equal(h.api.getFilaInterna().filter(op=>op.tipo==='estorno').length, 1);
       assert.equal(h.api.getFilaInterna()[0].operationId, h.api.tomoReversalId(id));
       assert.equal(h.api.getDadosApp().exames[DAY].cranio.hbj, 0);
@@ -368,6 +370,81 @@ async function run(check){
     verify('registro legado não oferece estorno e não sofre alteração', () => {
       assert.equal(h.doc.getElementById('log-lista').innerHTML.includes('Estornar laudo'), false);
       assert.equal(JSON.stringify(h.api.getDadosApp()), before);
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    await h.api.tomoEnsureStorage();
+    h.api.getDadosApp().exames[DAY]={cranio:{hbj:2}};
+    h.api.getDadosApp().tempos[DAY]={hbj_cranio:[30]};
+    h.api.setTimerState({currentSeconds:0,totalSeconds:30,isCurrentRunning:true});
+    await h.api.idbLocalStorage.setItemAsync('totalAcumulado_'+DAY,'30');
+    await h.api.adicionarAoLog('HBJ',['CRÂNIO'],30,'cronometro',DAY,'legado-local');
+    await h.api.tomoGravarEventoLaudo(db,'legado-local',DAY,{empresa:'HBJ',segmentos:['CRÂNIO'],tempo:30});
+    const view=h.api.montarHistoricoVisual(h.api.getHistoricoLaudos().slice(0,10),[]);
+    verify('timer legado local mantém Editar/Remover do histórico sem Estornar',()=>{
+      assert.equal(view[0]._localIndex,0);
+      const html=h.doc.getElementById('log-lista').innerHTML;
+      assert(html.includes('editarLog(0)') && html.includes('excluirLog(0)'));
+      assert(html.includes('Remover do histórico'));
+      assert(!html.includes('Estornar laudo'));
+    });
+    const prior=JSON.stringify(h.api.getDadosApp()), total=h.api.getTimerState().totalSeconds;
+    const totalPersistido=h.sharedIdb.get('totalAcumulado_'+DAY), logRemoto=db._log.length;
+    const eventoRemoto=JSON.stringify(db._store.get(`controles_dias/${DAY}/laudos/legado-local`));
+    await h.api.excluirLog(0);
+    verify('remover legado afeta só historicoLaudos, não contador, tempo, total ou nuvem',()=>{
+      assert.equal(h.api.getHistoricoLaudos().length,0);
+      assert.deepEqual(JSON.parse(h.sharedIdb.get('historicoLaudos')),[]);
+      assert.equal(JSON.stringify(h.api.getDadosApp()),prior);
+      assert.equal(h.api.getTimerState().totalSeconds,total);
+      assert.equal(h.sharedIdb.get('totalAcumulado_'+DAY),totalPersistido);
+      assert.equal(db._log.length,logRemoto);
+      assert.equal(JSON.stringify(db._store.get(`controles_dias/${DAY}/laudos/legado-local`)),eventoRemoto);
+      assert(notice(h).includes('Removido apenas do histórico'));
+      assert(notice(h).includes('dados remotos não foram alterados'));
+    });
+  }
+  {
+    const h=app(); await h.api.tomoEnsureStorage();
+    await h.api.adicionarAoLog('HBJ',['CRÂNIO'],0,'manual',DAY);
+    verify('registro manual local mantém Editar/Remover do histórico sem estorno técnico',()=>{
+      const html=h.doc.getElementById('log-lista').innerHTML;
+      assert(html.includes('editarLog(0)') && html.includes('excluirLog(0)'));
+      assert(html.includes('Remover do histórico') && !html.includes('Estornar laudo'));
+    });
+  }
+  {
+    const h=app(); await h.api.tomoEnsureStorage();
+    await h.api.adicionarAoLog('HBJ',['CRÂNIO'],30,'cronometro',DAY,'incompleto');
+    h.api.getHistoricoLaudos()[0].effectsVersion=1;
+    h.api.getHistoricoLaudos()[0].effectsSnapshot={operationId:'incompleto'};
+    h.api.atualizarLog();
+    verify('comprovante novo incompleto não ganha Estornar nem remoção visual enganosa',()=>{
+      const html=h.doc.getElementById('log-lista').innerHTML;
+      assert(!html.includes('Estornar laudo') && !html.includes('excluirLog(0)'));
+      assert(html.includes('Comprovante técnico inválido'));
+    });
+  }
+  {
+    const h=app(), db=makeFirestoreMock(); h.api.setDb(db);
+    const original=await finish(h);
+    const another=app(); another.api.setDb(db);
+    const events=await another.api.tomoBuscarLaudosCrossPC(db,100);
+    const view=another.api.montarHistoricoVisual([],events);
+    another.api.tomoRenderizarHistorico(view);
+    verify('evento apenas remoto continua sem índice local e sem Editar/Remover',()=>{
+      assert.equal(view[0].operationId,original.operationId);
+      assert.equal(view[0]._localIndex,undefined);
+      const html=another.doc.getElementById('log-lista').innerHTML;
+      assert(!html.includes('excluirLog(') && !html.includes('editarLog('));
+      assert(!html.includes('data-reversal-id='));
+      assert(html.includes('Evento remoto sem registro local'));
+    });
+    const merged=h.api.montarHistoricoVisual(h.api.getHistoricoLaudos().slice(0,10),events);
+    verify('merge por operationId preserva o índice local quando registro existe',()=>{
+      assert.equal(merged.length,1);
+      assert.equal(merged[0]._localIndex,0);
     });
   }
   {

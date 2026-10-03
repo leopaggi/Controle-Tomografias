@@ -114,6 +114,10 @@ e recebe `reversal` com ID `reversal:<operationId>` e status `pending` ou
 `confirmed`. O botão some após o pedido. Registros legados permanecem sem
 estorno automático; linhas vindas de outro PC exigem o comprovante e as
 contribuições locais correspondentes, ou a ação é bloqueada.
+Registros legados/manuais **locais** continuam com Editar e **Remover do
+histórico**. Essa remoção afeta apenas o histórico local: não corrige
+contagens, tempos, total diário nem eventos remotos. Eventos somente remotos
+não têm índice local para essas ações.
 
 Antes da alteração, todos os contadores, contribuições identificadas, posições
 e total diário são validados. O estado, histórico, fila e chave de total são

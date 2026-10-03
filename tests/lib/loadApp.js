@@ -40,7 +40,7 @@ return {
   montarSnapshotPreRestore, tomoSnapshotPreRestore, restaurarBackup, restaurarBackupAutomatico,
   // fluxo principal
   finalizarLaudo, alterarContador, togglePagamentoUnificado,
-  adicionarAoLog, atualizarLog, tomoRenderizarHistorico, tomoAtualizarHistoricoCrossPC,
+  adicionarAoLog, atualizarLog, excluirLog, tomoRenderizarHistorico, tomoAtualizarHistoricoCrossPC,
   editarLog, getStatsByService, atualizarGraficos, criarBackupAutomatico,
   tomoCriarEffectsSnapshot, tomoProtegerComprovante, tomoAdicionarContribuicaoTempo, tomoLocalizarContribuicaoTempo,
   estornarLaudo, tomoPrepararEstornoLocal, tomoAplicarEstornoAtomico, tomoReversalId,

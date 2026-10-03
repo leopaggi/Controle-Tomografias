@@ -128,3 +128,17 @@ marcador, mas não ajusta automaticamente seu tempo/total local anterior;
 linhas sem amostra/total correspondentes neste dispositivo são bloqueadas.
 Por isso estes casos exigem revisão, não suposições. Sem operações reais,
 stage, commit, push ou publicação nesta etapa; aguardar revisão dos testes.
+
+## 03/10/2026 — Ações dos Últimos 10 Laudos
+
+Após publicar o estorno, registros antigos locais passaram a mostrar apenas
+“—”: o botão novo substituiu a condição anterior que mostrava Editar/Excluir
+sempre que o registro tinha `_localIndex`. A coluna foi corrigida para
+preservar **Editar/Remover do histórico** em registros legados e manuais
+locais. A confirmação e o aviso esclarecem que remover do histórico **não**
+desfaz contador, tempo, total diário nem dados remotos. Laudos novos com
+comprovante/efeitos locais válidos continuam com **Estornar laudo**;
+`pending`/`confirmed` mostram seu status, sem novo botão. Eventos somente
+remotos não recebem ação local porque não têm `_localIndex`. Testes de
+regressão verificam também que a remoção visual não altera produção.
+Correção apenas local para revisão, sem stage, commit ou publicação.

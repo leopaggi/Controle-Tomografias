@@ -1041,11 +1041,29 @@
                 const remoto = item.origem && item.origem !== 'local' && item.origem !== tomoDeviceId();
                 const origemHtml = remoto ? ` <span class="segmentos-tag" style="background:var(--tag-bg-2);">🖥️ outro PC</span>` : '';
                 const statusEstorno = item.reversal && item.reversal.status;
-                const compativel = tomoComprovanteValido(item);
+                const local = (typeof item._localIndex === 'number') ? historicoLaudos[item._localIndex] : null;
+                const s = local && local.effectsSnapshot;
+                const totalRaw = s && idbLocalStorage.getItem(`totalAcumulado_${s.data}`);
+                const mapa = s && dadosApp.timeContributions && dadosApp.timeContributions[s.data];
+                const compativel = local && local.operationId === item.operationId
+                    && tomoComprovanteValido(local) && tomoComprovanteValido(item)
+                    && ((s.totalDailyDeltaSeconds === 0 && totalRaw === null)
+                        || (totalRaw !== null && Number.isSafeInteger(Number(totalRaw)) && Number(totalRaw) >= s.totalDailyDeltaSeconds))
+                    && s.segmentos.every(e => {
+                        const c = mapa && mapa[e.timeContributionId];
+                        const qtd = dadosApp.exames[s.data]?.[e.segmentoId]?.[s.empresaId];
+                        return c && c.operationId === s.operationId && c.empresaId === s.empresaId
+                            && c.segmentoId === e.segmentoId && c.timeSeconds === e.timeSeconds
+                            && Number.isInteger(qtd) && qtd >= e.counterDelta
+                            && (e.timeSeconds === 0 ? c.sampleIndex === null
+                                : !!tomoLocalizarContribuicaoTempo(dadosApp, s.data, e.timeContributionId));
+                    });
                 const acoesHtml = statusEstorno === 'confirmed' ? '<strong>ESTORNADO</strong>'
                     : statusEstorno === 'pending' ? '<strong>⏳ Estorno pendente</strong>'
                     : compativel ? `<button class="btn-delete-small" title="Estornar laudo (contagem, tempo e total diário)" data-reversal-id="${encodeURIComponent(item.id).replace(/'/g, '%27')}">↩️ Estornar laudo</button>`
-                    : `<span title="Este registro é anterior ao comprovante técnico e não pode ser estornado automaticamente.">—</span>`;
+                    : local && !local.effectsSnapshot && local.effectsVersion === undefined
+                        ? `<button class="btn-edit-small" onclick="editarLog(${item._localIndex})">✏️</button><button class="btn-delete-small" title="Remover do histórico: não altera contagem, tempos, total diário nem dados remotos." onclick="excluirLog(${item._localIndex})">🗑️ Remover do histórico</button>`
+                        : `<span title="${local ? 'Comprovante técnico inválido ou efeitos locais indisponíveis para estorno.' : 'Evento remoto sem registro local editável ou efeitos locais para estorno.'}">—</span>`;
                 html += `<tr><td class="log-data">${item.dataFormatada || formatarData(item.data)}</td><td class="log-horario">${item.horario || '-'}</td><td><span class="empresa-tag" style="background:${corEmpresa}">${item.empresa}</span></td><td>${segmentosHtml}${origemHtml}</td><td><strong>${item.tempoFormatado || formatTimeShort(item.tempo || 0)}</strong></td><td><span class="${tipoClass}">${tipoLabel}</span></td><td><div class="log-actions">${acoesHtml}</div></td></tr>`;
             });
             html += `</tbody></table>`;
@@ -1091,8 +1109,8 @@
         async function excluirLog(index) {
             if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (index < 0 || index >= historicoLaudos.length) return;
-            if (historicoLaudos[index].effectsSnapshot) { showNotification('Este laudo deve ser estornado, não excluído do histórico.', 'error'); return; }
-            if (!confirm(`Excluir este registro?\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
+            if (historicoLaudos[index].effectsSnapshot || historicoLaudos[index].effectsVersion !== undefined) { showNotification('Este laudo deve ser estornado, não excluído do histórico.', 'error'); return; }
+            if (!confirm(`Remover este registro APENAS do histórico?\nIsso NÃO altera contagem, tempos, total diário nem dados remotos.\n\nEmpresa: ${historicoLaudos[index].empresa}\nSegmentos: ${historicoLaudos[index].segmentos.join(', ')}\nData: ${historicoLaudos[index].dataFormatada}`)) return;
             historicoLaudos.splice(index, 1);
             try {
                 await idbLocalStorage.setItemAsync('historicoLaudos', JSON.stringify(historicoLaudos));
@@ -1103,7 +1121,7 @@
                 return;
             }
             atualizarLog();
-            showNotification('🗑️ Registro excluído!', 'warning');
+            showNotification('🗑️ Removido apenas do histórico; contagem, tempos, total diário e dados remotos não foram alterados.', 'warning');
         }
         async function estornarLaudo(operationId){
             // Uma única transação de estorno local por vez; pedidos distintos
