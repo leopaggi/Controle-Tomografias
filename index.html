@@ -2146,7 +2146,13 @@
                                             Object.assign(dadosNuvem.exames, dadosMes.exames || {});
                                             Object.assign(dadosNuvem.tempos, dadosMes.tempos || {});
                                             tomoCopiarIdentidadesTempo(dadosNuvem, dadosMes, Object.keys(dadosMes.tempos || {}));
-                                            if (dadosMes.pagamentos) Object.assign(dadosNuvem.pagamentos, dadosMes.pagamentos);
+                                            // dadosMes.pagamentos é uma cópia GLOBAL legada (todos os
+                                            // meses, não só este). Fazer Object.assign do objeto inteiro
+                                            // tornaria o resultado dependente da ORDEM de `meses` (o doc
+                                            // processado por último "ganha" para toda e qualquer chave).
+                                            // Em vez disso, cada doc só é fonte do seu PRÓPRIO mês —
+                                            // determinístico, independente da ordem de iteração.
+                                            if (dadosMes.pagamentos && dadosMes.pagamentos[mes]) dadosNuvem.pagamentos[mes] = dadosMes.pagamentos[mes];
                                             totalDiasNuvem += Object.keys(dadosMes.exames || {}).length;
                                         }
                                     } catch(e) { mesesComFalhaLeitura++; console.log(`⚠️ Erro mês ${mes}:`, e.message); }
@@ -2278,6 +2284,16 @@
         }
         if (typeof window !== 'undefined' && window.addEventListener) {
             window.addEventListener('online', () => tomoProcessarFila());
+        }
+        // Troca de aba/fechamento não deve deixar uma operação já
+        // enfileirada esperando o próximo tick de 20s: tenta esvaziar a
+        // fila assim que a aba fica oculta. Best-effort — a fila já
+        // persiste em IndexedDB antes disso, então nada se perde se este
+        // processamento não terminar a tempo.
+        if (typeof document !== 'undefined' && document.addEventListener) {
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') tomoProcessarFila();
+            });
         }
 
         function repararDados() {
@@ -2682,24 +2698,47 @@
         
         async function togglePagamentoUnificado(empresaId, mesAno) {
             if (tomoBloquearEdicaoDuranteEstorno()) return;
+            await tomoEnsureStorage();
+            if (tomoBloquearEdicaoDuranteEstorno()) return;
             if (!dadosApp.pagamentos[mesAno]) dadosApp.pagamentos[mesAno] = {};
             const novoValor = !dadosApp.pagamentos[mesAno][empresaId];
             dadosApp.pagamentos[mesAno][empresaId] = novoValor;
-            marcarTudoSujo(); // legado: pagamentos duplicados em cada doc de mes
+            marcarMesSujo(mesAno); // legado: pagamentos duplicados no doc do mês (só o mês afetado, não todo o histórico)
             dadosSujos = true;
-            // Autoritativo/novo: controles_pagamentos/{mesAno}, por serviço,
-            // sem depender de reescrever o documento mensal inteiro.
-            await tomoEnfileirar({ operationId: tomoNovoOperationId(), tipo: 'pagamento', mesAno, servicoId: empresaId, pago: novoValor });
-            await tomoProcessarFila();
-            try {
-                const resPag = await salvarDadosFirebase();
-                if (!resPag.localOk) showNotification("❌ Falha ao salvar localmente.", "error");
-                else if (!resPag.cloudOk && !resPag.offline) showNotification("⚠️ Pagamento salvo localmente; nuvem com falha. Sincronize depois.", "warning");
-            } catch(e) {
-                console.error('❌ Falha ao salvar pagamento:', e);
-                showNotification("❌ Falha ao salvar localmente.", "error");
-            }
+
+            // Persistência local ANTES de qualquer round-trip remoto: o
+            // clique sobrevive a troca de aba/fechamento mesmo que a fila ou
+            // a nuvem nem tenham começado a processar.
+            let localOk = true;
+            try { await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp)); }
+            catch(e) { localOk = false; console.error('❌ Falha ao persistir pagamento localmente:', e && e.message); }
+
+            // Se o save local falhou, não fingimos sucesso: o estado em
+            // memória fica correto (uma nova tentativa/auto-save reconcilia
+            // depois), mas a UI não é repintada como confirmada e nada é
+            // enviado à nuvem a partir de um estado que nem localmente está
+            // seguro ainda.
+            if (!localOk) { showNotification("❌ Falha ao salvar localmente.", "error"); return; }
+
+            // UI otimista: selo pago/pendente e totais refletem a mudança
+            // aqui — não esperamos fila/Firestore para o usuário ver o
+            // resultado.
             gerarRelatorioMensal();
+
+            // Autoritativo/novo: controles_pagamentos/{mesAno}, por serviço,
+            // sem depender de reescrever o documento mensal inteiro. Roda em
+            // segundo plano: a operação já está enfileirada (persistida em
+            // IndexedDB) antes deste ponto, então nada se perde se a aba for
+            // fechada agora — a fila retoma no próximo load/tick/reconexão.
+            await tomoEnfileirar({ operationId: tomoNovoOperationId(), tipo: 'pagamento', mesAno, servicoId: empresaId, pago: novoValor });
+            try {
+                await tomoProcessarFila();
+                const resPag = await salvarDadosFirebase();
+                if (!resPag.cloudOk && !resPag.offline) showNotification("⚠️ Pagamento salvo localmente; nuvem com falha. Sincronize depois.", "warning");
+            } catch(e) {
+                console.error('❌ Falha ao sincronizar pagamento com a nuvem:', e);
+                showNotification("⚠️ Pagamento salvo localmente; nuvem com falha. Sincronize depois.", "warning");
+            }
         }
 
         function downloadRelatorioExcel() {
