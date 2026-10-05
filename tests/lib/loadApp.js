@@ -30,6 +30,7 @@ return {
   tomoIncrementValue, tomoNovoOperationId, tomoDeviceId,
   // fila offline
   tomoEnfileirar, tomoProcessarFila, tomoStatusFila, tomoCarregarFila, tomoPersistirFila,
+  tomoTemPendenciasSync, tomoBackoffMs, tomoDiagnosticoFila, tomoAtualizarBadgeFila, tomoAplicarAvisoPendente, tomoReconciliarMensalComDias, tomoAgendarRetryFila, tomoBeforeUnloadHandler,
   // sincronização legada (mutex + resultado estruturado)
   tomoExecutarEscritasFirestore, tomoClassificarLeitura,
   salvarDadosFirebase, salvarDadosFirebaseSilencioso, carregarDados,

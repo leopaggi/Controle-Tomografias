@@ -21,6 +21,7 @@ const suites = [
   './test-finalizacao-responsiva',
   './test-comprovante-efeitos',
   './test-estorno-laudo',
+  './test-fila-multipc-outbox',
 ];
 
 const results = [];

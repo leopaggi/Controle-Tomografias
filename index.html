@@ -828,9 +828,48 @@
             }); 
         }
 
+        function tomoTemPendenciasSync(){
+            try { return Array.isArray(_tomoFila) && _tomoFila.some(op => op && op.status !== 'concluido'); }
+            catch(e) { return false; }
+        }
+        // Última sincronização TOTAL confirmada (fila vazia + nuvem ok) e
+        // última tentativa de processar a fila. Sem PII — só timestamps e
+        // contadores, para diagnóstico no console/UI.
+        let _tomoUltimaSyncConfirmada = 0;
+        let _tomoUltimaTentativaFila = 0;
+        function tomoDiagnosticoFila(){
+            const st = tomoStatusFila();
+            let ultimoErro = null, ultimaTentativaOp = 0;
+            try {
+                _tomoFila.forEach(op => {
+                    if (op && op.ultimaTentativaEm && op.ultimaTentativaEm > ultimaTentativaOp) ultimaTentativaOp = op.ultimaTentativaEm;
+                    if (op && op.status !== 'concluido' && op.ultimoErro) ultimoErro = op.ultimoErro;
+                });
+            } catch(e) {}
+            return {
+                tamanho: st.total, pendentes: st.pendentes, comErro: st.comErro,
+                ultimoErro: ultimoErro, ultimaTentativa: _tomoUltimaTentativaFila || ultimaTentativaOp || null,
+                ultimaSyncConfirmada: _tomoUltimaSyncConfirmada || null
+            };
+        }
+        if (typeof window !== 'undefined') window.tomoDiagnosticoFila = tomoDiagnosticoFila;
+
         function atualizarStatus(mensagem, tipo) {
             const statusEl = document.getElementById('sync-status');
             if (!statusEl) return;
+            // NUNCA mascarar fila pendente com sucesso total: o save mensal
+            // legado pode ter ido bem enquanto operações autoritativas ainda
+            // aguardam envio neste dispositivo (ex.: Firestore bloqueado por
+            // adblock — ERR_BLOCKED_BY_CLIENT). Enquanto houver pendência,
+            // qualquer "✅ Salvo na nuvem" / "✅ Sincronizado" vira aviso
+            // explícito com a contagem real.
+            try {
+                if (tipo === 'success' && typeof tomoTemPendenciasSync === 'function' && tomoTemPendenciasSync()) {
+                    const st = tomoStatusFila();
+                    mensagem = `⚠️ ${st.total} operação(ões) aguardando sincronização neste dispositivo`;
+                    tipo = 'warning';
+                }
+            } catch(e) {}
             statusEl.textContent = mensagem;
             statusEl.className = 'sync-status';
             if (tipo === 'success') statusEl.classList.add('sync-success');
@@ -1352,6 +1391,49 @@
             return tomoSerieSave(() => _salvarDadosFirebaseExec(forcarTudo));
         }
 
+        // Reconciliação anti-stale do save mensal legado: antes de fazer
+        // .set() do mês inteiro com o estado LOCAL, relê controles_dias
+        // (fonte autoritativa multi-PC) e aplica os dias autoritativos por
+        // cima do que seria gravado. Sem isso, um PC com estado antigo
+        // apagaria contagens recentes de outro PC ao salvar o mensal.
+        // Best-effort: se a leitura falhar/offline, mantém o local.
+        async function tomoReconciliarMensalComDias(dbLike, dadosPorMes){
+            if (!dbLike || !dbLike.collection) return dadosPorMes;
+            try {
+                const diasSnap = await dbLike.collection('controles_dias').get();
+                const diasDocs = {};
+                diasSnap.forEach(doc => { diasDocs[doc.id] = tomoExtrairExamesDocDiario(doc.data()); });
+                // Deep-copy por dia/segmento: o overlay autoritativo abaixo
+                // NÃO pode mutar os objetos vivos de dadosApp (dadosPorMes
+                // guarda as MESMAS referências). Só o mapa de escrita é
+                // ajustado — a memória local (inclui ops ainda na fila)
+                // permanece intacta.
+                const reconciliado = {};
+                Object.keys(dadosPorMes || {}).forEach(mes => {
+                    reconciliado[mes] = {};
+                    Object.keys(dadosPorMes[mes] || {}).forEach(dia => {
+                        reconciliado[mes][dia] = {};
+                        Object.keys(dadosPorMes[mes][dia] || {}).forEach(seg => {
+                            reconciliado[mes][dia][seg] = Object.assign({}, dadosPorMes[mes][dia][seg]);
+                        });
+                    });
+                });
+                Object.keys(diasDocs).forEach(dia => {
+                    const mes = dia.substring(0, 7);
+                    if (!reconciliado[mes]) return;
+                    if (!reconciliado[mes][dia]) reconciliado[mes][dia] = {};
+                    const diario = diasDocs[dia] || {};
+                    Object.keys(diario).forEach(seg => {
+                        if (!reconciliado[mes][dia][seg]) reconciliado[mes][dia][seg] = {};
+                        Object.keys(diario[seg] || {}).forEach(serv => {
+                            reconciliado[mes][dia][seg][serv] = diario[seg][serv];
+                        });
+                    });
+                });
+                return reconciliado;
+            } catch(e) { return dadosPorMes; }
+        }
+
         async function _salvarDadosFirebaseExec(forcarTudo = false) {
             const res = {
                 ok: false, localOk: false, cloudOk: false, partial: false,
@@ -1392,8 +1474,13 @@
                     ? todosMeses
                     : todosMeses.filter(m => mesesSujos.has(m));
 
+                // Anti-stale: reconstrói o que será gravado a partir do estado
+                // autoritativo (controles_dias por cima do local). Um PC com
+                //_snapshot antigo nunca apaga contagem nova de outro PC.
+                const dadosPorMesSeguro = await tomoReconciliarMensalComDias(db, dadosPorMes);
+
                 const montarDadosMes = (mes) => {
-                    const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
+                    const dadosMes = { exames: dadosPorMesSeguro[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
                     tomoCopiarIdentidadesTempo(dadosMes, dadosApp, Object.keys(dadosMes.tempos));
                     // Guarda contra save vazio: em vez de pular em silêncio, o
@@ -1499,10 +1586,13 @@
 
                 // Só escreve os meses marcados como sujos — não todos.
                 const mesesParaEscrever = [...mesesSujos].filter(m => dadosPorMes[m]);
+                // Anti-stale (mesma regra do save manual): mensal legado por
+                // cima do autoritativo nunca — o diário vence por campo.
+                const dadosPorMesSeguro = await tomoReconciliarMensalComDias(db, dadosPorMes);
 
                 for (const mes of mesesParaEscrever) {
                     const docId = `examesTomografia_${mes}`;
-                    const dadosMes = { exames: dadosPorMes[mes], tempos: {}, pagamentos: pagamentos };
+                    const dadosMes = { exames: dadosPorMesSeguro[mes], tempos: {}, pagamentos: pagamentos };
                     Object.keys(tempos).forEach(data => { if (data.startsWith(mes)) dadosMes.tempos[data] = tempos[data]; });
                     tomoCopiarIdentidadesTempo(dadosMes, dadosApp, Object.keys(dadosMes.tempos));
 
@@ -1531,6 +1621,8 @@
                 }
                 // Invariante: dadosSujos reflete pendência real de nuvem.
                 dadosSujos = (mesesSujos.size > 0) || _tomoPrincipalSujo;
+                // O mensal silencioso bem-sucedido NÃO mascara fila pendente.
+                try { if (tomoTemPendenciasSync()) tomoAplicarAvisoPendente(); } catch(e) {}
                 console.log('💾 Auto-save silencioso realizado (' + mesesParaEscrever.length + ' mês(es))');
                 return true;
             } catch(e) {
@@ -1894,16 +1986,35 @@
         // plano e o usuário clica "Sincronizar" logo em seguida) se JUNTAM
         // à mesma execução em andamento em vez de virar um no-op silencioso
         // — quem chamou espera o processamento real terminar.
-        async function tomoProcessarFila(){
+        // Backoff simples por operação com erro: evita martelar o
+        // Firestore quando ele está bloqueado (ex.: ERR_BLOCKED_BY_CLIENT)
+        // e ainda assim garante retry periódico. Nunca gera novo
+        // operationId — o retry reaproveita o mesmo ID (idempotente via
+        // ledger em controles_operacoes). Núcleo puro/testável.
+        function tomoBackoffMs(tentativas){
+            const t = Math.max(0, Number(tentativas) || 0);
+            const exp = Math.min(t, 4);
+            return Math.min(15000 * Math.pow(2, exp), 5 * 60 * 1000);
+        }
+        async function tomoProcessarFila(opts){
             if (_tomoEstornoCommitPromise) await _tomoEstornoCommitPromise;
             if (_tomoProcessandoFilaPromise) return _tomoProcessandoFilaPromise;
+            // Backoff só é respeitado no tick automático periódico
+            // ({respeitarBackoff:true}): evita martelar o Firestore bloqueado
+            // a cada 20s. Retries explícitos (Sincronizar, online, focus,
+            // após nova operação, testes) SEMPRE tentam de novo — por isso
+            // erro nunca significa "não tente mais", com o MESMO operationId.
+            const respeitarBackoff = !!(opts && opts.respeitarBackoff);
             _tomoProcessandoFilaPromise = (async () => {
                 try {
                     await tomoCarregarFila();
-                    if (!db) return;
+                    _tomoUltimaTentativaFila = Date.now();
+                    if (!db) { tomoAtualizarBadgeFila(); return; }
                     let mudou = false;
                     for (const op of _tomoFila.slice()) {
                         if (op.status === 'concluido') continue;
+                        // Respeita backoff de erro anterior sem descartar a op.
+                        if (respeitarBackoff && op.status === 'erro' && op.proximaTentativa && Date.now() < op.proximaTentativa) continue;
                         let res;
                         if (op.tipo === 'contador') res = await tomoAplicarIncrementoAtomico(db, op.operationId, op.data, op.seg, op.serv, op.delta);
                         else if (op.tipo === 'pagamento') res = await tomoAplicarPagamento(db, op.operationId, op.mesAno, op.servicoId, op.pago);
@@ -1926,14 +2037,26 @@
                             op.tentativas = (op.tentativas || 0) + 1;
                             op.status = res.offline ? 'pendente' : 'erro';
                             op.ultimoErro = res.error;
+                            op.ultimaTentativaEm = Date.now();
+                            // Erro NÃO é descarte: agenda próxima tentativa com
+                            // backoff, mantendo o MESMO operationId.
+                            if (!res.offline) op.proximaTentativa = Date.now() + tomoBackoffMs(op.tentativas);
+                            else delete op.proximaTentativa;
                             mudou = true;
                             if (res.offline) break;
                         }
                     }
                     _tomoFila = _tomoFila.filter(o => o.status !== 'concluido');
                     if (mudou) await tomoPersistirFila();
+                    // Fila zerada = sincronização total confirmada neste
+                    // dispositivo (marca temporal p/ diagnóstico).
+                    if (_tomoFila.length === 0) _tomoUltimaSyncConfirmada = Date.now();
                 } finally {
                     tomoAtualizarBadgeFila();
+                    // O status global nunca pode ficar "sincronizado" com fila
+                    // pendente — reaplica o aviso mesmo que um save mensal
+                    // tenha acabado de dizer o contrário.
+                    try { if (tomoTemPendenciasSync()) tomoAplicarAvisoPendente(); } catch(e) {}
                 }
             })();
             try {
@@ -1942,14 +2065,25 @@
                 _tomoProcessandoFilaPromise = null;
             }
         }
+        function tomoAplicarAvisoPendente(){
+            const st = tomoStatusFila();
+            if (st.total === 0) return;
+            atualizarStatus(`⚠️ ${st.total} operação(ões) aguardando sincronização neste dispositivo`, 'warning');
+        }
         function tomoAtualizarBadgeFila(){
             const el = document.getElementById('fila-status');
-            if (!el) return;
+            // Sem elemento (ex.: testes em Node): nada a pintar, mas o
+            // estado da fila continua válido em memória/IndexedDB.
+            if (!el) { try { if (tomoTemPendenciasSync()) tomoAplicarAvisoPendente(); } catch(e) {} return; }
             const st = tomoStatusFila();
-            if (st.total === 0) { el.style.display = 'none'; el.textContent = ''; return; }
+            if (st.total === 0) { el.style.display = 'none'; el.textContent = ''; if (el.removeAttribute) el.removeAttribute('title'); return; }
             el.style.display = 'inline-block';
             el.className = 'sync-status ' + (st.comErro > 0 ? 'sync-error' : 'sync-warning');
-            el.textContent = `⏳ ${st.pendentes} operação(ões) pendente(s)` + (st.comErro > 0 ? ` · ⚠️ ${st.comErro} com erro` : '');
+            el.textContent = `⚠️ ${st.total} operação(ões) não sincronizada(s) neste dispositivo` + (st.comErro > 0 ? ` (${st.comErro} com erro)` : '');
+            try {
+                const diag = tomoDiagnosticoFila();
+                el.title = diag.ultimoErro ? `Último erro: ${diag.ultimoErro}` : 'Aguardando envio à nuvem';
+            } catch(e) {}
         }
 
         // ---- Migração manual e idempotente do legado mensal para os
@@ -2271,6 +2405,7 @@
                 // o histórico cross-PC recente sem bloquear a UI.
                 await tomoCarregarFila();
                 tomoAtualizarBadgeFila();
+                try { if (tomoTemPendenciasSync()) tomoAplicarAvisoPendente(); } catch(e) {}
                 tomoProcessarFila();
                 tomoAtualizarHistoricoCrossPC();
                 iniciarProcessamentoFila();
@@ -2280,10 +2415,20 @@
             }
         }
         function iniciarProcessamentoFila(){
-            setInterval(() => { tomoProcessarFila(); }, 20000);
+            // Tick periódico (20s): só processa se houver pendência real —
+            // sem fila, sem round-trip. Proteção contra execução paralela
+            // continua em _tomoProcessandoFilaPromise (chamadas concorrentes
+            // se juntam à execução em andamento).
+            setInterval(() => { try { if (tomoTemPendenciasSync()) tomoProcessarFila({ respeitarBackoff: true }); } catch(e) { tomoProcessarFila(); } }, 20000);
         }
+        // Reenvio oportunista: qualquer sinal de "rede voltou / usuário
+        // voltou" tenta esvaziar a fila. Todas as chamadas passam pelo
+        // mesmo mutex (_tomoProcessandoFilaPromise) — seguro disparar de
+        // vários gatilhos ao mesmo tempo.
+        function tomoAgendarRetryFila(){ try { tomoProcessarFila(); } catch(e) {} }
         if (typeof window !== 'undefined' && window.addEventListener) {
-            window.addEventListener('online', () => tomoProcessarFila());
+            window.addEventListener('online', tomoAgendarRetryFila);
+            window.addEventListener('focus', () => { try { if (tomoTemPendenciasSync()) tomoProcessarFila(); } catch(e) {} });
         }
         // Troca de aba/fechamento não deve deixar uma operação já
         // enfileirada esperando o próximo tick de 20s: tenta esvaziar a
@@ -2292,8 +2437,28 @@
         // processamento não terminar a tempo.
         if (typeof document !== 'undefined' && document.addEventListener) {
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'hidden') tomoProcessarFila();
+                // Ao VOLTAR para a aba (visible), a conexão pode ter voltado:
+                // tenta reenviar. Ao SAIR (hidden), best-effort final antes
+                // do descarte da página (a fila já persiste em IndexedDB).
+                if (document.visibilityState === 'visible') tomoAgendarRetryFila();
+                else if (document.visibilityState === 'hidden') tomoAgendarRetryFila();
             });
+        }
+        // Não deixa o usuário sair achando que está tudo na nuvem: se há
+        // operações ainda só neste dispositivo, o navegador pede confirmação.
+        // Com a fila vazia, navegação livre (sem interferência). Função
+        // nomeada/testável — o listener abaixo só a registra.
+        function tomoBeforeUnloadHandler(e){
+            let pendente = false;
+            try { pendente = tomoTemPendenciasSync(); } catch(err) { pendente = false; }
+            if (!pendente) return;
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            const aviso = 'Há operações ainda não sincronizadas neste dispositivo. Sair agora mantém os dados locais, mas eles ainda não chegaram à nuvem.';
+            if (e) e.returnValue = aviso;
+            return aviso;
+        }
+        if (typeof window !== 'undefined' && window.addEventListener) {
+            window.addEventListener('beforeunload', tomoBeforeUnloadHandler);
         }
 
         function repararDados() {
@@ -2458,6 +2623,13 @@
             dadosApp.exames[data][seg][serv] = novo;
             marcarMesSujo(data);
             dadosSujos = true;
+
+            // OUTBOX DURÁVEL: o estado local (contagem) é persistido ANTES de
+            // qualquer tentativa remota. Se a aba fechar entre o clique e o
+            // Firestore, o reload encontra a contagem local + a op na fila —
+            // nada depende do round-trip de rede para sobreviver.
+            try { await idbLocalStorage.setItemAsync('examesTomografia', JSON.stringify(dadosApp)); }
+            catch(e) { console.error('❌ Falha ao persistir contagem localmente:', e && e.message); showNotification("❌ Falha ao salvar localmente.", "error"); return; }
 
             // UI otimista: o estado local já está correto neste ponto —
             // não esperamos fila/Firestore para o usuário ver o número
@@ -3306,8 +3478,21 @@
             btn.disabled = true;
             btn.textContent = '⏳ Sincronizando...';
             try {
+                // Ordem honesta: (a) esvazia a fila autoritativa primeiro,
+                // (b) só então grava mensal/principal legado, (c) reprocessa
+                // para confirmar, (d) verifica se zerou. Se restar pendência,
+                // NUNCA finge sucesso total.
+                await tomoProcessarFila();
                 await salvarDadosFirebase(true);
                 await tomoProcessarFila();
+                tomoAtualizarBadgeFila();
+                try {
+                    if (tomoTemPendenciasSync()) {
+                        const st = tomoStatusFila();
+                        atualizarStatus(`⚠️ Dados locais preservados, mas ${st.total} operação(ões) ainda não chegaram à nuvem.`, 'warning');
+                        showNotification(`⚠️ Dados locais preservados, mas ${st.total} operação(ões) ainda não chegaram à nuvem.`, 'warning');
+                    }
+                } catch(e) {}
             } finally {
                 btn.dataset.sincronizando = '';
                 btn.disabled = false;
