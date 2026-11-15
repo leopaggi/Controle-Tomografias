@@ -46,8 +46,10 @@ async function run(check) {
     check('A2. estado local já está em IndexedDB (sobrevive a fechar a aba)',
       !!raw && JSON.parse(raw).exames[DAY].torax.hbj === 1);
     const st = h.api.tomoStatusFila();
-    check('A3. operação ficou na fila (não se perdeu, não fingiu sucesso)',
-      st.total === 1 && st.pendentes === 1, JSON.stringify(st));
+    // "+" novo enfileira 2 operações: o contador em si e o evento de laudo
+    // cross-PC (que alimenta o histórico "Últimos 10 Laudos" em outros PCs).
+    check('A3. operações ficaram na fila (não se perdeu, não fingiu sucesso)',
+      st.total === 2 && st.pendentes === 2, JSON.stringify(st));
     check('A4. há pendência de sync reconhecida', h.api.tomoTemPendenciasSync() === true);
   }
 
@@ -65,7 +67,7 @@ async function run(check) {
     await h2.api.tomoEnsureStorage();
     await h2.api.tomoCarregarFila();
     const fila2 = h2.api.getFilaInterna();
-    check('B1. reload mantém a operação na fila', fila2.length === 1, JSON.stringify(fila2.length));
+    check('B1. reload mantém as operações na fila', fila2.length === 2, JSON.stringify(fila2.length));
     check('B2. reload preserva o MESMO operationId (sem duplicar identidade)',
       fila2[0] && fila2[0].operationId === idAntes);
     check('B3. reload mantém o estado local da contagem',

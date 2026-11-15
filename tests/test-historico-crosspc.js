@@ -52,6 +52,30 @@ async function run(check){
     check('local+remoto com o mesmo operationId não duplica', combinado.length === 1);
     check('entrada mesclada preserva _localIndex (mantém botões editar/excluir)', combinado[0]._localIndex === 0);
   }
+
+  // Regressão: lançamento manual ("+") feito no PC do hospital precisa
+  // aparecer em "Últimos 10 Laudos" no PC de casa, não só o contador/total.
+  // Antes desta correção, alterarContador() nunca gravava o evento de
+  // laudo para o "+" — só o incremento do contador ia para a nuvem.
+  {
+    const db = makeFirestoreMock();
+    const hospital = loadApp(); hospital.api.setDb(db);
+    hospital.doc.getElementById('data-exame').value = '2026-11-08';
+    await hospital.api.alterarContador('articulacao', 'radcloud', 1);
+    await hospital.api.tomoProcessarFila();
+
+    const casa = loadApp(); casa.api.setDb(db);
+    const eventos = await casa.api.tomoBuscarLaudosCrossPC(db, 100);
+    const evento = eventos.find(e => e.empresa === 'RADCLOUD' && e.data === '2026-11-08');
+    check('manual "+" grava evento de laudo cross-PC (não só o contador)', !!evento, JSON.stringify(eventos));
+    check('evento cross-PC do "+" tem tipo manual e o segmento certo',
+      !!evento && evento.tipo === 'manual' && Array.isArray(evento.segmentos) && evento.segmentos.includes('ARTIC'));
+
+    const visivel = casa.api.montarHistoricoVisual([], eventos);
+    const item = visivel.find(i => i.empresa === 'RADCLOUD' && i.data === '2026-11-08');
+    check('PC de casa consegue montar a linha do histórico a partir do evento remoto',
+      !!item && item.segmentos.includes('ARTIC'));
+  }
 }
 
 module.exports = { run };

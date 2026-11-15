@@ -2428,7 +2428,10 @@
         function tomoAgendarRetryFila(){ try { tomoProcessarFila(); } catch(e) {} }
         if (typeof window !== 'undefined' && window.addEventListener) {
             window.addEventListener('online', tomoAgendarRetryFila);
-            window.addEventListener('focus', () => { try { if (tomoTemPendenciasSync()) tomoProcessarFila(); } catch(e) {} });
+            // Ao focar a aba (ex.: voltou do hospital e abriu o PC de casa),
+            // além de reenviar a fila local, busca de novo os laudos de
+            // outros PCs — sem isso, o histórico só se atualizava no F5.
+            window.addEventListener('focus', () => { try { if (tomoTemPendenciasSync()) tomoProcessarFila(); tomoAtualizarHistoricoCrossPC(); } catch(e) {} });
         }
         // Troca de aba/fechamento não deve deixar uma operação já
         // enfileirada esperando o próximo tick de 20s: tenta esvaziar a
@@ -2438,9 +2441,11 @@
         if (typeof document !== 'undefined' && document.addEventListener) {
             document.addEventListener('visibilitychange', () => {
                 // Ao VOLTAR para a aba (visible), a conexão pode ter voltado:
-                // tenta reenviar. Ao SAIR (hidden), best-effort final antes
-                // do descarte da página (a fila já persiste em IndexedDB).
-                if (document.visibilityState === 'visible') tomoAgendarRetryFila();
+                // tenta reenviar e busca laudos feitos em outro PC enquanto
+                // esta aba estava em segundo plano. Ao SAIR (hidden),
+                // best-effort final antes do descarte da página (a fila já
+                // persiste em IndexedDB).
+                if (document.visibilityState === 'visible') { tomoAgendarRetryFila(); tomoAtualizarHistoricoCrossPC(); }
                 else if (document.visibilityState === 'hidden') tomoAgendarRetryFila();
             });
         }
@@ -2638,15 +2643,28 @@
 
             // "+" manual gera comprovante reversível novo (só contagem, sem
             // tempo). O incremento usa o counterOperationId do snapshot, para
-            // o estorno validar o ledger original. Não cria evento de laudo
-            // cross-PC nesta etapa. "-" continua ajuste genérico sem vínculo.
+            // o estorno validar o ledger original. Também grava um evento de
+            // laudo cross-PC (igual ao do cronômetro, mas tempo 0), para que
+            // o lançamento manual feito num PC apareça em "Últimos 10 Laudos"
+            // nos outros PCs — antes só o contador sincronizava, e a entrada
+            // do histórico ficava presa ao PC de origem. "-" continua ajuste
+            // genérico sem vínculo.
             if (delta > 0 && deltaEfetivo !== 0 && novo > 0) {
                 const manualOpId = tomoNovoOperationId();
                 const snapshotManual = tomoCriarEffectsSnapshotManual(manualOpId, data, serv, seg);
                 await tomoEnfileirar({ operationId: snapshotManual.segmentos[0].counterOperationId, tipo: 'contador', data, seg, serv, delta: deltaEfetivo });
-                await tomoProcessarFila();
                 const empresaNome = servicos.find(s => s.id === serv)?.nome || serv;
                 const segmentoNome = valoresSegmentos[seg]?.nome || seg;
+                const agora = new Date();
+                const evento = Object.freeze({
+                    data, empresa: empresaNome, segmentos: [segmentoNome],
+                    tempo: 0, tempoFormatado: formatTimeShort(0), tipo: 'manual',
+                    horario: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: agora.getTime(), origem: tomoDeviceId(), operationId: manualOpId,
+                    effectsVersion: TOMO_EFFECTS_VERSION, effectsSnapshot: snapshotManual
+                });
+                await tomoEnfileirar({ operationId: manualOpId, tipo: 'laudo', data, evento });
+                await tomoProcessarFila();
                 const logOk = await adicionarAoLog(empresaNome, [segmentoNome], 0, 'manual', data, manualOpId, snapshotManual);
                 if (!logOk) showNotification("❌ Falha ao salvar log localmente.", "error");
             } else if (deltaEfetivo !== 0) {

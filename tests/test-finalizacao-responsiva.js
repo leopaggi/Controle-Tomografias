@@ -345,7 +345,9 @@ async function run(check) {
   }
 
   // Regression df8f91e: +/- continuam mostrando UI antes de rede e aguardando
-  // incremento + save silencioso, inclusive sem criar evento de cronômetro.
+  // incremento + save silencioso. "+" novo também grava 1 evento de laudo
+  // cross-PC (tipo 'manual', nunca 'cronometro'); "-" continua ajuste
+  // genérico, sem evento.
   for (const delta of [1, -1]) {
     const h = setup({ segments: ['cranio'] });
     h.api.getDadosApp().exames['2026-10-02'] = { cranio: { hbj: 2 } };
@@ -359,13 +361,22 @@ async function run(check) {
       assert.equal(settled, false);
     });
     remote.gates.transaction.resolve();
+    if (delta > 0) {
+      await until(() => remote.calls.event);
+      verify('+ ' + delta + ': evento de laudo aguarda antes do save silencioso', () => assert.equal(settled, false));
+      remote.gates.event.resolve();
+    }
     await until(() => remote.calls.month);
     verify('+/- ' + delta + ': save silencioso permanece awaited', () => assert.equal(settled, false));
     remote.gates.month.resolve(); await p;
-    verify('+/- ' + delta + ': exatamente uma transação, sem evento de cronômetro', () => {
+    verify('+/- ' + delta + ': exatamente uma transação, evento de laudo só no "+"', () => {
       assert.equal(remote.calls.transaction, 1);
-      assert.equal(remote.calls.event, 0);
+      assert.equal(remote.calls.event, delta > 0 ? 1 : 0);
       assert.equal(h.api.tomoStatusFila().total, 0);
+      if (delta > 0) {
+        const entrada = h.api.getHistoricoLaudos()[0];
+        assert.equal(entrada.tipo, 'manual');
+      }
     });
   }
   return assertions;
